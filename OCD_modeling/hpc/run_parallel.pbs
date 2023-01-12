@@ -1,0 +1,41 @@
+#!/bin/bash
+
+##########################################################################
+#
+#  Script:    run_parallel.pbs
+#  Author:    Sebastien Naze
+#  Created:   2022-12
+#
+##########################################################################
+
+#PBS -N OCD_modeling
+#PBS -l ncpus=1,mem=4gb,walltime=00:05:00
+#PBS -m abe
+#PBS -M sebastien.naze@qimrberghofer.edu.au
+#PBS -o /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
+#PBS -e /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
+#
+# Launch parameter exploration on HPC
+#
+
+module load miniconda3/current
+
+#source activate /mnt/lustre/working/lab_lucac/lukeH/ljh-neuro
+source activate /mnt/lustre/working/lab_lucac/sebastiN/projects/OCDbaseline/envs/hpc
+
+proj_dir=/mnt/lustre/working/lab_lucac/sebastiN/projects/OCD_modeling/
+baseline_dir=/mnt/lustre/working/lab_lucac/sebastiN/projects/OCDbaseline/
+pp_dir=${proj_dir}postprocessing/
+
+# load specific subject from subject list
+#mapfile -t params < ${proj_dir}log/params.txt
+IDX=$((PBS_ARRAY_INDEX-1))  # double parenthesis needed for arithmetic operations
+#param=${params[$IDX]}
+batchID='20221221_paramSearch10D'
+mkdir -p ${proj_dir}log/${batchID}
+
+#echo "Parameters: " ${param}
+echo "UID: ${batchID}"
+
+echo 'Running model...'
+python ${proj_dir}code/OCD_modeling/hpc/launcher.py --params_idx $IDX --batch_id ${batchID} --save_scores

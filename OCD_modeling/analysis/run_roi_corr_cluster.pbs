@@ -1,0 +1,38 @@
+#!/bin/bash
+
+##########################################################################
+#
+#  Script:    run_roi_corr_cluster.pbs
+#  Author:    Sebastien Naze
+#  Created:   2022-02
+#
+##########################################################################
+
+#PBS -N run_roi_corr_cluster
+#PBS -l ncpus=4,mem=32gb,walltime=00:30:00
+#PBS -m abe
+#PBS -M sebastien.naze@qimrberghofer.edu.au
+#PBS -o /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
+#PBS -e /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
+#
+# Script to analyse experimental data to test hypothesis on modeling output
+#
+
+module load fsl/6.0.1
+module load miniconda3/current
+
+#source activate /mnt/lustre/working/lab_lucac/lukeH/ljh-neuro
+source activate /mnt/lustre/working/lab_lucac/sebastiN/projects/OCDbaseline/envs/hpc
+
+proj_dir=/mnt/lustre/working/lab_lucac/sebastiN/projects/OCD_modeling/
+baseline_dir=/mnt/lustre/working/lab_lucac/sebastiN/projects/OCDbaseline/
+pp_dir=${proj_dir}postprocessing/
+
+# load specific subject from subject list
+mapfile -t subj_array < ${baseline_dir}docs/code/subject_list_all.txt
+IDX=$((PBS_ARRAY_INDEX-1))  # double parenthesis needed for arithmetic operations
+subj=${subj_array[$IDX]}
+echo "Current subject: " ${subj}
+
+echo 'Running correlation between ROIs...'
+python ${proj_dir}code/analysis/fc_data_analysis.py --subj $subj --compute_roi_corr --brain_smoothing_fwhm 8

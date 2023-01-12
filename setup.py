@@ -2,7 +2,7 @@
 
 from setuptools import setup, find_packages
 
-setup(name='OCDmodeling',
+setup(name='OCD_modeling',
       version='0.1',
       description='Modeling OCD disruptions projects',
       author='Sebastien Naze',
