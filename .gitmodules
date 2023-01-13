@@ -1,0 +1,6 @@
+[submodule "OCD_modeling/models/HemodynamicResponseModeling"]
+	path = OCD_modeling/models/HemodynamicResponseModeling
+	url = git@github.com:ito-takuya/HemodynamicResponseModeling.git
+[submodule "OCD_modeling/utils/neurolib"]
+	path = OCD_modeling/utils/neurolib
+	url = git@github.com:neurolib-dev/neurolib.git
