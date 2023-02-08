@@ -6,6 +6,8 @@ import pickle
 import platform
 import scipy
 import scipy.stats
+import sklearn
+from sklearn import preprocessing
 
 from OCD_modeling.models.HemodynamicResponseModeling.BalloonWindkessel import balloonWindkessel
 from OCD_modeling.utils.neurolib.neurolib.models.bold.timeIntegration import simulateBOLD
@@ -91,7 +93,7 @@ class ReducedWongWangND:
     """ Reduced Wong Wang model (N-dimensional) """
     def __init__(self, a=270., b=108., d=0.154,
                  I_0=0.3, J_N=0.2609, w=0.9, G=1.,
-                 tau_S=100., gamma=0.000641, sigma=0.001, N=2, dt=0.001,
+                 tau_S=100., gamma=0.000641, sigma=0.001, N=2, dt=0.01,
                  C=None, S=None, x=None):
 
         # synaptic gating params
@@ -110,10 +112,10 @@ class ReducedWongWangND:
         self.G = G             # global scaling factor (n/a); default=1
 
         if S is None:
-            self.S = (np.random.rand(N,)-0.5)*4         # coupled population firing rates (Hz);
+            self.S = np.random.rand(N,)         # coupled population firing rates (Hz);
         else:
             self.S = np.array(S).squeeze().astype(float)
-        self.x = (np.random.rand(N,)-0.5)*4         # coupled population activity (Hz); default = uniformly distributed
+        self.x = np.random.rand(N,)         # coupled population activity (Hz); default = uniformly distributed
 
         # ODE params
         self.tau_S = tau_S      # kinetic parameter of local population (ms); default=100
@@ -164,7 +166,7 @@ class ReducedWongWangND:
         dS = (-self.S/self.tau_S + (1 - self.S) * (self.gamma * H) + self.sigma*v)
         self.S = self.S + dS*self.dt
 
-    def run(self, t_tot=100, sf=1000, t_rec=None):
+    def run(self, t_tot=1000, sf=100, t_rec=None):
         """ Run the model
                 t_tot:  total simu;ation time (s)
                 sf:     sampling frequency of the reccording (Hz)
@@ -174,19 +176,21 @@ class ReducedWongWangND:
         sf_dt = 1./(sf*self.dt)
 
         # fix sf if needed
-        if not sf_dt.is_integer():
+        if sf_dt.is_integer():
+            self.sf = sf
+        else:
+            # case of sf higher than dt permits
             if sf_dt<1:
                 sf_dt=1
+            # case of sf not multiple of dt
             else:
                 sf_dt = np.floor(sf_dt)
-            print("Sampling frequency not a multiple of dt, used sf={} instead".format(sf_dt/self.dt))
-        self.sf = sf_dt / self.dt
+            self.sf = 1. / self.dt / sf_dt
+            print("Sampling frequency not a multiple of dt, used sf={} instead".format(self.sf))
 
         if t_rec==None:
-            n_rec = n_ts
             t_rec = [0,t_tot]
-        else:
-            n_rec = int((t_rec[1]-t_rec[0])*self.sf)
+        n_rec = int((t_rec[1]-t_rec[0])*self.sf)  # number of steps recorded
         self.S_rec = np.zeros((n_rec,self.N))
         self.t = np.arange(t_rec[0],t_rec[1], 1./self.sf)
 
@@ -195,7 +199,7 @@ class ReducedWongWangND:
         for i in range(n_ts):
             self.integrate()
             # record
-            if ((not i%sf_dt) and ((i*self.dt)>=t_rec[0]) and ((i*self.dt)<=t_rec[1])):
+            if ((not i%sf_dt) & ((i*self.dt)>=t_rec[0]) & ((i*self.dt)<=t_rec[1])):
                 self.S_rec[rec_idx,:] = self.S.copy()
                 rec_idx += 1
 
@@ -212,23 +216,25 @@ def score_model(rww, coh='con'):
         R = pickle.load(f)
 
     # compute score
-    score = dict()
+    output = dict()
     fix_inds = [2,3,0,1] # NAcc Put OFC PFC -> OFC PFC NAcc Put
     fixed_inds = np.ix_(fix_inds,fix_inds)
-    triu_inds = np.triu_indices(ts.shape[1],k=1)
+    triu_inds = np.triu_indices(rww.N,k=1)
     corr = rww.bold_fc
-    score = scipy.stats.pearsonr(R[coh][fixed_inds][triu_inds].flatten(), corr[triu_inds].flatten())
-    return score
+    corrData, corrModel = R[coh][fixed_inds][triu_inds].flatten(), corr[triu_inds].flatten()
+    corr_diff = np.sum(np.abs(corrData - corrModel))
+    r,pval = scipy.stats.pearsonr(corrData, corrModel)
+    return r, corr_diff, corr
 
 def distance(x,y):
     """ distance to minimize based on score """
-    return 1-x['score']
+    return 1 - x['r'] + x['corr_diff']
 
 def get_inds(model, t_range=None):
     """ extract time series indices of interest beased on t_range (in sec) """
     if t_range==None:
         t_range=[model.t.min(), model.t.max()]
-    inds, = np.where((model.t>t_range[0]) & (model.t<t_range[1]))
+    inds, = np.where((model.t>=t_range[0]) & (model.t<=t_range[1]))
     return inds
 
 def plot_timeseries(rww, t_range=None):
@@ -246,8 +252,10 @@ def compute_bold(model, t_range=None):
     """ BOLD timeseries and functional connectivity between regions """
     inds = get_inds(model, t_range)
     #bold_ts, s, f, v, q = balloonWindkessel(model.S_rec[inds,:].T, 1./model.sf)
-    bold_ts, x, f, q, v = simulateBOLD(model.S_rec[inds,:].T + 2, 1./model.sf, voxelCounts=None)
-    model.bold_ts = bold_ts[:,int(model.sf)*10:] # discard first second due to transient
+    scaler = sklearn.preprocessing.MinMaxScaler()
+    ts = scaler.fit_transform(model.S_rec[inds,:])
+    bold_ts, x, f, q, v = simulateBOLD(ts.T, 1./model.sf, voxelCounts=None)
+    model.bold_ts = bold_ts[:,int(model.sf)*10:] # discard first 10 sec due to transient
     model.bold_fc = np.corrcoef(model.bold_ts)
 
 def plot_bold(model):
