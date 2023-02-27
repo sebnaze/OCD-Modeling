@@ -9,7 +9,7 @@
 ##########################################################################
 
 #PBS -N OCD_modeling
-#PBS -l ncpus=1,mem=4gb,walltime=00:05:00
+#PBS -l ncpus=1,mem=6gb,walltime=00:05:00
 #PBS -m abe
 #PBS -M sebastien.naze@qimrberghofer.edu.au
 #PBS -o /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
@@ -31,7 +31,7 @@ pp_dir=${proj_dir}postprocessing/
 #mapfile -t params < ${proj_dir}log/params.txt
 IDX=$((PBS_ARRAY_INDEX-1))  # double parenthesis needed for arithmetic operations
 #param=${params[$IDX]}
-batchID='20221221_paramSearch10D'
+batchID='20230120_paramSearch10D'
 mkdir -p ${proj_dir}log/${batchID}
 
 #echo "Parameters: " ${param}

@@ -43,10 +43,12 @@ def main(args):
                     [p['C_31'],0,0,p['C_34']], # to NAcc
                     [0,p['C_42'],p['C_43'],0]  # to Put
                 ])
-    rww = RWW.ReducedWongWang2D(dt=0.01, N=4, C=C, G=p['G'], sigma=p['sigma'])
+    rww = RWW.ReducedWongWangND(dt=0.01, N=4, C=C, G=p['G'], sigma=p['sigma'])
     print("Running model #{:08d}".format(args.params_idx))
-    rww.run(t_tot=5000, sf=100)
-    score = RWW.score_model(rww, t_range=[2000, 5000])
+    rww.run(t_tot=1000, sf=100, t_rec=[100,1000])
+    RWW.compute_bold(rww)
+    r, corr_diff, corr = RWW.score_model(rww)
+    score =  {'r': r, 'corr_diff':corr_diff, 'corr':corr}
 
     if args.save_scores:
         print("Saving score for model #{:08d}".format(args.params_idx))
@@ -56,7 +58,7 @@ def main(args):
             pickle.dump(score, f)
         with open(os.path.join(fpath, 'param.txt'), 'w') as f:
             f.write(json.dumps(p))
-    print("Done in {:.2f}.".format(time.time()-t0))
+    print("Done in {:.2f}s.".format(time.time()-t0))
 
 def parse_arguments():
   parser = argparse.ArgumentParser()
