@@ -39,8 +39,8 @@ def create_model(params, args):
     """ Create the Dynamical System in PyDSTool """
     icdict = {'S1': rng.uniform(),
             'S2': rng.uniform()}
-    S1eq = '-S1/tau_S + (1-S1)*gam*(a*(w*J_N*S1+G*J_N*C_12*S2+I_0)-b)/(1-exp(-d*(a*(w*J_N*S1+G*J_N*C_12*S2+I_0)-b)))'
-    S2eq = '-S2/tau_S + (1-S2)*gam*(a*(w*J_N*S2+G*J_N*C_21*S1+I_0)-b)/(1-exp(-d*(a*(w*J_N*S2+G*J_N*C_21*S1+I_0)-b)))'
+    S1eq = '-S1/tau_S + (1-S1)*gam*(a*(w*J_N*S1+G*J_N*C_12*S2+I_0-I_1)-b)/(1-exp(-d*(a*(w*J_N*S1+G*J_N*C_12*S2+I_0-I_1)-b)))'
+    S2eq = '-S2/tau_S + (1-S2)*gam*(a*(w*J_N*S2+G*J_N*C_21*S1+I_0+I_1)-b)/(1-exp(-d*(a*(w*J_N*S2+G*J_N*C_21*S1+I_0+I_1)-b)))'
 
     DSargs = dst.args(name='rww')  # struct-like data
     DSargs.pars = params
@@ -50,8 +50,8 @@ def create_model(params, args):
     DSargs.xdomain = {'S1': [-1, 1], 'S2': [-1, 1]}
     
     DSargs.fnspecs = {'Jacobian': (['t','S1','S2'],
-                                    """[[-J_N*a*d*gam*w*(1 - S1)*(a*(C_12*G*J_N*S2 + I_0 + J_N*S1*w) - b)*exp(-d*(a*(C_12*G*J_N*S2 + I_0 + J_N*S1*w) - b))/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 + J_N*S1*w) - b)))**2 + J_N*a*gam*w*(1 - S1)/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 + J_N*S1*w) - b))) - gam*(a*(C_12*G*J_N*S2 + I_0 + J_N*S1*w) - b)/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 + J_N*S1*w) - b))) - 1/tau_S, -C_12*G*J_N*a*d*gam*(1 - S1)*(a*(C_12*G*J_N*S2 + I_0 + J_N*S1*w) - b)*exp(-d*(a*(C_12*G*J_N*S2 + I_0 + J_N*S1*w) - b))/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 + J_N*S1*w) - b)))**2 + C_12*G*J_N*a*gam*(1 - S1)/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 + J_N*S1*w) - b)))],
-                                        [-C_21*G*J_N*a*d*gam*(1 - S2)*(a*(C_21*G*J_N*S1 + I_0 + J_N*S2*w) - b)*exp(-d*(a*(C_21*G*J_N*S1 + I_0 + J_N*S2*w) - b))/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + J_N*S2*w) - b)))**2 + C_21*G*J_N*a*gam*(1 - S2)/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + J_N*S2*w) - b))), -J_N*a*d*gam*w*(1 - S2)*(a*(C_21*G*J_N*S1 + I_0 + J_N*S2*w) - b)*exp(-d*(a*(C_21*G*J_N*S1 + I_0 + J_N*S2*w) - b))/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + J_N*S2*w) - b)))**2 + J_N*a*gam*w*(1 - S2)/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + J_N*S2*w) - b))) - gam*(a*(C_21*G*J_N*S1 + I_0 + J_N*S2*w) - b)/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + J_N*S2*w) - b))) - 1/tau_S]]""")}
+                                    """[[-J_N*a*d*gam*w*(1 - S1)*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b)*exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b))/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b)))**2 + J_N*a*gam*w*(1 - S1)/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b))) - gam*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b)/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b))) - 1/tau_S, -C_12*G*J_N*a*d*gam*(1 - S1)*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b)*exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b))/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b)))**2 + C_12*G*J_N*a*gam*(1 - S1)/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b)))],
+                                        [-C_21*G*J_N*a*d*gam*(1 - S2)*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b)*exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b))/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b)))**2 + C_21*G*J_N*a*gam*(1 - S2)/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b))), -J_N*a*d*gam*w*(1 - S2)*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b)*exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b))/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b)))**2 + J_N*a*gam*w*(1 - S2)/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b))) - gam*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b)/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b))) - 1/tau_S]]""")}
 
     DSargs.ics = icdict
     rww = dst.Vode_ODEsystem(DSargs)
@@ -94,7 +94,7 @@ def compute_equilibrium_point_curve(cont, fps, free_params):
         PCargs.freepars = free_params
         PCargs.StepSize = 1e-5
         PCargs.MaxNumPoints = 1000000
-        PCargs.MaxStepSize = 1e-3
+        PCargs.MaxStepSize = 1e-4
         PCargs.LocBifPoints = 'all'
         PCargs.StopAtPoints = 'B'
         PCargs.SaveEigen = True
@@ -109,7 +109,7 @@ def compute_equilibrium_point_curve(cont, fps, free_params):
 
 
 
-def stability_analysis(order_params, default_params, out_queue, args, pdomain={'I_0':[-0.5, 1]}):
+def stability_analysis(order_params, default_params, out_queue, args, pdomain={'C_21':[-1, 1]}):
     """ Create model and analyse dynamics using PyDSTool """
     for k,v in order_params.items(): 
         default_params[k] = v
@@ -135,7 +135,6 @@ def stability_analysis(order_params, default_params, out_queue, args, pdomain={'
 def launch_stability_analysis(order_params, default_params, out_queue, args):
     """ Ghost process that launches the stability analysis for a set of defined order parameter,
         creating a child process with a set timeout per child process """
-
     proc = multiprocessing.Process(target=stability_analysis, args=(order_params, default_params, out_queue, args))
     proc.start()
     # wait for the process until timeout
@@ -225,8 +224,8 @@ def plot_bifurcation_grid(outputs, order_params, args=None):
         if 'output' in output.keys():
             cont = dill.loads(output['output']['dilled_cont'])
             try:
-                cont.display(axes=ax, coords=['I_0', 'S2'], stability=True, color='blue')
-                cont.display(axes=ax, coords=['I_0', 'S1'], stability=True, color='orange')
+                cont.display(axes=ax, coords=['C_21', 'S2'], stability=True, color='blue')
+                cont.display(axes=ax, coords=['C_21', 'S1'], stability=True, color='orange')
             except:
                 plt.xlabel("")
                 plt.xticks([])
@@ -243,7 +242,7 @@ def plot_bifurcation_grid(outputs, order_params, args=None):
             if j > 0:
                 plt.ylabel("")
                 plt.yticks([])
-            plt.xlim([-0.5,1])
+            plt.xlim([-1,1])
             plt.ylim([0,1])
         else:
             plt.xlabel("")
@@ -253,6 +252,43 @@ def plot_bifurcation_grid(outputs, order_params, args=None):
             plt.title("{}={:.3f}  {}={:.3f}".format(o_pars[0], p1s[i], o_pars[1], p2s[j]))
     plt.show(block=False)
 
+def plot_bifurcation_row(outputs, order_params, args=None):
+    """ Plot a row of bifurcation diagrams (ie. a 1 by n grid) """
+    plt.rcParams.update({'font.size':6, 'axes.titlesize':'medium'})
+    fig = plt.figure(figsize=[20,5])
+    p1s = list(order_params.values())[0]
+    gs = plt.GridSpec(nrows=1, ncols=len(p1s))
+    for output in outputs: 
+        o_par = list(order_params.keys())[0]
+        i = [x for x,val in enumerate(order_params[o_par]) if val==output[o_par]][0]
+        ax = fig.add_subplot(gs[0,i])
+        if 'output' in output.keys():
+            cont = dill.loads(output['output']['dilled_cont'])
+            try:
+                cont.display(axes=ax, coords=['C_21', 'S2'], stability=True, color='blue')
+                cont.display(axes=ax, coords=['C_21', 'S1'], stability=True, color='orange')
+            except:
+                plt.xlabel("")
+                plt.xticks([])
+                plt.ylabel("")
+                plt.yticks([])
+                plt.title("{}={:.3f}".format(o_par, p1s[i]))
+                continue
+            plt.sca(ax)
+            plt.axis('tight')
+            plt.title("{}={:.3f}".format(o_par, p1s[i]))
+            if i > 0:
+                plt.ylabel("")
+                plt.yticks([])
+            plt.xlim([-1,1])
+            plt.ylim([0,1])
+        else:
+            plt.xlabel("")
+            plt.xticks([])
+            plt.ylabel("")
+            plt.yticks([])
+            plt.title("{}={:.3f}".format(o_par, p1s[i]))
+    plt.show(block=False)
 
 
 
@@ -275,16 +311,21 @@ def parse_args():
 
 if __name__=='__main__':
     args = parse_args()
-    default_params = {'a':270, 'b': 108, 'd': 0.154, 'G':2.5, 'J_N':0.2609, 'I_0':0.3, 'tau_S':100, 'w':0.9, 'gam':0.000641}
-    order_params = {'C_12': np.linspace(-1,1,args.n_op), 'C_21': np.linspace(-1,1,args.n_op)}
+    default_params = {'a':270, 'b': 108, 'd': 0.154, 'C_21': 0, 'G':2.5, 'J_N':0.2609, 'I_0':0.3, 'I_1':0.0, 'tau_S':100, 'w':0.9, 'gam':0.000641}
+    order_params = {'C_12': np.linspace(-1,1,args.n_op), 'I_0': np.linspace(0.2,0.5,args.n_op)} #, 'C_21': np.linspace(-1,1,args.n_op)}
     if args.run_stability_analysis:
         outputs, futures = run_stability_analysis(order_params, default_params, args)
         if args.save_outputs:
             today = datetime.datetime.now().strftime("%Y%m%d")
-            fname = 'outputs_dst_'+today+'.pkl'
+            fname = 'outputs_dst_'+today+'_C_12_I_0.pkl'
             with open(os.path.join(proj_dir, 'postprocessing', fname), 'wb') as f:
                 pickle.dump(outputs, f)
         if args.plot_figs:
             #plot_phasespace_grid(outputs, order_params)
-            plot_bifurcation_grid(outputs, order_params, args)
+            if len(order_params.keys())==1:
+                plot_bifurcation_row(outputs, order_params, args)
+            elif len(order_params.keys())==2:
+                plot_bifurcation_grid(outputs, order_params, args)
+            else:
+                print("can't plot for the number of order parameters")
             
