@@ -129,6 +129,8 @@ class ReducedWongWangND:
             self.C = np.random.randn(N,N) * (1-np.eye(N,N))  # connectivity matrix (n/a); default= 0 self, 1 to others
         else:
             self.C = C
+        
+        self.control_params = {}  # initialize empty control parameters, they will be set after the model is instanciated
 
     def H(self, x):
         """ Average synaptic gating
@@ -194,15 +196,94 @@ class ReducedWongWangND:
         self.S_rec = np.zeros((n_rec,self.N))
         self.t = np.arange(t_rec[0],t_rec[1], 1./self.sf)
 
+        # prepare control paramters
+        self.prepare_control_params()
+
         # run the model
         rec_idx = 0
         for i in range(n_ts):
             self.integrate()
-            # record
+            # record and update control parameters
             if ((not i%sf_dt) & ((i*self.dt)>=t_rec[0]) & ((i*self.dt)<=t_rec[1])):
                 self.S_rec[rec_idx,:] = self.S.copy()
+                self.update_control_params(rec_idx)
                 rec_idx += 1
 
+    def set_control_params(self, params:dict):
+        """ Set the parameters to be updated during the simulation (e.g. a slow control parameter) 
+        inputs:
+            params: dict
+                dictionary of parameters to be udpated, keys of this dict must match parameters names of the model.
+                values of the dictionary are list of tuple indicating times and values of the parameter
+                to be updated, i.e.:
+                params = {I_0: [ (t0,v0), (t1,v1), (t2,v2), ... ]}
+
+                Note that the update is linear monotonic between referenced points, and the update frequency used is 
+                the sampling frequency (SF). Control parameter can only be changed during recording period.
+        """
+        for k,v in params.items():
+            if not hasattr(self,k):
+                if not k.startswith('C_'):
+                    print(f"Control parameter {k} does not exist in model, it won't be updated")
+                    params.pop(k)
+        self.control_params = params
+                
+
+    def load_C_param(self, par, vals):
+        """ Special case for connectivity control parameters as it is an array """
+        # load control param if already exists (i.e. other C indices have been set), otherwise create it
+        if hasattr(self, 'update_C'):
+            update_par = self.update_C
+        else:
+            update_par = np.array([self.C.copy()  for _ in range(self.t.shape[0])]) #initialize control param to default value
+        ij = par.split('_')[1]
+        i,j = int(ij[0])-1,int(ij[1])-1
+        ind_0 = 0
+        val_0 = update_par[0][i,j]
+        for t,v in vals:
+            if ( (self.t.min()>t) or (self.t.max()<(t-1)) ):
+                print(f"Control parameter {par} cannot be changed if simulation is not recorded during those set times, change recording times or parameter update time ")
+                break
+            ind_t = np.abs(self.t - t).argmin()  # get closest t index
+            n = ind_t - ind_0 # number of values to fill between times
+            new_vals = np.linspace(val_0,v,n)
+            for k,C in enumerate(update_par[ind_0:ind_t]):
+                C[i,j] = new_vals[k] 
+            ind_0,val_0 = ind_t,v
+        self.update_C = update_par
+
+    def prepare_control_params(self):
+        """ Prepare the control parameters to be updated during the simulation """
+        for par,vals in self.control_params.items():
+            vals.sort() # makes sure the times are set in increasing ordered 
+            if par.startswith('C_'):
+                self.load_C_param(par,vals)
+            else:
+                update_par = np.ones(self.t.shape) * getattr(self, par)  #initialize control param to default value
+                ind_0 = 0
+                val_0 = update_par[0]
+                for t,v in vals:
+                    if ( (self.t.min()>t) or (self.t.max()<t) ):
+                        print(f"Control parameter {par} cannot be changed if simulation is not recorded during those set times, change recording times or parameter update time ")
+                        break
+                    ind_t = np.abs(self.t - t).argmin()  # get closest t index
+                    n = ind_t - ind_0 # number of values to fill between times
+                    update_par[ind_0:ind_t] = np.linspace(val_0,v,n)
+                    ind_0,val_0 = ind_t,v
+                setattr(self, 'update_'+par, update_par)
+
+    def update_control_params(self, index):
+        """ Update the control parameters during the simulation """
+        for par in self.control_params.keys():
+            # drawback of connectivity control parameters:  C is loaded n times if n C_ij's are modidfied at the same time (not a big deal) 
+            if par.startswith('C_'):
+                par = 'C'
+            update_par = getattr(self, 'update_'+par)
+            setattr(self, par, update_par[index])
+
+
+
+                
 
 ## FUNCTIONS ##
 # ----------- #
@@ -237,7 +318,7 @@ def get_inds(model, t_range=None):
     inds, = np.where((model.t>=t_range[0]) & (model.t<=t_range[1]))
     return inds
 
-def plot_timeseries(rww, t_range=None):
+def plot_timeseries(rww, t_range=None, labels=['OFC', 'PFC', 'NAcc', 'Put']):
     """ visualize time serie generated by model
             intputs:
                 rww: ReducedWangWang object"""
@@ -245,8 +326,30 @@ def plot_timeseries(rww, t_range=None):
     inds = get_inds(rww, t_range)
     plt.plot(rww.t[inds],rww.S_rec[inds,:])
     #plt.legend([str(i) for i in range(rww.N)])
-    plt.legend(['OFC', 'PFC', 'NAcc', 'Put'])
+    plt.legend(labels)
     plt.show()
+
+def plot_control_params(rww, t_range=None, labels=[]):
+    """ visualize time serie of control parameters
+            intputs:
+                rww: ReducedWangWang object"""
+    n_pars = len(list(rww.control_params.keys()))
+    inds = get_inds(rww, t_range)
+    plt.figure(figsize=[16,2*n_pars])
+    for k,(par,vals) in enumerate(rww.control_params.items()):
+        if par.startswith('C_'):
+            ij = par.split('_')[1]
+            i,j = int(ij[0])-1,int(ij[1])-1
+            ts = rww.update_C[inds][:,i,j]
+        else:
+            update_par = getattr(rww, 'update_'+par)
+            ts = update_par[inds]
+        plt.subplot(n_pars,1, k+1)
+        plt.plot(rww.t[inds], ts)
+        #plt.legend([str(i) for i in range(rww.N)])
+        plt.legend([par], loc='upper right')
+    plt.show()
+
 
 def compute_bold(model, t_range=None):
     """ BOLD timeseries and functional connectivity between regions """
