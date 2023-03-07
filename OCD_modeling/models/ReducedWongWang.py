@@ -28,7 +28,8 @@ class ReducedWongWang:
     """ Reduced Wong Wang model (1-dimensional) """
     def __init__(self, a=270., b=108., d=0.154,
                  I_0=0.3, J_N=0.2609, w=0.9, G=1., C=0., S_j=0.,
-                 tau_S=100., gamma=0.000641, sigma=0.001, v_i=0.):
+                 tau_S=100., gamma=0.000641, sigma=0.001, v_i=0.,
+                 sigma_21=0., sigma_12=0.):
 
         # synaptic gating params
         self.a = a             # slope (n/C); default=270
@@ -46,7 +47,9 @@ class ReducedWongWang:
         # ODE params
         self.tau_S = tau_S      # kinetic parameter of local population (ms); default=100
         self.gamma = gamma     # kinetic parameter of coupled population (ms); default=0.000641
-        self.sigma = sigma     # noise amplitude (nA); default=0.001
+        self.sigma = sigma     # noise amplitude (in node) (nA); default=0.001
+        self.sigma12 = sigma12 # noise level in connectivity
+        self.sigma21 = sigma21 # noise level in connectivity
         self.v_i = v_i         # gaussian noise (n/a); default=0
 
     def H(self, x):
@@ -94,7 +97,7 @@ class ReducedWongWangND:
     def __init__(self, a=270., b=108., d=0.154,
                  I_0=0.3, J_N=0.2609, w=0.9, G=1.,
                  tau_S=100., gamma=0.000641, sigma=0.001, N=2, dt=0.01,
-                 C=None, S=None, x=None):
+                 C=None, S=None, x=None, *args, **kwargs):
 
         # synaptic gating params
         self.a = a             # slope (n/C); default=270
@@ -161,23 +164,24 @@ class ReducedWongWangND:
     """
 
     def integrate(self):
-        """ Euler integration of the ODE """
+        """ Euler(-Maruyama) integration of the ODE """
         self.x = self.w * self.J_N * self.S + self.G * self.J_N * self.C @ self.S + self.I_0
         H = self.H(x=self.x)
         v = self.v()
         dS = (-self.S/self.tau_S + (1 - self.S) * (self.gamma * H) + self.sigma*v)
         self.S = self.S + dS*self.dt
 
-    def run(self, t_tot=1000, sf=100, t_rec=None):
+    def run(self, t_tot=1000, sf=100, t_rec=None, rec_vars=[]):
         """ Run the model
-                t_tot:  total simu;ation time (s)
-                sf:     sampling frequency of the reccording (Hz)
-                t_rec: interval of recording (s)
+                t_tot:      total simu;ation time (s)
+                sf:         sampling frequency of the reccording (Hz)
+                t_rec:      interval of recording (s)
+                rec_vars:   variables to records (note that S is always recorded)  
         """
         n_ts = int(t_tot/self.dt)
         sf_dt = 1./(sf*self.dt)
 
-        # fix sf if needed
+        # fix sf if needed based on dt
         if sf_dt.is_integer():
             self.sf = sf
         else:
@@ -190,13 +194,16 @@ class ReducedWongWangND:
             self.sf = 1. / self.dt / sf_dt
             print("Sampling frequency not a multiple of dt, used sf={} instead".format(self.sf))
 
+        # set recording time if unspecified
         if t_rec==None:
             t_rec = [0,t_tot]
         n_rec = int((t_rec[1]-t_rec[0])*self.sf)  # number of steps recorded
-        self.S_rec = np.zeros((n_rec,self.N))
+        
+        # prepare variables to record
         self.t = np.arange(t_rec[0],t_rec[1], 1./self.sf)
+        self.S_rec = np.zeros((n_rec,self.N))
 
-        # prepare control paramters
+        self.prepare_auxiliary_variables(rec_vars, n_rec)
         self.prepare_control_params()
 
         # run the model
@@ -206,8 +213,10 @@ class ReducedWongWangND:
             # record and update control parameters
             if ((not i%sf_dt) & ((i*self.dt)>=t_rec[0]) & ((i*self.dt)<=t_rec[1])):
                 self.S_rec[rec_idx,:] = self.S.copy()
+                self.record_auxiliary_variables(rec_vars, rec_idx)
                 self.update_control_params(rec_idx)
                 rec_idx += 1
+
 
     def set_control_params(self, params:dict):
         """ Set the parameters to be updated during the simulation (e.g. a slow control parameter) 
@@ -252,6 +261,7 @@ class ReducedWongWangND:
             ind_0,val_0 = ind_t,v
         self.update_C = update_par
 
+
     def prepare_control_params(self):
         """ Prepare the control parameters to be updated during the simulation """
         for par,vals in self.control_params.items():
@@ -272,6 +282,34 @@ class ReducedWongWangND:
                     ind_0,val_0 = ind_t,v
                 setattr(self, 'update_'+par, update_par)
 
+
+    def prepare_auxiliary_variables(self, rec_vars, n_rec):
+        """ creates dtata structures to recored supplementary variables """
+        for var in rec_vars:
+            if hasattr(self, var):
+                setattr(self, 'rec_'+var, np.zeros((n_rec,))) # <-- assumes single variable, if vector or matrice it needs different shape
+            elif var.startswith('C_'):
+                setattr(self, 'rec_'+var, np.zeros((n_rec,)))
+            else:
+                print(f"Variable {var} does not seem to exist, it cannot be recorded.")
+                rec_vars.remove(var)
+
+
+    def record_auxiliary_variables(self, rec_vars, rec_idx):
+            """ Record variables other than S """
+            for var in rec_vars:
+                if hasattr(self, var):
+                    val = getattr(self, var)                  
+                elif var.startswith('C_'):
+                    ij = var.split('_')[1]
+                    i,j = int(ij[0])-1,int(ij[1])-1
+                    val = self.C[i,j]
+                else:
+                    continue
+                rec_var = getattr(self, 'rec_'+var)
+                rec_var[rec_idx] = val.copy()
+
+
     def update_control_params(self, index):
         """ Update the control parameters during the simulation """
         for par in self.control_params.keys():
@@ -282,6 +320,38 @@ class ReducedWongWangND:
             setattr(self, par, update_par[index])
 
 
+class ReducedWongWangOU(ReducedWongWangND):
+    """ Reduced Wong-Wang model with Ornsetin-Uhlenbeck process for coupling (n dimensions) """
+    def __init__(self, sigma_12=0., sigma_21=0., eta_12=0., eta_21=0., *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vC = self.C.copy()             # variable connectivity variables
+        self.sigma_C = np.array([[0, sigma_12], [sigma_21, 0]])
+        self.eta_C = np.array([[0, eta_12], [eta_21, 0]])
+
+    def integrate(self):
+        """ Euler(-Maruyama) integration of the ODE """
+        self.x = self.w * self.J_N * self.S + self.G * self.J_N * self.vC @ self.S + self.I_0
+        H = self.H(x=self.x)
+        v = self.v()
+        dS = (-self.S/self.tau_S + (1 - self.S) * (self.gamma * H) + self.sigma*v)
+        dvC = -self.eta_C*(self.vC - self.C) + self.sigma_C*np.random.randn(self.N, self.N)
+        self.S = self.S + dS*self.dt
+        self.vC = self.vC + dvC*self.dt
+
+
+    def record_auxiliary_variables(self, rec_vars, rec_idx):
+        """ Record auxiliary variables other than S """
+        for var in rec_vars:
+            if hasattr(self, var):
+                val = getattr(self, var)                  
+            elif var.startswith('C_'):
+                ij = var.split('_')[1]
+                i,j = int(ij[0])-1,int(ij[1])-1
+                val = self.vC[i,j]
+            else:
+                continue
+            rec_var = getattr(self, 'rec_'+var)
+            rec_var[rec_idx] = val.copy()
 
                 
 
@@ -318,62 +388,83 @@ def get_inds(model, t_range=None):
     inds, = np.where((model.t>=t_range[0]) & (model.t<=t_range[1]))
     return inds
 
-def plot_timeseries(rww, t_range=None, labels=['OFC', 'PFC', 'NAcc', 'Put']):
+def plot_timeseries(model, t_range=None, labels=['OFC', 'PFC', 'NAcc', 'Put']):
     """ visualize time serie generated by model
             intputs:
-                rww: ReducedWangWang object"""
+                model: ReducedWangWang object"""
     plt.figure(figsize=[16,4])
-    inds = get_inds(rww, t_range)
-    plt.plot(rww.t[inds],rww.S_rec[inds,:])
-    #plt.legend([str(i) for i in range(rww.N)])
+    inds = get_inds(model, t_range)
+    plt.plot(model.t[inds],model.S_rec[inds,:])
+    #plt.legend([str(i) for i in range(model.N)])
     plt.legend(labels)
     plt.show()
 
-def plot_control_params(rww, t_range=None, labels=[]):
+def plot_control_params(model, t_range=None, labels=[]):
     """ visualize time serie of control parameters
             intputs:
-                rww: ReducedWangWang object"""
-    n_pars = len(list(rww.control_params.keys()))
-    inds = get_inds(rww, t_range)
+                model: ReducedWangWang object"""
+    n_pars = len(list(model.control_params.keys()))
+    inds = get_inds(model, t_range)
     plt.figure(figsize=[16,2*n_pars])
-    for k,(par,vals) in enumerate(rww.control_params.items()):
+    for k,(par,vals) in enumerate(model.control_params.items()):
         if par.startswith('C_'):
             ij = par.split('_')[1]
             i,j = int(ij[0])-1,int(ij[1])-1
-            ts = rww.update_C[inds][:,i,j]
+            ts = model.update_C[inds][:,i,j]
         else:
-            update_par = getattr(rww, 'update_'+par)
+            update_par = getattr(model, 'update_'+par)
             ts = update_par[inds]
         plt.subplot(n_pars,1, k+1)
-        plt.plot(rww.t[inds], ts)
-        #plt.legend([str(i) for i in range(rww.N)])
+        plt.plot(model.t[inds], ts)
+        #plt.legend([str(i) for i in range(model.N)])
         plt.legend([par], loc='upper right')
     plt.show()
 
+def plot_auxiliary_variables(model, t_range=None, rec_vars=[]):
+    """ visualize time serie generated by model
+            intputs:
+                rww: ReducedWangWang object"""
+    n = len(rec_vars)
+    if n>0:
+        plt.figure(figsize=[16,2*n])
+        inds = get_inds(model, t_range)
+        for var in rec_vars:
+            ts = getattr(model, 'rec_'+var)
+            plt.plot(model.t[inds], ts)
+        plt.legend(rec_vars)
+        plt.show()
 
-def compute_bold(model, t_range=None):
-    """ BOLD timeseries and functional connectivity between regions """
+
+def compute_bold(model, t_range=None, transient=30):
+    """ BOLD timeseries and functional connectivity between regions 
+            Args:
+                model: instance if reduced wong wang model
+                t_range: times of interest (in sec). default: all recorded time 
+                transient: time discarded at the beginning of t_range due to BOLD transient (in sec). default: 30s
+    """
     inds = get_inds(model, t_range)
     #bold_ts, s, f, v, q = balloonWindkessel(model.S_rec[inds,:].T, 1./model.sf)
-    scaler = sklearn.preprocessing.MinMaxScaler()
-    ts = scaler.fit_transform(model.S_rec[inds,:])
+    #scaler = sklearn.preprocessing.MinMaxScaler()
+    #ts = scaler.fit_transform(model.S_rec[inds,:])
+    ts = model.S_rec[inds,:]
     bold_ts, x, f, q, v = simulateBOLD(ts.T, 1./model.sf, voxelCounts=None)
-    model.bold_ts = bold_ts[:,int(model.sf)*10:] # discard first 10 sec due to transient
+    model.bold_ts = bold_ts[:,int(model.sf*transient):] # discard first 10 sec due to transient
     model.bold_fc = np.corrcoef(model.bold_ts)
 
-def plot_bold(model):
+def plot_bold(model, labels=[]):
     """ plot BOLD timeseries and FC """
     fig = plt.figure(figsize=[16,4])
     gs = plt.GridSpec(1,2, width_ratios=[4,1])
 
     ax1 = fig.add_subplot(gs[0,0])
     ax1.plot(model.bold_ts.T)
-    ax1.legend(['OFC', 'PFC', 'NAcc', 'Put'])
+    ax1.legend(labels)
 
     ax2 = fig.add_subplot(gs[0,1])
-    ax2.imshow(model.bold_fc, vmin=-1, vmax=1, cmap='RdBu_r')
-    plt.xticks([0,1,2,3], ['OFC', 'PFC', 'NAcc', 'Put'])
-    plt.yticks([0,1,2,3], ['OFC', 'PFC', 'NAcc', 'Put'])
+    img = ax2.imshow(model.bold_fc, vmin=-1, vmax=1, cmap='RdBu_r')
+    plt.colorbar(img)
+    plt.xticks(np.arange(len(labels)), labels)
+    plt.yticks(np.arange(len(labels)), labels)
     plt.show()
 
 
