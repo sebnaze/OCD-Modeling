@@ -322,11 +322,17 @@ class ReducedWongWangND:
 
 class ReducedWongWangOU(ReducedWongWangND):
     """ Reduced Wong-Wang model with Ornsetin-Uhlenbeck process for coupling (n dimensions) """
-    def __init__(self, sigma_12=0., sigma_21=0., eta_12=0., eta_21=0., *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, N, sigma_C=[], eta_C=[], *args, **kwargs):
+        super().__init__(N=N, *args, **kwargs)
         self.vC = self.C.copy()             # variable connectivity variables
-        self.sigma_C = np.array([[0, sigma_12], [sigma_21, 0]])
-        self.eta_C = np.array([[0, eta_12], [eta_21, 0]])
+        if sigma_C==[]:
+            self.sigma_C = np.zeros((N,N))
+        else:
+            self.sigma_C = sigma_C
+        if eta_C==[]:
+            self.eta_C = np.zeros((N,N))
+        else:
+            self.eta_C = eta_C
 
     def integrate(self):
         """ Euler(-Maruyama) integration of the ODE """
