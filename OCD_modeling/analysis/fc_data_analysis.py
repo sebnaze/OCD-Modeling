@@ -6,10 +6,9 @@
 import importlib
 import itertools
 import joblib
-import functional
-import functional.seed_to_voxel_analysis
-importlib.reload(functional.seed_to_voxel_analysis)
-from functional.seed_to_voxel_analysis import *
+
+import OCD_baseline
+from OCD_baseline.functional.seed_to_voxel_analysis import *
 
 proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')
 baseline_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCDbaseline')
@@ -54,7 +53,7 @@ def get_rois_corr(subjs, rois=['Acc', 'dPut', 'OFC', 'PFC'], args=None):
     df_roi_corr = pd.DataFrame(df_lines)
 
     if args.save_outputs:
-        with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg.pkl'), 'wb') as f:
+        with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2023.pkl'), 'wb') as f:
             pickle.dump(df_roi_corr, f)
 
     return df_roi_corr
@@ -118,6 +117,7 @@ def parse_arguments():
   parser.add_argument('--plot_figs', default=False, action='store_true', help='plot figures')
   parser.add_argument('--brain_smoothing_fwhm', default=8., type=none_or_float, action='store', help='brain smoothing FWHM (default 8mm as in Harrison 2009)')
   parser.add_argument('--subj', default=None, action='store', help='to process a single subject, give subject ID (default: process all subjects)')
+  parser.add_argument('--unilateral_seed', default=False, action='store_true', help='use unilateral seed (Acc, dPut)')
   args = parser.parse_args()
   # hard coded
   args.metrics = ['detrend_gsr_filtered_scrubFD05']
