@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
 import os
+import pandas as pd
 import pickle
 import platform
 import scipy
@@ -9,17 +10,12 @@ import scipy.stats
 import sklearn
 from sklearn import preprocessing
 
+from OCD_modeling.utils.utils import get_working_dir
 from OCD_modeling.models.HemodynamicResponseModeling.BalloonWindkessel import balloonWindkessel
 from OCD_modeling.utils.neurolib.neurolib.models.bold.timeIntegration import simulateBOLD
 
 # get computer name to set paths
-if platform.node()=='qimr18844':
-    working_dir = '/home/sebastin/working/'
-elif 'hpcnode' in platform.node():
-    working_dir = '/mnt/lustre/working/'
-else:
-    print('Computer unknown! Setting working dir as /working')
-    working_dir = '/working/'
+working_dir = get_working_dir()
 
 # general paths
 proj_dir = working_dir+'lab_lucac/sebastiN/projects/OCD_modeling'
@@ -28,8 +24,7 @@ class ReducedWongWang:
     """ Reduced Wong Wang model (1-dimensional) """
     def __init__(self, a=270., b=108., d=0.154,
                  I_0=0.3, J_N=0.2609, w=0.9, G=1., C=0., S_j=0.,
-                 tau_S=100., gamma=0.000641, sigma=0.001, v_i=0.,
-                 sigma_21=0., sigma_12=0.):
+                 tau_S=100., gamma=0.000641, sigma=0.001, v_i=0.):
 
         # synaptic gating params
         self.a = a             # slope (n/C); default=270
@@ -48,8 +43,6 @@ class ReducedWongWang:
         self.tau_S = tau_S      # kinetic parameter of local population (ms); default=100
         self.gamma = gamma     # kinetic parameter of coupled population (ms); default=0.000641
         self.sigma = sigma     # noise amplitude (in node) (nA); default=0.001
-        self.sigma12 = sigma12 # noise level in connectivity
-        self.sigma21 = sigma21 # noise level in connectivity
         self.v_i = v_i         # gaussian noise (n/a); default=0
 
     def H(self, x):
@@ -361,12 +354,70 @@ class ReducedWongWangOU(ReducedWongWangND):
 
                 
 
-## FUNCTIONS ##
-# ----------- #
+#  POST PROCESSING FUNCTIONS  #
+# --------------------------- #
+def compute_bold(model, t_range=None, transient=30):
+    """ BOLD timeseries and functional connectivity between regions 
+            Args:
+                model: instance if reduced wong wang model
+                t_range: times of interest (in sec). default: all recorded time 
+                transient: time discarded at the beginning of t_range due to BOLD transient (in sec). default: 30s
+    """
+    inds = get_inds(model, t_range)
+    #bold_ts, s, f, v, q = balloonWindkessel(model.S_rec[inds,:].T, 1./model.sf)
+    #scaler = sklearn.preprocessing.MinMaxScaler()
+    #ts = scaler.fit_transform(model.S_rec[inds,:])
+    ts = model.S_rec[inds,:]
+    bold_ts, x, f, q, v = simulateBOLD(ts.T, 1./model.sf, voxelCounts=None)
+    model.bold_ts = bold_ts[:,int(model.sf*transient):] # discard first 10 sec due to transient
+    model.bold_fc = np.corrcoef(model.bold_ts)
+
+
+def create_sim_df(sim_objs, sim_type = 'sim-con'):
+    """ Make a pandas DataFrame from list of simulation outputs objects """
+    if sim_objs[0].N == 4:
+        var_names = ['OFC', 'PFC', 'NAcc', 'Put']
+        pathway_map = {'OFC-PFC': 'OFC_PFC', 'OFC-NAcc': 'Acc_OFC', 'OFC-Put':'dPut_OFC', 'PFC-NAcc':'Acc_PFC', 'PFC-Put':'dPut_PFC', 'NAcc-Put':'Acc_dPut'}
+        lines = []
+        for i,sim in enumerate(sim_objs):
+            fc = sim.bold_fc
+            for j in np.arange(sim.N):
+                for k in np.arange(j+1,sim.N):
+                    val = fc[j,k]
+                    c = '-'.join([var_names[j], var_names[k]])
+                    pathway = pathway_map[c]
+                    line = dict()
+                    line['subj'] =  sim_type+'{:04d}'.format(i+1)
+                    line['cohort'] = sim_type
+                    line['pathway'] = pathway
+                    line['corr'] = val
+                    lines.append(line)
+
+        df_sim_fc = pd.DataFrame(lines)
+        return df_sim_fc
+    else:
+        print('Cannot create sim_df if N!=4')
+
+
+def distance(x,y):
+    """ distance to minimize based on score """
+    #return 1 - x['r'] + x['corr_diff']
+    return x['RMSE']
+
+
+def get_inds(model, t_range=None):
+    """ extract time series indices of interest beased on t_range (in sec) """
+    if t_range==None:
+        t_range=[model.t.min(), model.t.max()]
+    inds, = np.where((model.t>=t_range[0]) & (model.t<=t_range[1]))
+    return inds
+
+
 def score_model(rww, coh='con'):
-    """ score model against empirical FC
+    """ score single model against empirical FC (only considering mean)
             rww:  instance of model to score
             coh:    cohort to be scored against ('con' or 'pat')
+        (that is used when optimizing single models, not populations of models)
     """
     # load empirical FC
     with open(os.path.join(proj_dir, 'postprocessing', 'R.pkl'), 'rb') as f:
@@ -379,21 +430,36 @@ def score_model(rww, coh='con'):
     triu_inds = np.triu_indices(rww.N,k=1)
     corr = rww.bold_fc
     corrData, corrModel = R[coh][fixed_inds][triu_inds].flatten(), corr[triu_inds].flatten()
-    corr_diff = np.sum(np.abs(corrData - corrModel))
+    corr_MAE = np.sum(np.abs(corrData - corrModel))/len(corrData)
+    corr_RMSE = np.sqrt(np.sum((corrData - corrModel)**2)/len(corrData))
     r,pval = scipy.stats.pearsonr(corrData, corrModel)
-    return r, corr_diff, corr
+    return r, corr_MAE, corr_RMSE
 
-def distance(x,y):
-    """ distance to minimize based on score """
-    return 1 - x['r'] + x['corr_diff']
+def score_population_models(sim_objs, cohort='controls'):
+    """ Score a population of simulated model (using a parameter set) against experimental observations.
+        Here, the whole distribution of models outputs is scored against the distributions of observations. """
+    # load empirical FC
+    with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2023.pkl'), 'rb') as f:
+        df_roi_corr = pickle.load(f)
 
-def get_inds(model, t_range=None):
-    """ extract time series indices of interest beased on t_range (in sec) """
-    if t_range==None:
-        t_range=[model.t.min(), model.t.max()]
-    inds, = np.where((model.t>=t_range[0]) & (model.t<=t_range[1]))
-    return inds
+    # create simulated FC dataframe
+    sim_type = 'sim-'+cohort
+    df_sim_fc = create_sim_df(sim_objs, sim_type=sim_type)
+    df = df_roi_corr[df_roi_corr.cohort==cohort].merge(df_sim_fc, how='outer')
+    
+    # compute root mean square error
+    RMSE = [] 
+    for pathway in df.pathway.unique():
+        obs = df[(df.pathway==pathway) & (df.cohort==cohort)]['corr']
+        sim = df[(df.pathway==pathway) & (df.cohort==sim_type)]['corr']
+        RMSE.append((np.mean(obs)-np.mean(sim))**2)
+        RMSE.append((np.std(obs)-np.std(sim))**2)
+    RMSE = np.sqrt(np.sum(RMSE)/len(RMSE))
+    return RMSE
 
+
+#  PLOTTING FUNCTIONS  #
+#----------------------#
 def plot_timeseries(model, t_range=None, labels=['OFC', 'PFC', 'NAcc', 'Put']):
     """ visualize time serie generated by model
             intputs:
@@ -440,22 +506,6 @@ def plot_auxiliary_variables(model, t_range=None, rec_vars=[]):
         plt.legend(rec_vars)
         plt.show()
 
-
-def compute_bold(model, t_range=None, transient=30):
-    """ BOLD timeseries and functional connectivity between regions 
-            Args:
-                model: instance if reduced wong wang model
-                t_range: times of interest (in sec). default: all recorded time 
-                transient: time discarded at the beginning of t_range due to BOLD transient (in sec). default: 30s
-    """
-    inds = get_inds(model, t_range)
-    #bold_ts, s, f, v, q = balloonWindkessel(model.S_rec[inds,:].T, 1./model.sf)
-    #scaler = sklearn.preprocessing.MinMaxScaler()
-    #ts = scaler.fit_transform(model.S_rec[inds,:])
-    ts = model.S_rec[inds,:]
-    bold_ts, x, f, q, v = simulateBOLD(ts.T, 1./model.sf, voxelCounts=None)
-    model.bold_ts = bold_ts[:,int(model.sf*transient):] # discard first 10 sec due to transient
-    model.bold_fc = np.corrcoef(model.bold_ts)
 
 def plot_bold(model, labels=[]):
     """ plot BOLD timeseries and FC """
