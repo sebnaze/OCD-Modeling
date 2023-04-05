@@ -1,0 +1,30 @@
+#!/bin/bash
+
+##########################################################################
+#
+#  Script:    start_redis_server.pbs
+#  Author:    Sebastien Naze
+#  Created:   2023-04
+#
+##########################################################################
+
+#PBS -N OCD_modeling
+#PBS -l ncpus=1,mem=2gb,walltime=24:00:00
+#PBS -m abe
+#PBS -M sebastien.naze@qimrberghofer.edu.au
+#PBS -o /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
+#PBS -e /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
+#
+# Start the REDIS server for parameter optimization on HPC with pyABC
+# It is a long running process but without extensive ressource need
+#
+
+module load miniconda3/current
+
+conda activate bayesenv
+
+proj_dir=/mnt/lustre/working/lab_lucac/sebastiN/projects/OCD_modeling/
+
+ifconfig | grep inet | awk 'NR==1{print $2}' > ${proj_dir}traces/.redis_ip
+
+redis-server ${proj_dir}envs/redis.conf --port 6379 

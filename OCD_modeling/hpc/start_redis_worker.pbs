@@ -1,0 +1,30 @@
+#!/bin/bash
+
+##########################################################################
+#
+#  Script:    start_redis_worker.pbs
+#  Author:    Sebastien Naze
+#  Created:   2023-03
+#
+##########################################################################
+
+#PBS -N OCD_modeling
+#PBS -l ncpus=24,mem=48gb,walltime=24:00:00
+#PBS -m abe
+#PBS -M sebastien.naze@qimrberghofer.edu.au
+#PBS -o /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
+#PBS -e /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
+#
+# Add workers for parameter optimization on HPC with pyABC
+#
+
+module load miniconda3/current
+
+source activate bayesenv
+
+proj_dir=/mnt/lustre/working/lab_lucac/sebastiN/projects/OCD_modeling/
+
+pssr=`awk '{print $2}' ${proj_dir}envs/redis.conf`
+redis_ip=`awk '{print $1}' ${proj_dir}traces/.redis_ip`
+
+abc-redis-worker --host=${redis_ip} --password=$pssr --processes=3 --daemon=False --runtime=1d
