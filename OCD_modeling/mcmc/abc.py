@@ -145,7 +145,7 @@ def simulate_population_rww(params):
     #sim_objs = parallel_launcher.launch_simulations(args)
     sim_objs = parallel_launcher.launch_pool_simulations(args)
     
-    RMSE = RWW.score_population_models(sim_objs, cohort='patients')
+    RMSE = RWW.score_population_models(sim_objs, cohort='controls')
     return {'RMSE': RMSE}
 
 
@@ -179,15 +179,15 @@ def sim_output_to_df(sim_output, coh='con'):
 
 if __name__ == '__main__':
     today = datetime.now().strftime("%Y%m%d")
-    trace_name = 'rww4D_OU_'+today
+    trace_name = 'test_rww4D_OU_'+today
     working_dir = OCD_modeling.utils.utils.get_working_dir() 
     proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')
     #sampler = pyabc.sampler.MulticoreEvalParallelSampler(n_procs=1)
     sampler = pyabc.sampler.RedisEvalParallelSampler(host="10.10.51.21", port=6379, password='bayesopt1234321')
     sampler.daemon = False
-    abc = pyabc.ABCSMC(simulate_population_rww, prior, RWW.distance, sampler=sampler, population_size=100, max_nr_recorded_particles=1000)
+    abc = pyabc.ABCSMC(simulate_population_rww, prior, RWW.distance, sampler=sampler, population_size=1000, max_nr_recorded_particles=20000)
     abc_id = abc.new(
         "sqlite:///" + os.path.join(proj_dir, 'traces', trace_name+".db"),
         {"RMSE": 0}  # observation # note: here is dummy, the distance function does not use it.
     )
-    history = abc.run(max_nr_populations=10, minimum_epsilon=0.001)
+    history = abc.run(max_nr_populations=10, minimum_epsilon=0.01)

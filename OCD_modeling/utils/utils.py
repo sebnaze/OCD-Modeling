@@ -1,10 +1,15 @@
-# Miscalenous utility functions
+# Miscalenous utility functions / common imports
 
+import argparse
+import os 
 import platform
+
 
 def get_working_dir():
     """ get computer name to set working path """
     if platform.node()=='qimr18844':
+        working_dir = '/home/sebastin/working/'
+    elif platform.node()=='qimr17596':
         working_dir = '/home/sebastin/working/'
     elif platform.node()=='neurosrv01':
         working_dir = '/home/sebastienn/working/'
@@ -14,3 +19,6 @@ def get_working_dir():
         print('Mince! Computer unknown! Setting working dir as /working')
         working_dir = '/working/'
     return working_dir
+
+working_dir = get_working_dir()
+proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')

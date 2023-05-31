@@ -9,6 +9,7 @@ import scipy
 import scipy.stats
 import sklearn
 from sklearn import preprocessing
+import time
 
 from OCD_modeling.utils.utils import get_working_dir
 from OCD_modeling.models.HemodynamicResponseModeling.BalloonWindkessel import balloonWindkessel
@@ -315,7 +316,7 @@ class ReducedWongWangND:
 
 class ReducedWongWangOU(ReducedWongWangND):
     """ Reduced Wong-Wang model with Ornsetin-Uhlenbeck process for coupling (n dimensions) """
-    def __init__(self, N, sigma_C=[], eta_C=[], *args, **kwargs):
+    def __init__(self, N=4, sigma_C=[], eta_C=[], *args, **kwargs):
         super().__init__(N=N, *args, **kwargs)
         self.vC = self.C.copy()             # variable connectivity variables
         if sigma_C==[]:

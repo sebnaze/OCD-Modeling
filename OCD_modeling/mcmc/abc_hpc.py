@@ -53,20 +53,20 @@ default_bold_params['transient']    = 60
 
 # PRIORS
 # lower_bound, upper_bound
-sigma_min, sigma_max    = 0.001, 0.1     # noise amplitude
-G_min, G_max            = 1, 3           # global coupling
-C_12_min, C_12_max      = -0.5, 0.5      # PFC -> OFC
-C_21_min, C_21_max      = -0.5, 0.5      # OFC -> PFC
-C_13_min, C_13_max      = -0.5, 0.5      # NAcc -> OFC
+sigma_min, sigma_max    = 0.05, 0.1     # noise amplitude
+G_min, G_max            = 2, 3           # global coupling
+C_12_min, C_12_max      = 0, 0.5        # PFC -> OFC
+C_21_min, C_21_max      = 0, 0.5        # OFC -> PFC
+C_13_min, C_13_max      = -0.1, 0.5      # NAcc -> OFC
 C_31_min, C_31_max      = 0, 0.5         # OFC -> NAcc
-C_24_min, C_24_max      = -0.5, 0.5      # Put -> PFC
+C_24_min, C_24_max      = -0.1, 0.5      # Put -> PFC
 C_42_min, C_42_max      = 0, 0.5         # PFC -> Put
 C_34_min, C_34_max      = -0.5, 0.5      # Put -> NAcc
 C_43_min, C_43_max      = -0.5, 0.5      # Nacc -> Put
 
 # coupling noises on Ornstein-Uhlenbeck process 
-sigma_C_13_min, sigma_C_13_max  = 0, 0.5
-sigma_C_24_min, sigma_C_24_max  = 0, 0.5
+sigma_C_13_min, sigma_C_13_max  = 0.1, 0.4
+sigma_C_24_min, sigma_C_24_max  = 0.1, 0.4
 eta_C_13_min, eta_C_13_max  = 0, 0.1
 eta_C_24_min, eta_C_24_max  = 0, 0.1
 
@@ -141,14 +141,14 @@ def simulate_rww(params):
 def simulate_population_rww(params):
     """ instanciate models and simulate traces """
     args = argparse.Namespace()
-    args.n_sims = 20
+    args.n_sims = 56
     args.n_jobs = 8
     args.model_pars, args.sim_pars, args.control_pars, args.bold_pars = unpack_params(params)
     
     #sim_objs = parallel_launcher.launch_simulations(args)
     sim_objs = parallel_launcher.launch_pool_simulations(args)
     
-    RMSE = RWW.score_population_models(sim_objs, cohort='patients')
+    RMSE = RWW.score_population_models(sim_objs, cohort='controls')
     return {'RMSE': RMSE}
 
 
@@ -180,14 +180,6 @@ def sim_output_to_df(sim_output, coh='con'):
     return df_sim
 
 
-def parse_args():
-    """ Parse command line arguments """ 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--redis_ip', type=str, default="10.10.58.254", action='store', help='set ip address of the server. default: neurosrv01')
-    parser.add_argument('--redis_pwd', type=str, default='bayesopt1234321', action='store', help='password to access server')
-    args = parser.parse_args()
-    return args
-
 def get_config():
     """ extract redis config """
     cfg = dict()
@@ -198,7 +190,19 @@ def get_config():
         cfg['redis_ip'] = f.readline().strip()
     return cfg
 
+
+def parse_args():
+    """ Parse command line arguments """ 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--redis_ip', type=str, default="10.10.58.254", action='store', help='set ip address of the server. default: hpcapp01')
+    parser.add_argument('--redis_pwd', type=str, default='bayesopt1234321', action='store', help='password to access server')
+    parser.add_argument('--resume_opt', type=str, default=None, action='store', help='name of the optimzation to resume (default:None, start a new optimization)')
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == '__main__':
+    args = parse_args()
     cfg = get_config()
     today = datetime.now().strftime("%Y%m%d")
     trace_name = 'rww4D_OU_HPC_'+today
@@ -207,9 +211,12 @@ if __name__ == '__main__':
     #sampler = pyabc.sampler.MulticoreEvalParallelSampler(n_procs=1)
     sampler = pyabc.sampler.RedisEvalParallelSampler(host=cfg['redis_ip'], port=6379, password=cfg['pssr'])
     sampler.daemon = False
-    abc = pyabc.ABCSMC(simulate_population_rww, prior, RWW.distance, sampler=sampler, population_size=50, max_nr_recorded_particles=1000)
-    abc_id = abc.new(
-        "sqlite:///" + os.path.join(proj_dir, 'traces', trace_name+".db"),
-        {"RMSE": 0}  # observation # note: here is dummy, the distance function does not use it.
-    )
-    history = abc.run(max_nr_populations=3, minimum_epsilon=0.001)
+    abc = pyabc.ABCSMC(simulate_population_rww, prior, RWW.distance, sampler=sampler, population_size=1000, max_nr_recorded_particles=20000)
+    if args.resume_opt==None:
+        abc_id = abc.new(
+            "sqlite:///" + os.path.join(proj_dir, 'traces', trace_name+".db"),
+            {"RMSE": 0}  # observation # note: here is dummy, the distance function does not use it.
+        )
+    else:
+        abc.load("sqlite:///" + os.path.join(proj_dir, 'traces', args.resume_opt+".db"), abc_id=1)
+    history = abc.run(max_nr_populations=10, minimum_epsilon=0.01)
