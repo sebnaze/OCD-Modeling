@@ -16,11 +16,7 @@ import pandas as pd
 import pickle
 
 from OCD_modeling.models import ReducedWongWang as RWW
-from OCD_modeling.utils import utils
-
-working_dir = utils.get_working_dir()
-proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')
-
+from OCD_modeling.utils.utils import *
 
 def run_sim(model_pars, sim_pars, control_pars={}, bold_pars={}):
     """ Run a single simulation """
@@ -68,10 +64,6 @@ def save_batch(sim_objs, args):
         today = datetime.today().strftime('%Y%m%d')
         with open(os.path.join(proj_dir, 'postprocessing', 'sim_objs_'+today+'.pkl'), 'wb') as f:
             pickle.dump(sim_objs, f)
-
-
-    
-
 
 
 def parse_arguments():
