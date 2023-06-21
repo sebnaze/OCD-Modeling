@@ -1,6 +1,6 @@
-import OCD_modeling
-# import most relevant environment and project variable
-from OCD_modeling.utils.utils import *
+### Analyze history of optimizations
+##  Author: Sebastien Naze
+#   QIMR 2023
 
 import argparse
 from datetime import datetime 
@@ -8,13 +8,14 @@ from matplotlib import pyplot as plt
 import numpy as np
 import os 
 import pandas as pd
+import pickle
 import pyabc
 import scipy
 import sklearn
 
-working_dir = get_working_dir()
-proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')
-
+import OCD_modeling
+# import most relevant environment and project variable
+from OCD_modeling.utils.utils import *
 
 def import_results(args):
     """ Read optimization results from DB """ 
@@ -28,6 +29,12 @@ def import_results(args):
             print(f'Optimization {db_name} does not exist, check name.')
     return histories
     
+
+def load_empirical_FC(args):
+    """ Loads functional connectivity from patients and controls (data, not simulation) """
+    with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2023.pkl'), 'rb') as f:
+        df_data = pickle.load(f)
+    return df_data       
 
 def plot_epsilons(histories, args):
     """ Plot evolution of epsilons across generations """ 
@@ -146,6 +153,10 @@ def compute_kdes(histories, n_pts = 100, args=None):
             pdf = kde.score_samples(X)
             kdes[cohort][col] = {'kde':kde, 'pdf':pdf, 'X':X}
     cols = np.unique(cols)
+
+    if args.save_kdes:
+        fname = os.path.join()
+
     return kdes, cols
 
 
@@ -176,6 +187,8 @@ def parse_arguments():
     parser.add_argument('--plot_figs', default=False, action='store_true', help='plot figures')
     parser.add_argument('--histories', nargs='+', default=None, action='store', help="optimizations to analyse and compare")
     parser.add_argument('--history_names', type=list, default=['controls', 'patients'], action='store', help="names given to each otpimization loaded")
+    parser.add_argument('--save_kdes', default=False, action='store_true', help='save KDEs')
+    parser.add_argument('--save_kdes_suffix', type=str, default=today(), help="identifier of the KDE in the saving folder")
     args = parser.parse_args()
     return args
 
@@ -184,12 +197,20 @@ if __name__=='__main__':
     args = parse_arguments()
     
     histories = import_results(args)
-    plot_epsilons(histories, args)
-    plot_weights(histories, args)
-    plot_param_distrib(histories, args)
-    plot_kde_matrix(histories, args)
+    
+    if args.plot_epsilons:
+        plot_epsilons(histories, args)
+    if args.plot_weights:
+        plot_weights(histories, args)
+    if args.plot_param_distrib:
+        plot_param_distrib(histories, args)
+    if args.plot_kde_matrix:
+        plot_kde_matrix(histories, args)
 
-    df_stats = compute_stats(histories, args)
-    kdes,cols = compute_kdes(histories, args)
-    plot_kdes(kdes, cols, args)
-
+    if args.plot_stats:
+        df_stats = compute_stats(histories, args)
+    
+    if args.compute_kdes:
+        kdes,cols = compute_kdes(histories, args)
+    if args.plot_kdes:
+        plot_kdes(kdes, cols, args)

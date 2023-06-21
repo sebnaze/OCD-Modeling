@@ -1,9 +1,12 @@
 # Miscalenous utility functions / common imports
 
 import argparse
+from datetime import datetime
 import os 
 import platform
 
+def today():
+    return datetime.now().strftime('_%Y%m%d')
 
 def get_working_dir():
     """ get computer name to set working path """

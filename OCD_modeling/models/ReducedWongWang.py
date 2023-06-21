@@ -374,7 +374,7 @@ def compute_bold(model, t_range=None, transient=30):
     model.bold_fc = np.corrcoef(model.bold_ts)
 
 
-def create_sim_df(sim_objs, sim_type = 'sim-con'):
+def create_sim_df(sim_objs, sim_type = 'sim-con', offset=0):
     """ Make a pandas DataFrame from list of simulation outputs objects """
     if sim_objs[0].N == 4:
         var_names = ['OFC', 'PFC', 'NAcc', 'Put']
@@ -388,7 +388,7 @@ def create_sim_df(sim_objs, sim_type = 'sim-con'):
                     c = '-'.join([var_names[j], var_names[k]])
                     pathway = pathway_map[c]
                     line = dict()
-                    line['subj'] =  sim_type+'{:04d}'.format(i+1)
+                    line['subj'] =  sim_type+'{:06d}'.format(offset+i+1)
                     line['cohort'] = sim_type
                     line['pathway'] = pathway
                     line['corr'] = val
