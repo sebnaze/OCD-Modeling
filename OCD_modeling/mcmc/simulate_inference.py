@@ -59,8 +59,11 @@ def create_params(kdes, cols, test_param, args):
 
 def write_outputs_to_db(params, cols, test_param, outputs, args):
     """ Write output of simulation inference into SQLite database """
+    t = time()
     dbpath = os.path.join(proj_dir, 'postprocessing', args.db_name+'.db')
-    with sl.connect(dbpath, isolation_level='EXCLUSIVE') as conn:
+    with sl.connect(dbpath, isolation_level='EXCLUSIVE', timeout=args.timeout) as conn:
+        # may need this to acquire exclusive lock from beginning
+        #conn.execute("BEGIN IMMEDIATE")
         # if table not exitsing in db, it will create it at he end of the function
         cursor = conn.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='SIMTEST'")
         if cursor.fetchall()[0][0]==0:
@@ -91,8 +94,9 @@ def write_outputs_to_db(params, cols, test_param, outputs, args):
         #    df_sims[col] = np.repeat(vals,6) # create_sim_df return a dataframe with 6 rows per simulation
 
         # save in DB
-        df_sims.to_sql('SIMTEST', conn, if_exists='append', index=False)
+        df_sims.to_sql('SIMTEST', conn, if_exists='append', index=False, method='multi')
     conn.close()
+    print("took {:.3f}s".format(time()-t))
 
 
 def launch_sims_parallel(kdes, cols, args):
@@ -141,6 +145,7 @@ def parse_arguments():
     parser.add_argument('--base_cohort', type=str, default='controls', help="Cohort from which to infer posterior as default")
     parser.add_argument('--test_cohort', type=str, default='patients', help="Cohort from which to infer posterior of individual params")
     parser.add_argument('--test_params', nargs='+', default=[], help="posterior parameter to swap between base and test cohort, if empty list then all params are tested")
+    parser.add_argument('--timeout', type=int, default=300, action='store', help='timeout of the db access')
     args = parser.parse_args()
     return args
 

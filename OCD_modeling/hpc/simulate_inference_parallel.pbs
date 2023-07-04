@@ -1,0 +1,27 @@
+#!/bin/bash
+
+##########################################################################
+#
+#  Script:    simulate_inference_parallel.pbs
+#  Author:    Sebastien Naze
+#  Created:   2023-06
+#
+##########################################################################
+
+#PBS -N OCD_modeling
+#PBS -l select=1:ncpus=20:mem=60gb:gen=13,walltime=16:00:00
+#PBS -m abe
+#PBS -M sebastien.naze@qimrberghofer.edu.au
+#PBS -o /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
+#PBS -e /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
+#
+# Use posteriors from optiization to create new virtual subjects
+#
+
+module load miniconda3/current
+
+source activate bayesenv 
+
+proj_dir=/mnt/lustre/working/lab_lucac/sebastiN/projects/OCD_modeling/
+
+python ${proj_dir}code/OCD_modeling/mcmc/simulate_inference.py --histories 'rww4D_OU_HPC_20230510' 'rww4D_OU_HPC_20230605' --db_name 'sim_pat_20230628' --n_jobs 20 --n_sims 10000 --n_batch 200 --test_params 'None' --base_cohort 'patients' --test_cohort 'None'
