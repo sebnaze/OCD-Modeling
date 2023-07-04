@@ -315,6 +315,80 @@ def get_model(args):
     return sym_rww
 
 
+def lambdify_model(model, default_params, order_params):
+    """ evaluate model for parameters using sympa lambdify 
+            model: symbolic model (object)
+            params: dictionnary of parameters
+    """ 
+    params = copy.deepcopy(default_params)
+    for k,v in order_params.items():
+        params[k] = v
+
+    try:
+        f = sp.lambdify([model.S1, model.S2], model.dS.subs(params), 'numpy')
+        n1_f = sp.lambdify(model.S1, model.n1[0].subs(params), 'scipy') # need scipy because uses LambertW
+        n2_f = sp.lambdify(model.S2, model.n2[0].subs(params), 'scipy')
+    except:
+        print("{} did encounter problems, discarding")
+        return None
+    return (f, n1_f, n2_f)
+
+def evaluate_params(model, default_params, order_params, args):
+    """ evaluate model of parameters using sympa lambdify """
+    o_pars = list([dict(zip(order_params.keys(), vals)) for vals in itertools.product(*order_params.values())]) #
+    evals = joblib.Parallel(n_jobs=args.n_jobs)(joblib.delayed(lambdify_model)(model,default_params,o_par) for o_par in o_pars)
+    return evals, o_pars      
+
+
+def plot_quiver(f, n1_f, n2_f, o_par, smin=-3, smax=3, n=30, ax=None, scale=8, args=None):
+    """ plot a single quiver 
+            n: number of arrows per line """ 
+    s = np.linspace(smin,smax,n*10)  # number of data point for curves
+    s_q = np.linspace(smin,smax,n)   # number of arrow per row/column
+    s1,s2 = np.meshgrid(s_q,s_q)
+    u,v = f(s1,s2)
+
+    if ax==None:
+        plt.figure()
+    else:
+        plt.sca(ax)
+    plt.quiver(s1,s2,u.squeeze(),v.squeeze(), scale=scale)
+    plt.plot(s, n2_f(s))
+    plt.plot(n1_f(s), s)
+    plt.xlim(smin,smax)
+    plt.ylim(smin,smax)
+    plt.xlabel('S2')
+    plt.ylabel('S1')
+    ttl = "   ".join(['{} = {:.2f}'.format(k,v) for k,v in o_par.items()])
+    plt.title(ttl, fontsize=8)
+    plt.grid()
+    
+
+def plot_quivers_grid(evals, o_pars, order_params, args):
+    """ plot a grid of quiver graphs for each pair of order parameter """
+    xs = list(order_params.values())[0]
+    ys = list(order_params.values())[1]
+    evs = np.reshape(evals, (len(xs), len(ys), -1))
+    opars = np.reshape(o_pars, (len(xs), len(ys)))
+
+    plt.rcParams.update({'font.size':8})
+    fig = plt.figure(figsize=[30,30])
+    gs = plt.GridSpec(len(xs), len(ys))
+    for i,x in enumerate(xs):
+        for j,y in enumerate(ys):
+            ev = evs[i,j]
+            if (ev==None).any():
+                continue
+            else:
+                f ,n1_f, n2_f = ev
+            ax = fig.add_subplot(gs[i,j])
+            plot_quiver(f, n1_f, n2_f, opars[i,j], ax=ax, args=args)
+    plt.tight_layout()
+    plt.show()
+            
+
+
+
 def parse_args():
     """ parsing global argument """
     parser = argparse.ArgumentParser()
@@ -322,6 +396,7 @@ def parse_args():
     parser.add_argument('--compute_nullclines', default=False, action='store_true', help='create symbolic model')
     parser.add_argument('--save_model', default=False, action='store_true', help='save symbolic model with its ciomputed attributes')
     parser.add_argument('--run_stability_analysis', default=False, action='store_true', help='run stability analysis: find fixed point (semi-analytically) and perform linear stability analysis around them')
+    parser.add_argument('--plot_quivers', default=False, action='store_true', help='plot figures')
     parser.add_argument('--plot_figs', default=False, action='store_true', help='plot figures')
     parser.add_argument('--save_outputs', default=False, action='store_true', help='save analysis outputs')
     parser.add_argument('--timeout', type=int, default=30, action='store', help='timeout of the stability analysis (per parameter combination invoked)')
@@ -333,7 +408,7 @@ def parse_args():
 if __name__=='__main__':
     args = parse_args()
     sym_rww = get_model(args)
-    order_params = {'C_12': np.arange(-1,1,0.025), 'C_21': np.arange(-1,1,0.2)}
+    order_params = {'C_12': np.linspace(-0.3,0.3,6), 'C_21': np.linspace(-0.3,0.3,6)}
     if args.run_stability_analysis:
         outputs, futures = run_stability_analysis(sym_rww, order_params, params, args)
         if args.save_outputs:
@@ -345,3 +420,7 @@ if __name__=='__main__':
             plot_3d_bifurcations(outputs, azim=0, elev=0) # yz plan
             plot_3d_bifurcations(outputs, -90, 0) # xz plan
             plot_3d_bifurcations(outputs, 90, -90) # xy plan
+
+    if args.plot_quivers:
+        evals, o_pars = evaluate_params(sym_rww, params, order_params, args)
+        plot_quivers_grid(evals, o_pars, order_params, args)
