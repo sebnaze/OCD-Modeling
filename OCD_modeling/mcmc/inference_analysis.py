@@ -129,9 +129,134 @@ def fix_df_sims_names(df_sims, args):
     df_sims['subj'] = df_sims.apply(lambda row: "sim-"+args.base_cohort[:3]+"{:06d}".format(int(row.name)+1), axis=1)
 
 
+def score_pval(y, y_pred):
+    res = scipy.stats.pearsonr(y, y_pred)
+    return res.pvalue
 
-def multivariate_analysis():
+
+def multivariate_analysis(df_sim_pat, params=['C_12', 'C_13', 'C_24', 'C_31', 'C_34', 'C_42'], 
+                          behavs=['YBOCS_Total', 'OCIR_Total', 'OBQ_Total', 'MADRS_Total', 'HAMA_Total', 'Anx_total', 'Dep_Total'], 
+                          models={'Ridge':sklearn.linear_model.Ridge(alpha=0.01)}, args=None):
     """ Multivariate regression of parameters to predict behaviors """
+    output = dict()
+    p_score = sklearn.metrics.make_scorer(score_pval, greater_is_better=False)
+    for i,behav in enumerate(behavs):
+        output[behav] = dict()
+        # Linear regression
+        X = df_sim_pat[params]
+        y = df_sim_pat[behav]
+        for model_name,model in models.items():
+            model.fit(X,y)
+            y_pred = model.predict(X)
+            mae = sklearn.metrics.median_absolute_error(y, y_pred)
+            print("Median Abs Error (MAE) = {:.5f}".format(mae))
+
+            r2 = sklearn.metrics.r2_score(y, y_pred)
+            # stats on prediction 
+            r,p = scipy.stats.pearsonr(y,y_pred)
+
+            # coefficients' variability 
+            #cv = sklearn.model_selection.RepeatedKFold(n_splits=10, n_repeats=5)
+            #cv = sklearn.model_selection.KFold(n_splits=5)
+            cv = sklearn.model_selection.ShuffleSplit(n_splits=10,test_size=0.3)
+            cv_results = sklearn.model_selection.cross_validate(
+                    model,
+                    X,
+                    y,
+                    cv=cv,
+                    scoring={'p':p_score, 'r2':sklearn.metrics.make_scorer(sklearn.metrics.r2_score)},
+                    return_estimator=True,
+                    return_train_score=True,
+                    return_indices=True,
+                    n_jobs=8,
+            )
+
+            output[behav][model_name] = {'model':model, 'X':X, 'y':y, 'y_pred':y_pred, 'r2':r2, 'r':r, 'p':p, 
+                                         'cv_results':cv_results}
+            return output
+
+def plot_multivariate_results(multivar, models=['Ridge'], args=None):
+    """ Display results of the multivariate analysis """
+    behavs = multivar.keys()
+    for model in models:
+        fig = plt.figure(figsize=[3*len(behavs),12])
+        gs = plt.GridSpec(4,len(behavs))
+        for i,behav in enumerate(behavs):
+
+            y, y_pred = multivar[behav][model]['y'], multivar[behav][model]['y_pred']
+            r2, r, p = multivar[behav][model]['r2'], multivar[behav][model]['r'], multivar[behav][model]['p']
+            model = multivar[behav][model]['model']
+            X = model = multivar[behav][model]['X']
+
+            # PLOTTING 
+            # -------- 
+            # linear regression
+            ax = fig.add_subplot(gs[0,i])
+            ax.scatter(y, y_pred, alpha=0.3, color='k')
+            ax.set_xlabel(behav)
+            ax.set_ylabel("Prediction")
+            ax.set_title("r2={:.2f} r={:.2} p={:.3}".format(r2,r,p))
+
+            # coefficients
+            ax = fig.add_subplot(gs[1,i])
+            coefs = pd.DataFrame(data=[model.coef_], columns=model.feature_names_in_)
+            sbn.barplot(data=coefs, orient='h', alpha=0.5, ax=ax)
+            plt.title('coefs')
+                        
+            # normalized coefficients
+            ax = fig.add_subplot(gs[2,i])
+            coefs = pd.DataFrame(data=[model.coef_ * np.std(X)], columns=model.feature_names_in_)
+            sbn.barplot(data=coefs, orient='h', alpha=0.5, ax=ax)
+            plt.title('normalized coefs')
+            
+            if model=='Ridge':
+                var_coefs = pd.DataFrame(
+                    [ est.coef_ for est in multivar[behav][model]['cv_results']['estimator'] ], 
+                    columns=model.feature_names_in_ )    
+                
+                # coefficients' variability
+                ax = fig.add_subplot(gs[3,i])
+                sbn.stripplot(data=var_coefs, orient="h", palette="dark:k", alpha=0.5)
+                sbn.boxplot(data=var_coefs, orient="h", saturation=0.7, whis=10)
+                plt.axvline(x=0, color=".5")
+                plt.xlabel("Coefficients")
+                plt.title("Coefficients' variability")
+                    
+        plt.tight_layout()
+        plt.show()
+
+
+def plot_cv_regression(multivar, args=None):
+    """ Scatter plots of cross-validated regression """
+    behavs = multivar.keys()
+    params = multivar['YBOCS_Total']['Ridge']['model'].feature_names_in_
+    for behav in behavs:
+        train_ids = multivar[behav]['Ridge']['cv_results']['indices']['train']
+        test_ids = multivar[behav]['Ridge']['cv_results']['indices']['test']
+
+        plt.figure(figsize=[15,5])
+        for i,train_idx in enumerate(train_ids):
+            test_idx = test_ids[i]
+            est = multivar[behav]['Ridge']['cv_results']['estimator'][i]
+
+            X_train = df_sim_pat.iloc[train_idx][params]
+            X_test = df_sim_pat.iloc[test_idx][params]
+            y_train = df_sim_pat.iloc[train_idx][behav]
+            y_test = df_sim_pat.iloc[test_idx][behav]
+            train_pred = est.predict(X_train)
+            test_pred = est.predict(X_test)
+
+            plt.subplot(2,5,i+1)
+            plt.scatter(y_train, train_pred, label='train')
+            plt.scatter(y_test, test_pred, label='test')
+            plt.xlabel(behav+' ground truth')
+            plt.ylabel(behav+' prediction')
+
+            r2 = multivar[behav]['Ridge']['cv_results']['test_r2'][i]
+            p = multivar[behav]['Ridge']['cv_results']['test_p'][i]
+            plt.title("r2={:.2f}  p={:.2f}".format(r2,-p))
+        plt.tight_layout()
+        plt.show()
 
 
 def parse_arguments():
@@ -175,11 +300,17 @@ if __name__=='__main__':
     else:
         assoc = compute_distances(df_data, df_sims, args)
 
-    with open(os.path.join(proj_dir, 'postprocessing', 'df_pat.pkl'), 'rb') as f:
+    with open(os.path.join(proj_dir, 'postprocessing', 'df_pat_.pkl'), 'rb') as f:
         df_pat = pickle.load(f)
 
     df_sim_pat = merge_data_sim_dfs(df_pat, df_sims, assoc, args)
     if args.plot_param_behav:
         plot_param_behav(df_sim_pat, args=args)
 
+    if args.multivariate_analysis:
+        multivar = multivariate_analysis(df_sim_pat, args=args)
+        if args.plot_figs:
+            plot_multivariate_results(multivar, args=args)
+        if args.plot_cv_regression:
+            plot_cv_regression(multivar, args=args)
     
