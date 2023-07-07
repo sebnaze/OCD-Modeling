@@ -173,20 +173,20 @@ def multivariate_analysis(df_sim_pat, params=['C_12', 'C_13', 'C_24', 'C_31', 'C
 
             output[behav][model_name] = {'model':model, 'X':X, 'y':y, 'y_pred':y_pred, 'r2':r2, 'r':r, 'p':p, 
                                          'cv_results':cv_results}
-            return output
+    return output
 
 def plot_multivariate_results(multivar, models=['Ridge'], args=None):
     """ Display results of the multivariate analysis """
     behavs = multivar.keys()
-    for model in models:
+    for model_name in models:
         fig = plt.figure(figsize=[3*len(behavs),12])
         gs = plt.GridSpec(4,len(behavs))
         for i,behav in enumerate(behavs):
 
-            y, y_pred = multivar[behav][model]['y'], multivar[behav][model]['y_pred']
-            r2, r, p = multivar[behav][model]['r2'], multivar[behav][model]['r'], multivar[behav][model]['p']
-            model = multivar[behav][model]['model']
-            X = model = multivar[behav][model]['X']
+            y, y_pred = multivar[behav][model_name]['y'], multivar[behav][model_name]['y_pred']
+            r2, r, p = multivar[behav][model_name]['r2'], multivar[behav][model_name]['r'], multivar[behav][model_name]['p']
+            model = multivar[behav][model_name]['model']
+            X = multivar[behav][model_name]['X']
 
             # PLOTTING 
             # -------- 
@@ -211,7 +211,7 @@ def plot_multivariate_results(multivar, models=['Ridge'], args=None):
             
             if model=='Ridge':
                 var_coefs = pd.DataFrame(
-                    [ est.coef_ for est in multivar[behav][model]['cv_results']['estimator'] ], 
+                    [ est.coef_ for est in multivar[behav][model_name]['cv_results']['estimator'] ], 
                     columns=model.feature_names_in_ )    
                 
                 # coefficients' variability
@@ -280,6 +280,8 @@ def parse_arguments():
     parser.add_argument('--load_distances', default=False, action='store_true', help='load distances between patients and simulations from previously saved')
     parser.add_argument('--plot_param_behav', default=False, action='store_true', help='plot param-behavioral relationship')
     parser.add_argument('--verbose', default=False, action='store_true', help='print extra processing info')
+    parser.add_argument('--multivariate_analysis', default=False, action='store_true', help='perform multivariate analysis')
+    parser.add_argument('--plot_cv_regression', default=False, action='store_true', help='plot cross validation regression scatters')
     args = parser.parse_args()
     return args
 
@@ -289,10 +291,16 @@ if __name__=='__main__':
     # load histories and KDEs
     #histories = import_results(args)
     
+    print("Loading simulations...")
     df_sims = load_df_sims(args)
+    
+    print("Fixing simulations indices...")
     fix_df_sims_names(df_sims, args)
+    
+    print("Loading functional connectivity data...")
     df_data = load_df_data(args)
 
+    print("Loading distances...")
     if args.load_distances:
         fname = os.path.join(proj_dir, 'postprocessing', args.db_name+'_distances100eps'+str(int(args.tolerance*100))+".pkl")
         with open(fname, 'rb') as f:
@@ -300,6 +308,7 @@ if __name__=='__main__':
     else:
         assoc = compute_distances(df_data, df_sims, args)
 
+    print("Loading behavioral data...")
     with open(os.path.join(proj_dir, 'postprocessing', 'df_pat_.pkl'), 'rb') as f:
         df_pat = pickle.load(f)
 
@@ -308,6 +317,7 @@ if __name__=='__main__':
         plot_param_behav(df_sim_pat, args=args)
 
     if args.multivariate_analysis:
+        print("Running multivariate analysis...")
         multivar = multivariate_analysis(df_sim_pat, args=args)
         if args.plot_figs:
             plot_multivariate_results(multivar, args=args)
