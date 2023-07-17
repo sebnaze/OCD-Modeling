@@ -5,6 +5,7 @@
 import argparse
 from datetime import datetime 
 from concurrent.futures import ProcessPoolExecutor
+import copy
 from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 import multiprocessing
@@ -12,6 +13,7 @@ import numpy as np
 import os 
 import pandas as pd
 import pickle
+import pingouin as pg
 import pdb
 import pyabc
 import scipy
@@ -136,16 +138,24 @@ def score_pval(y, y_pred):
 
 def multivariate_analysis(df_sim_pat, params=['C_12', 'C_13', 'C_24', 'C_31', 'C_34', 'C_42'], 
                           behavs=['YBOCS_Total', 'OCIR_Total', 'OBQ_Total', 'MADRS_Total', 'HAMA_Total', 'Anx_total', 'Dep_Total'], 
-                          models={'Ridge':sklearn.linear_model.Ridge(alpha=0.01)}, args=None):
+                          models={'Ridge':sklearn.linear_model.Ridge(alpha=0.01)}, null=False, args=None):
     """ Multivariate regression of parameters to predict behaviors """
     output = dict()
     p_score = sklearn.metrics.make_scorer(score_pval, greater_is_better=False)
     for i,behav in enumerate(behavs):
         output[behav] = dict()
         # Linear regression
-        X = df_sim_pat[params]
+        X = df_sim_pat[params] 
         y = df_sim_pat[behav]
+            
         for model_name,model in models.items():
+            # create null couplings 
+            if null:
+                #data=np.array(df_sim_pat[params])
+                #data = np.random.permutation(data.ravel()).reshape(data.shape)
+                #X = pd.DataFrame(data=data, columns=params)
+                data=np.array([np.random.permutation(df_sim_pat[param]) for param in params]).T
+                X = pd.DataFrame(data=data, columns=params)
             model.fit(X,y)
             y_pred = model.predict(X)
             mae = sklearn.metrics.median_absolute_error(y, y_pred)
@@ -156,23 +166,25 @@ def multivariate_analysis(df_sim_pat, params=['C_12', 'C_13', 'C_24', 'C_31', 'C
             r,p = scipy.stats.pearsonr(y,y_pred)
 
             # coefficients' variability 
-            #cv = sklearn.model_selection.RepeatedKFold(n_splits=10, n_repeats=5)
+            #cv = sklearn.model_selection.RepeatedKFold(n_splits=5, n_repeats=5)
             #cv = sklearn.model_selection.KFold(n_splits=5)
-            cv = sklearn.model_selection.ShuffleSplit(n_splits=10,test_size=0.3)
+            #cv = sklearn.model_selection.ShuffleSplit(n_splits=10,test_size=0.3)
+            cv = sklearn.model_selection.LeaveOneOut()
             cv_results = sklearn.model_selection.cross_validate(
-                    model,
+                    copy.deepcopy(model),
                     X,
                     y,
                     cv=cv,
-                    scoring={'p':p_score, 'r2':sklearn.metrics.make_scorer(sklearn.metrics.r2_score)},
+                    #scoring={'p':p_score, 'r2':sklearn.metrics.make_scorer(sklearn.metrics.r2_score)},
+                    scoring='neg_mean_absolute_error',
                     return_estimator=True,
                     return_train_score=True,
                     return_indices=True,
                     n_jobs=8,
             )
 
-            output[behav][model_name] = {'model':model, 'X':X, 'y':y, 'y_pred':y_pred, 'r2':r2, 'r':r, 'p':p, 
-                                         'cv_results':cv_results}
+            output[behav][model_name] = {'model':copy.deepcopy(model), 'X':X, 'y':y, 'y_pred':y_pred, 'r2':r2, 'r':r, 'p':p, 
+                                         'cv_results':copy.deepcopy(cv_results)}
     return output
 
 def plot_multivariate_results(multivar, models=['Ridge'], args=None):
@@ -209,7 +221,7 @@ def plot_multivariate_results(multivar, models=['Ridge'], args=None):
             sbn.barplot(data=coefs, orient='h', alpha=0.5, ax=ax)
             plt.title('normalized coefs')
             
-            if model=='Ridge':
+            if model_name=='Ridge':
                 var_coefs = pd.DataFrame(
                     [ est.coef_ for est in multivar[behav][model_name]['cv_results']['estimator'] ], 
                     columns=model.feature_names_in_ )    
@@ -259,6 +271,191 @@ def plot_cv_regression(multivar, args=None):
         plt.show()
 
 
+def plot_multivar_svd(multivar, behavs=None, args=None):
+    """ dimensionality reduction on linear regression parameters/coefficients """
+    behavs = list(multivar.keys()) if behavs==None else behavs
+    coefs = []
+    for behav in behavs:
+        coefs.append(multivar[behav]['Ridge']['model'].coef_)
+        params = multivar[behav]['Ridge']['model'].feature_names_in_
+
+    U,S,V = scipy.linalg.svd(np.array(coefs))
+
+    # normalized eigenvalues
+    plt.figure(figsize=[4,3])
+    plt.bar(np.arange(len(S))+1, S/np.sum(S))
+    plt.ylim([0,1])
+    plt.xlabel('SV')
+    plt.ylabel('contribution')
+    plt.show()
+
+    # eigenvectors 
+    plt.figure(figsize=[21,3])
+    for i in range(len(S)):
+        plt.subplot(1,len(coefs),i+1)
+        plt.barh(-np.arange(len(params)),V[i,:])
+        plt.yticks(-np.arange(len(params)), params)
+        plt.title('SV'+str(i+1))
+    plt.tight_layout()
+    plt.show()
+
+    # low dim projections
+    fig = plt.figure(figsize=[12,4])
+    # 2-d
+    ax = fig.add_subplot(1,3,1)
+    for i,(x,y) in enumerate((coefs@V)[:,:2]):
+        ax.scatter(x,y, label=behavs[i])
+    plt.xlabel('SV1')
+    plt.ylabel('SV2')
+    plt.legend(behavs)
+
+    ax = fig.add_subplot(1,3,2)
+    for i,(x,y) in enumerate((coefs@V)[:,1:3]):
+        ax.scatter(x,y, label=behavs[i])
+    plt.xlabel('SV2')
+    plt.ylabel('SV3')
+    plt.legend(behavs)
+    
+    ax = fig.add_subplot(1,3,3)
+    for i,(x,y) in enumerate((coefs@V)[:,[0,2]]):
+        ax.scatter(x,y, label=behavs[i])
+    plt.xlabel('SV1')
+    plt.ylabel('SV3')
+    plt.legend(behavs)
+    plt.tight_layout()
+    plt.show()
+
+    # 3-d
+    fig = plt.figure(figsize=[8,4])
+    ax = fig.add_subplot(projection='3d')
+    for i,(x,y,z) in enumerate((coefs@V)[:,:3]):
+        ax.scatter(x,y,z, label=behavs[i])
+    plt.xlabel('SV1')
+    plt.ylabel('SV2')
+    ax.set_zlabel('SV3')
+    plt.legend(behavs)
+    plt.tight_layout()
+    plt.show()
+
+
+def create_df_null(multivar, multivar_null):
+    """ create pandas dataframe of regression coefficients w.r.t. null distribution """
+    behavs = multivar.keys()
+    for behav in behavs:
+        params = multivar[behav]['Ridge']['model'].feature_names_in_
+        nulls = []
+        for model_name, _ in models.items():
+            model = multivar_null[behav][model_name]['model']
+            nulls.append(dict((f,v) for f,v in zip(model.feature_names_in_, model.coef_)))
+        df_null = pd.DataFrame(nulls)
+        df_null['null'] = True
+
+        df_sim = pd.DataFrame(
+            [dict((f,v) for f,v in zip(multivar[behav]['Ridge']['model'].feature_names_in_, multivar[behav]['Ridge']['model'].coef_))]
+        )
+        df_sim['null'] = False
+
+        df = pd.concat([df_null, df_sim], ignore_index=True)
+
+        multivar[behav]['Ridge']['df_null'] = df
+
+
+def plot_null_distrib(multivar, args=None):
+    """ plot null distributions of regression coefficients and stats """
+    plt.rcParams['svg.fonttype'] = 'none'
+    plt.rcParams.update({'font.size':11, 'axes.titlesize':'medium', 'mathtext.default': 'regular'})
+
+    behavs = list(multivar.keys())
+    params = multivar[behavs[0]]['Ridge']['model'].feature_names_in_
+    
+    # first figure: individual axes for each params + stats
+    for j,behav in enumerate(behavs):
+        fig = plt.figure(figsize=[15,3])
+        df = multivar[behav]['Ridge']['df_null']
+        for i,par in enumerate(params):
+            ax = fig.add_subplot(1, len(params), i+1)
+            n, mu, sigma = len(df[df.null][par]), df[df.null][par].mean(), df[df.null][par].std()
+            t = (float(df[~df.null][par]) - mu) / sigma
+            p = scipy.stats.t.sf(np.abs(t), n-1)                                        
+            sbn.swarmplot(df[df.null][par], ax=ax, color='black', alpha=0.1)
+            sbn.swarmplot(df[~df.null][par], ax=ax, color='red', alpha=1)
+            plt.title("t={:.2f} p={:.3f}".format(t,p))
+        plt.suptitle(behav)
+        plt.tight_layout()
+        if args.save_figs:
+            fname = os.path.join(proj_dir, 'img', 'null_plots_indiv_stats_'+behav+today()+'.svg')
+            plt.savefig(fname)
+        if args.plot_figs:
+            plt.show(block=False)
+        else:
+            plt.close()
+
+    # second figure: single axe for all params, no stats 
+    fig = plt.figure(figsize=[15,3*len(behavs)])
+    for j,behav in enumerate(behavs):
+        ax = fig.add_subplot(len(behavs), 1, j+1)
+        sbn.swarmplot(df.melt(id_vars='null'), x='variable', y='value', hue='null', palette=['black', 'gainsboro'], ax=ax)
+        ax.get_legend().set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.title(behav)
+    if args.save_figs:
+        fname = os.path.join(proj_dir, 'img', 'null_plots_all_behavs'+today()+'.svg')
+        plt.savefig(fname)
+    if args.plot_figs:
+        plt.show(block=False)
+    else:
+        plt.close()
+    plt.show(block=False)
+
+
+def plot_behavs_distrib(df_sim_pat, behavs):
+    """ Plot behavioral score distribution with median line"""
+    plt.figure(figsize=[20,4])
+    for i,behav in enumerate(behavs):
+        plt.subplot(1,len(behavs),i+1)
+        plt.hist(df_sim_pat[behav], bins=20, alpha=0.5)
+        counts, bins = np.histogram(df_sim_pat[behav], bins=20)
+        plt.vlines(np.median(df_sim_pat[behav]), min(counts), max(counts), color='black')
+        plt.xlabel(behav)
+    plt.tight_layout()
+    plt.show()
+
+
+def discretize_behavs(df_sim_pat, behavs):
+    """ """
+    discretize = lambda x: 0 if x else 1
+    behavs_discrete = []
+    for behav in behavs:
+        new_behav = behav[:-5]+'_discrete'
+        df_sim_pat[new_behav] = [discretize(v) for v in df_sim_pat[behav]<df_sim_pat[behav].median()]
+        behavs_discrete.append(new_behav)
+    return behavs_discrete
+
+
+def print_ANOVA(df_sim_pat, behavs, params):
+    """ Print stats for mixed and one-way ANOVAs """
+    behavs_discrete = discretize_behavs(df_sim_pat, behavs)
+    print("Mixed ANOVAs:")
+    for behav in behavs_discrete:
+        print("\n"+behav)
+        print(df_sim_pat[np.concatenate([[behav, 'subj'], params])].melt(id_vars=[behav, 'subj']).mixed_anova(dv='value', within='variable', between=behav, subject='subj'))
+
+    print("One-way ANOVAs:")
+    for behav in behavs_discrete:
+        print("\n"+behav)
+        for param in params:
+            print("\n"+param)
+            print(pg.normality(dv=param, group=behav, data=df_sim_pat[np.concatenate([[behav, 'subj', param]])]))
+            print(pg.homoscedasticity(dv=param, group=behav, data=df_sim_pat[np.concatenate([[behav, 'subj', param]])]))
+            print('\nANOVA')
+            print(df_sim_pat[np.concatenate([[behav, 'subj', param]])].anova(dv=param, between=behav, detailed=False))
+            print('\nWelch ANOVA')
+            print(df_sim_pat[np.concatenate([[behav, 'subj', param]])].welch_anova(dv=param, between=behav))
+            print('\nKruskal')
+            print(pg.kruskal(dv=param, between=behav, data=df_sim_pat[np.concatenate([[behav, 'subj', param]])]))
+
+
 def parse_arguments():
     " Script arguments when ran as main " 
     parser = argparse.ArgumentParser()
@@ -280,8 +477,16 @@ def parse_arguments():
     parser.add_argument('--load_distances', default=False, action='store_true', help='load distances between patients and simulations from previously saved')
     parser.add_argument('--plot_param_behav', default=False, action='store_true', help='plot param-behavioral relationship')
     parser.add_argument('--verbose', default=False, action='store_true', help='print extra processing info')
-    parser.add_argument('--multivariate_analysis', default=False, action='store_true', help='perform multivariate analysis')
+    parser.add_argument('--session', default=None, action='store', help='which session (ses-pre or ses-post) for behavioral scores (default:None => both are used')
+    parser.add_argument('--multivariate_analysis', default=False, action='store_true', help='perform multivariate analysis on simulations parameters')
+    parser.add_argument('--multivar_fc', default=False, action='store_true', help='perform multivariate analysis on FC variables')
     parser.add_argument('--plot_cv_regression', default=False, action='store_true', help='plot cross validation regression scatters')
+    parser.add_argument('--plot_multivar_svd', default=False, action='store_true', help='plot dimensionality reduction on regression coefficients')
+    parser.add_argument('--plot_multivariate_results', default=False, action='store_true', help='plot multivariate linear regression coefficients')
+    parser.add_argument('--null', default=False, action='store_true', help='shuffle coupling weights to create null hypothesis for regression coefficients')
+    parser.add_argument('--n_null', type=int, default=100, action='store', help="number of elements to make null distribution")
+    parser.add_argument('--plot_null_distrib', default=False, action='store_true', help='plot null distribution analysis of linear regression coefficients')
+    parser.add_argument('--print_ANOVA', default=False, action='store_true', help='print stats for mixed and multiple one-way ANOVAs')
     args = parser.parse_args()
     return args
 
@@ -291,6 +496,9 @@ if __name__=='__main__':
     # load histories and KDEs
     #histories = import_results(args)
     
+    #behavs=['OCIR_Total', 'MADRS_Total', 'HAMA_Total']
+    behavs=['OBQ_Total', 'Dep_Total', 'Anx_total']
+
     print("Loading simulations...")
     df_sims = load_df_sims(args)
     
@@ -299,6 +507,13 @@ if __name__=='__main__':
     
     print("Loading functional connectivity data...")
     df_data = load_df_data(args)
+    
+    print("Loading behavioral data...")
+    with open(os.path.join(proj_dir, 'postprocessing', 'df_pat_.pkl'), 'rb') as f:
+        df_pat = pickle.load(f)
+        if args.session!=None:
+            df_pat = df_pat[df_pat.ses==args.session]
+    df_fc_pat = df_data.pivot(columns='pathway', values='corr', index='subj').reset_index().merge(df_pat)
 
     print("Loading distances...")
     if args.load_distances:
@@ -307,20 +522,46 @@ if __name__=='__main__':
             assoc = pickle.load(f)
     else:
         assoc = compute_distances(df_data, df_sims, args)
-
-    print("Loading behavioral data...")
-    with open(os.path.join(proj_dir, 'postprocessing', 'df_pat_.pkl'), 'rb') as f:
-        df_pat = pickle.load(f)
-
+    
     df_sim_pat = merge_data_sim_dfs(df_pat, df_sims, assoc, args)
+    
+    # univariate analysis
     if args.plot_param_behav:
         plot_param_behav(df_sim_pat, args=args)
 
+    # multivariate analysis
     if args.multivariate_analysis:
         print("Running multivariate analysis...")
-        multivar = multivariate_analysis(df_sim_pat, args=args)
-        if args.plot_figs:
+        if args.multivar_fc:
+            params=['Acc_OFC', 'Acc_PFC', 'Acc_dPut', 'OFC_PFC', 'dPut_PFC']
+            multivar = multivariate_analysis(df_fc_pat, 
+                                             params=params, 
+                                             args=args)
+        else:
+            params=['C_12', 'C_13', 'C_24', 'C_31', 'C_34', 'C_42']
+            multivar = multivariate_analysis(df_sim_pat, args=args)
+
+        if args.plot_multivariate_results:
             plot_multivariate_results(multivar, args=args)
+        
         if args.plot_cv_regression:
             plot_cv_regression(multivar, args=args)
+        
+        if args.plot_multivar_svd:
+            plot_multivar_svd(multivar, behavs=behavs, args=args)
+
+        if args.null:
+            print("Creating Null distribution...")
+            models = dict(('null_model{:04d}'.format(i), sklearn.linear_model.Ridge(alpha=0.01)) 
+                                for i in range(args.n_null))
+            multivar_null = multivariate_analysis(df_sim_pat, models=models, null=True, args=args)
+
+            create_df_null(multivar, multivar_null)
+
+            if args.plot_null_distrib:
+                plot_null_distrib(multivar, args)
+
+        if args.print_ANOVA:
+            print_ANOVA(df_sim_pat, behavs, params)
+
     
