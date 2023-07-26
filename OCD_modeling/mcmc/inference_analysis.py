@@ -6,6 +6,7 @@ import argparse
 from datetime import datetime 
 from concurrent.futures import ProcessPoolExecutor
 import copy
+import itertools
 from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 import multiprocessing
@@ -535,7 +536,9 @@ def compute_rmse_restore(df_data, df_sims, args):
     test_params = df_sims.test_param.unique()
     rmses = Parallel(n_jobs=args.n_jobs, verbose=5)(delayed(compute_rmse_restore_test)
                                         (df_data=df_data[df_data.cohort=='controls'], 
-                                         df_sims=df_sims[df_sims.test_param==test_param], 
+                                         df_sims=df_sims[(df_sims.base_cohort=='patients') 
+                                                         & (df_sims.test_cohort=='controls') 
+                                                         & (df_sims.test_param==test_param)], 
                                          args=args) 
                                          for test_param in test_params)
     lines = []
@@ -545,18 +548,67 @@ def compute_rmse_restore(df_data, df_sims, args):
     return pd.DataFrame(lines)
     
 
-def get_max_rmse(df_data):
-    """ Compute the max RMSE which is the difference between controls and patients """
+def get_max_rmse_data(df_data):
+    """ Compute the RMSE between controls and patients in real data """
     RMSE = []
     for pathway in df_data.pathway.unique():
         con = df_data[(df_data.cohort=='controls') & (df_data.pathway==pathway)]['corr']
         pat = df_data[(df_data.cohort=='patients') & (df_data.pathway==pathway)]['corr']
-        RMSE.append((con.mean()-pat.mean)**2 + (con.std()-pat.std())**2)
+        RMSE.append((con.mean()-pat.mean())**2 + (con.std()-pat.std())**2)
     return np.sqrt(np.sum(RMSE))
 
-def plot_rmse_restore(rmses, df_data, args):
-    """ plot restoration outputs """
-    max_rmse = get_max_rmse(df_data)
+
+def get_max_rmse_sims(args):
+    """ Compute the RMSE between controls and patients in simulated dataset """
+    with sl.connect(os.path.join(proj_dir, 'postprocessing', 'sim_test_20230614.db')) as conn:
+        df = pd.read_sql("SELECT * FROM SIMTEST WHERE test_param='None'", conn)
+    conn.close()
+    #con_mean = df[df.base_cohort=='controls'].iloc[:6*192].groupby('pathway')['corr'].mean()
+    #con_std = df[df.base_cohort=='controls'].iloc[:6*192].groupby('pathway')['corr'].std()
+    #pat_mean = df[df.base_cohort=='patients'].iloc[:6*192].groupby('pathway')['corr'].mean()
+    #pat_std = df[df.base_cohort=='patients'].iloc[:6*192].groupby('pathway')['corr'].std()
+
+    cons = df[df.base_cohort=='controls']
+    pats = df[df.base_cohort=='patients']
+
+    rmses = []
+    for i in itertools.islice(range(len(cons)), 0, None, args.n_sims*6):
+        con_mean = cons.iloc[i:i*args.n_sims*6].groupby('pathway')['corr'].mean()
+        con_std = cons.iloc[i:i*args.n_sims*6].groupby('pathway')['corr'].std()
+        pat_mean = pats.iloc[i:i*args.n_sims*6].groupby('pathway')['corr'].mean()
+        pat_std = pats.iloc[i:i*args.n_sims*6].groupby('pathway')['corr'].std()
+
+        rmse = np.sqrt(((con_mean-pat_mean)**2).sum() + ((con_std-pat_std)**2).sum())
+        rmses.append(rmse)
+    return np.mean(rmses), np.std(rmses) 
+    
+
+def plot_rmse_restore(df_restore, df_data, args):
+    """ plot best FC restoration outputs """
+    # adds n_test_params column to dataframe 
+    df_restore['n_test_params'] = df_restore.test_param.apply(lambda pars_str: len(pars_str.split(' ')))
+
+    # get top parameters that restore FC
+    top_params = df_restore.sort_values('mean').test_param.unique()[:args.n_restore]
+    df_top = df_restore[df_restore.test_param.apply(lambda x: x in top_params)]
+
+    # plotting
+    #df_top['restore'] = -((df_top['rmse']/get_max_rmse_data(df_data))-1)*100 # make % of restoration
+    df_top['restore'] = -((df_top['rmse']/get_max_rmse_sims(args)[0])-1)*100 # make % of restoration
+    plt.figure(figsize=[6, int(args.n_restore/2)])
+    sbn.boxplot(df_top, x='restore', y='test_param', order=top_params, hue='n_test_params', orient='h')
+    #plt.xlim([-100,100])
+    #sbn.stripplot(df_top, x='test_param', y='mean', color='red', order=top_params)
+    #plt.xticks(rotation=90)
+
+    # data and simulated references
+    xmin,xmax = plt.gca().get_xlim()
+    ymin,ymax = plt.gca().get_ylim()
+    #plt.hlines(y=, xmin=xmin, xmax=xmax, linestyle='dashed', color='black', label='data')
+    #plt.hlines(y=get_max_rmse_sims(), xmin=xmin, xmax=xmax, linestyle='dashed', color='blue', label='sim')
+    plt.grid(axis='x')
+    plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='black')
+    plt.show(block=False)
     
 
 
@@ -598,6 +650,7 @@ def parse_arguments():
     parser.add_argument('--plot_null_distrib', default=False, action='store_true', help='plot null distribution analysis of linear regression coefficients')
     parser.add_argument('--print_ANOVA', default=False, action='store_true', help='print stats for mixed and multiple one-way ANOVAs')
     parser.add_argument('--restore_analysis', default=False, action='store_true', help='perform retoration analys of test parameters to move from patient to controls FC')
+    parser.add_argument('--n_restore', type=int, default=10, action='store', help="number of best restorations for plotting")
     args = parser.parse_args()
     return args
 
@@ -682,6 +735,7 @@ if __name__=='__main__':
     if args.restore_analysis:
         print("Restoration analysis...")
         df_restore = compute_rmse_restore(df_data, df_sims, args)
+        plot_rmse_restore(df_restore, df_data, args=args)
 
 
     
