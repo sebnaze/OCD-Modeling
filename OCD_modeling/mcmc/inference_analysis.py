@@ -107,7 +107,7 @@ def merge_data_sim_dfs(df_pat, df_sims, assoc, args):
 def plot_param_behav(df_sim_pat, params=['C_12', 'C_13', 'C_24', 'C_31', 'C_34', 'C_42'], behavs=['YBOCS_Total', 'OCIR_Total', 'OBQ_Total', 'MADRS_Total', 'HAMA_Total'], args=None):
     """ Plot association between simulation parameters and behavioral/clinical measures """
     for behav in behavs:
-        fig = plt.figure(figsize=[24,4])
+        fig = plt.figure(figsize=[4*len(params),4])
         for i,param in enumerate(params):
             ax = plt.subplot(1,len(params),i+1)
 
@@ -427,14 +427,14 @@ def plot_null_distrib(multivar, args=None):
 
     # first figure: individual axes for each params + stats
     for j,behav in enumerate(behavs):
-        fig = plt.figure(figsize=[15,3])
+        fig = plt.figure(figsize=[2*len(params),3])
         df = multivar[behav]['Ridge']['df_null']
         for i,par in enumerate(params):
             ax = fig.add_subplot(1, len(params), i+1)
             n, mu, sigma = len(df[df.null][par]), df[df.null][par].mean(), df[df.null][par].std()
             t = (float(df[~df.null].iloc[0][par]) - mu) / sigma
             p = scipy.stats.t.sf(np.abs(t), n-1)                                        
-            sbn.swarmplot(df[df.null][par], ax=ax, color='black', alpha=0.1)
+            sbn.swarmplot(df[df.null][par], ax=ax, color='black', alpha=0.1, size=1)
             sbn.swarmplot([df[~df.null].iloc[0][par]], ax=ax, color='red', alpha=1)
             plt.title("t={:.2f} p={:.3f}".format(t,p))
         plt.suptitle(behav)
@@ -447,26 +447,27 @@ def plot_null_distrib(multivar, args=None):
         else:
             plt.close()
 
-    # second figure: single axe for all params, no stats 
-    fig = plt.figure(figsize=[15,5*len(behavs)])
-    for j,behav in enumerate(behavs):
-        df = multivar[behav]['Ridge']['df_null']
-        ax = fig.add_subplot(len(behavs), 1, j+1)
-        sbn.swarmplot(df.melt(id_vars='null'), x='variable', y='value', hue='null', dodge=True, palette=['black', 'gainsboro'], ax=ax)
-        ax.get_legend().set_visible(False)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ttl = get_param_stats_title(df, params, behav)
-        plt.title(ttl)
-    plt.tight_layout()
-    if args.save_figs:
-        fname = os.path.join(proj_dir, 'img', 'null_plots_all_behavs'+today()+'.svg')
-        plt.savefig(fname)
-    if args.plot_figs:
+    if args.plot_cv_null_distrib:
+        # second figure: single axe for all params, no stats 
+        fig = plt.figure(figsize=[15,5*len(behavs)])
+        for j,behav in enumerate(behavs):
+            df = multivar[behav]['Ridge']['df_null']
+            ax = fig.add_subplot(len(behavs), 1, j+1)
+            sbn.swarmplot(df.melt(id_vars='null'), x='variable', y='value', hue='null', dodge=True, palette=['black', 'gainsboro'], ax=ax)
+            ax.get_legend().set_visible(False)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ttl = get_param_stats_title(df, params, behav)
+            plt.title(ttl)
+        plt.tight_layout()
+        if args.save_figs:
+            fname = os.path.join(proj_dir, 'img', 'null_plots_all_behavs'+today()+'.svg')
+            plt.savefig(fname)
+        if args.plot_figs:
+            plt.show(block=False)
+        else:
+            plt.close()
         plt.show(block=False)
-    else:
-        plt.close()
-    plt.show(block=False)
 
 
 def plot_behavs_distrib(df_sim_pat, behavs):
@@ -516,7 +517,14 @@ def print_ANOVA(df_sim_pat, behavs, params):
             print(pg.kruskal(dv=param, between=behav, data=df_sim_pat[np.concatenate([[behav, 'subj', param]])]))
 
 
-def compute_rmse_restore_test(df_data, df_sims, args):
+def get_df_base(args):
+    """ Import simulations from infered parameters for controls and patients without restoration """
+    with sl.connect(os.path.join(proj_dir, 'postprocessing', 'sim_test_20230614.db')) as conn:
+        df = pd.read_sql("SELECT * FROM SIMTEST WHERE test_param='None'", conn)
+    conn.close()
+    return df
+
+def compute_rmse_restore_data(df_data, df_sims, args):
     """ Compute Root Mean Squared Error between the data and batches from the simulation """
     pathways = df_data.pathway.unique()
     n_folds = int(np.floor(len(df_sims) / args.n_sims))
@@ -531,10 +539,57 @@ def compute_rmse_restore_test(df_data, df_sims, args):
     return np.array(RMSEs)
 
 
-def compute_rmse_restore(df_data, df_sims, args):
-    """ Loop over all the combincations of test_params to compute the RMSE """
+def compute_rmse_restore_sims(df_base, df_sims, args):
+    """ Compute Root Mean Squared Error between batches of simulations in controls, patients and 
+    continuous restoration from patients to controls """
+    n_folds = int(np.floor(len(df_sims) / args.n_sims))
+    n_pathways = len(args.pathways)
+    i_s = np.arange(0,n_folds*args.n_sims, args.n_sims)
+    j_s = list(itertools.islice(range(len(df_base)), 0, None, args.n_sims*n_pathways))
+    RMSEs = []
+    for i,j in itertools.product(i_s, j_s):
+        sim = df_sims.iloc[i:i+args.n_sims]
+        base = df_base.iloc[j:j+args.n_sims*n_pathways]
+        RMSE = []
+        for pathway in args.pathways:
+            mu_sims, sigma_sims = sim[pathway].mean(), sim[pathway].std()
+            mu_base, sigma_base = base[base.pathway==pathway]['corr'].mean(), base[base.pathway==pathway]['corr'].std()
+            RMSE.append((mu_base-mu_sims)**2 + (sigma_base-sigma_sims)**2)
+        RMSEs.append(np.sqrt(np.sum(RMSE)))
+    return np.array(RMSEs).squeeze()
+
+
+def compute_rmse_restore(df_sims, args):
+    """ Compare base simulations (from patients and controls) to intervention simulations ("restoration") """
     test_params = df_sims.test_param.unique()
-    rmses = Parallel(n_jobs=args.n_jobs, verbose=5)(delayed(compute_rmse_restore_test)
+    df_base = get_df_base(args)
+    rmses = Parallel(n_jobs=args.n_jobs, verbose=5)(delayed(compute_rmse_restore_sims)
+                                        (df_base=df_base[df_base.base_cohort=='controls'], 
+                                         df_sims=df_sims[(df_sims.base_cohort=='patients') 
+                                                         & (df_sims.test_cohort=='controls') 
+                                                         & (df_sims.test_param==test_param)], 
+                                         args=args) 
+                                        for test_param in test_params)
+
+    #rmses = []
+    #for test_param in test_params:
+    #    rmses.append(compute_rmse_restore_sims(df_base=df_base[df_base.base_cohort=='controls'], 
+    #                              df_sims=df_sims[(df_sims.base_cohort=='patients') 
+    #                                               & (df_sims.test_cohort=='controls') 
+    #                                                & (df_sims.test_param==test_param)], 
+    #                              args=args))
+
+    lines = []
+    for tp,rmse in zip(test_params, rmses):
+        for rms in rmse:
+            lines.append({'test_param':tp, 'rmse':rms, 'mean':np.mean(rmse), 'std':np.std(rmse)})
+    return pd.DataFrame(lines) # <- df_restore
+
+"""
+def compute_rmse_restore(df_data, df_sims, args):
+    ''' Loop over all the combinations of test_params to compute the RMSE '''
+    test_params = df_sims.test_param.unique()
+    rmses = Parallel(n_jobs=args.n_jobs, verbose=5)(delayed(compute_rmse_restore_data)
                                         (df_data=df_data[df_data.cohort=='controls'], 
                                          df_sims=df_sims[(df_sims.base_cohort=='patients') 
                                                          & (df_sims.test_cohort=='controls') 
@@ -545,8 +600,8 @@ def compute_rmse_restore(df_data, df_sims, args):
     for tp,rmse in zip(test_params, rmses):
         for rms in rmse:
             lines.append({'test_param':tp, 'rmse':rms, 'mean':np.mean(rmse), 'std':np.std(rmse)})
-    return pd.DataFrame(lines)
-    
+    return pd.DataFrame(lines) # <- df_restore
+"""    
 
 def get_max_rmse_data(df_data):
     """ Compute the RMSE between controls and patients in real data """
@@ -560,9 +615,7 @@ def get_max_rmse_data(df_data):
 
 def get_max_rmse_sims(args):
     """ Compute the RMSE between controls and patients in simulated dataset """
-    with sl.connect(os.path.join(proj_dir, 'postprocessing', 'sim_test_20230614.db')) as conn:
-        df = pd.read_sql("SELECT * FROM SIMTEST WHERE test_param='None'", conn)
-    conn.close()
+    df = get_df_base(args)
     #con_mean = df[df.base_cohort=='controls'].iloc[:6*192].groupby('pathway')['corr'].mean()
     #con_std = df[df.base_cohort=='controls'].iloc[:6*192].groupby('pathway')['corr'].std()
     #pat_mean = df[df.base_cohort=='patients'].iloc[:6*192].groupby('pathway')['corr'].mean()
@@ -571,16 +624,40 @@ def get_max_rmse_sims(args):
     cons = df[df.base_cohort=='controls']
     pats = df[df.base_cohort=='patients']
 
-    rmses = []
-    for i in itertools.islice(range(len(cons)), 0, None, args.n_sims*6):
-        con_mean = cons.iloc[i:i*args.n_sims*6].groupby('pathway')['corr'].mean()
-        con_std = cons.iloc[i:i*args.n_sims*6].groupby('pathway')['corr'].std()
-        pat_mean = pats.iloc[i:i*args.n_sims*6].groupby('pathway')['corr'].mean()
-        pat_std = pats.iloc[i:i*args.n_sims*6].groupby('pathway')['corr'].std()
+    # note: since same number of controls and patients simulations we can use same indices for both 
+    #rmses = []
+    #for i in itertools.islice(range(len(cons)), 0, None, args.n_sims*6):
+    #    con_mean = cons.iloc[i:i*args.n_sims*6].groupby('pathway')['corr'].mean()
+    #    con_std = cons.iloc[i:i*args.n_sims*6].groupby('pathway')['corr'].std()
+    #    pat_mean = pats.iloc[i:i*args.n_sims*6].groupby('pathway')['corr'].mean()
+    #    pat_std = pats.iloc[i:i*args.n_sims*6].groupby('pathway')['corr'].std()
 
-        rmse = np.sqrt(((con_mean-pat_mean)**2).sum() + ((con_std-pat_std)**2).sum())
-        rmses.append(rmse)
-    return np.mean(rmses), np.std(rmses) 
+    #    rmse = np.sqrt(((con_mean-pat_mean)**2).sum() + ((con_std-pat_std)**2).sum())
+    #    rmses.append(rmse)
+
+    # using combinations and within cohort stats
+    rmse_combi = {'con':[], 'pat':[], 'con_pat':[]}
+    i_s = list(itertools.islice(range(len(cons)), 0, None, args.n_sims*6))
+    for i,j in itertools.combinations(i_s, 2):
+        con_mean_i = cons.iloc[i:i+args.n_sims*6].groupby('pathway')['corr'].mean()
+        con_std_i = cons.iloc[i:i+args.n_sims*6].groupby('pathway')['corr'].std()
+        pat_mean_i = pats.iloc[i:i+args.n_sims*6].groupby('pathway')['corr'].mean()
+        pat_std_i = pats.iloc[i:i+args.n_sims*6].groupby('pathway')['corr'].std()
+
+        con_mean_j = cons.iloc[j:j+args.n_sims*6].groupby('pathway')['corr'].mean()
+        con_std_j = cons.iloc[j:j+args.n_sims*6].groupby('pathway')['corr'].std()
+        pat_mean_j = pats.iloc[j:j+args.n_sims*6].groupby('pathway')['corr'].mean()
+        pat_std_j = pats.iloc[j:j+args.n_sims*6].groupby('pathway')['corr'].std()
+
+        rmse_con = np.sqrt(((con_mean_i-con_mean_j)**2).sum() + ((con_std_i-con_std_j)**2).sum())
+        rmse_pat = np.sqrt(((pat_mean_i-pat_mean_j)**2).sum() + ((pat_std_i-pat_std_j)**2).sum())
+        rmse_con_pat = np.sqrt(((con_mean_i-pat_mean_j)**2).sum() + ((con_std_i-pat_std_j)**2).sum())
+        rmse_combi['con'].append(rmse_con)
+        rmse_combi['pat'].append(rmse_pat)
+        rmse_combi['con_pat'].append(rmse_con_pat)
+
+    #return np.mean(rmses), np.std(rmses) 
+    return rmse_combi
     
 
 def plot_rmse_restore(df_restore, df_data, args):
@@ -592,11 +669,13 @@ def plot_rmse_restore(df_restore, df_data, args):
     top_params = df_restore.sort_values('mean').test_param.unique()[:args.n_restore]
     df_top = df_restore[df_restore.test_param.apply(lambda x: x in top_params)]
 
+    rmse = get_max_rmse_sims(args)
+
     # plotting
     #df_top['restore'] = -((df_top['rmse']/get_max_rmse_data(df_data))-1)*100 # make % of restoration
-    df_top['restore'] = -((df_top['rmse']/get_max_rmse_sims(args)[0])-1)*100 # make % of restoration
+    df_top['restore'] = (1-(df_top['rmse']/np.mean(rmse['con_pat'])))*100 # make % of restoration
     plt.figure(figsize=[6, int(args.n_restore/2)])
-    sbn.boxplot(df_top, x='restore', y='test_param', order=top_params, hue='n_test_params', orient='h')
+    sbn.boxplot(df_top, x='restore', y='test_param', order=top_params, hue='n_test_params', orient='h', saturation=3, width=1)
     #plt.xlim([-100,100])
     #sbn.stripplot(df_top, x='test_param', y='mean', color='red', order=top_params)
     #plt.xticks(rotation=90)
@@ -606,8 +685,19 @@ def plot_rmse_restore(df_restore, df_data, args):
     ymin,ymax = plt.gca().get_ylim()
     #plt.hlines(y=, xmin=xmin, xmax=xmax, linestyle='dashed', color='black', label='data')
     #plt.hlines(y=get_max_rmse_sims(), xmin=xmin, xmax=xmax, linestyle='dashed', color='blue', label='sim')
-    plt.grid(axis='x')
-    plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='black')
+    #plt.grid(axis='x')
+    plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.75)
+    #plt.vlines(-(((mu_sims-sigma_sims)/mu_sims)-1)*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.5)
+    #plt.vlines(-(((mu_sims-2*sigma_sims)/mu_sims)-1)*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='green', alpha=0.5)
+    #plt.vlines(-(((get_max_rmse_data(df_data))/mu_sims)-1)*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.5) 
+
+    plt.vlines(100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.75) 
+
+    plt.vlines((np.std(rmse['pat'])/np.mean(rmse['con_pat']))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.5)
+    plt.vlines((2*np.std(rmse['pat'])/np.mean(rmse['con_pat']))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.25)
+
+    plt.vlines((1 - (np.std(rmse['con'])/np.mean(rmse['con_pat'])))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.5)
+    plt.vlines((1 - (2*np.std(rmse['con'])/np.mean(rmse['con_pat'])))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.25)
     plt.show(block=False)
     
 
@@ -648,6 +738,7 @@ def parse_arguments():
     parser.add_argument('--null', default=False, action='store_true', help='shuffle coupling weights to create null hypothesis for regression coefficients')
     parser.add_argument('--n_null', type=int, default=100, action='store', help="number of elements to make null distribution")
     parser.add_argument('--plot_null_distrib', default=False, action='store_true', help='plot null distribution analysis of linear regression coefficients')
+    parser.add_argument('--plot_cv_null_distrib', default=False, action='store_true', help='plot null distribution analysis of linear regression coefficients for all CV folds')
     parser.add_argument('--print_ANOVA', default=False, action='store_true', help='print stats for mixed and multiple one-way ANOVAs')
     parser.add_argument('--restore_analysis', default=False, action='store_true', help='perform retoration analys of test parameters to move from patient to controls FC')
     parser.add_argument('--n_restore', type=int, default=10, action='store', help="number of best restorations for plotting")
@@ -720,7 +811,11 @@ if __name__=='__main__':
             print("Creating Null distribution...")
             models = dict(('null_model{:04d}'.format(i), sklearn.linear_model.Ridge(alpha=0.01)) 
                                 for i in range(args.n_null))
-            multivar_null = multivariate_analysis(df_sim_pat, models=models, null=True, args=args)
+            multivar_null = multivariate_analysis(df_sim_pat, 
+                                                  params=params, 
+                                                  models=models, 
+                                                  null=True, 
+                                                  args=args)
 
             create_df_null(multivar, multivar_null)
 
@@ -734,7 +829,9 @@ if __name__=='__main__':
     # restoration analysis
     if args.restore_analysis:
         print("Restoration analysis...")
-        df_restore = compute_rmse_restore(df_data, df_sims, args)
+        args.pathways = df_data.pathway.unique()
+        #df_restore = compute_rmse_restore(df_data, df_sims, args)
+        df_restore = compute_rmse_restore(df_sims, args)
         plot_rmse_restore(df_restore, df_data, args=args)
 
 
