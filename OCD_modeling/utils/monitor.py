@@ -9,9 +9,10 @@ import argparse
 from datetime import datetime
 import json
 import os
+from matplotlib import pyplot as plt
 import pandas as pd
 import psutil
-#import seaborn as sbn
+import seaborn as sbn
 import time
 
 
