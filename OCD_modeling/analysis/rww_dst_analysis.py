@@ -164,7 +164,7 @@ def launch_stability_analysis(order_params, default_params, out_queue, args):
 
 
 def run_stability_analysis(order_params, default_params, args):
-    """ Starts a pool of parallel processes """
+    """ Starts a pool of parallel processes to run the stability analysis """
     # debug
     #outputs = []
     #for vals in itertools.product(*order_params.values()):
