@@ -131,6 +131,8 @@ def fix_df_sims_names(df_sims, args):
     """ Fix duplicate sim names in dataframe (sometimes sqlite3 locking mechanism does fail, the db is not corrupted but 
       simulation indices may need fixing (duplicate names)  """
     df_sims['subj'] = df_sims.apply(lambda row: "sim-"+args.base_cohort[:3]+"{:06d}".format(int(row.name)+1), axis=1)
+    df_sims['n_test_params'] = df_sims.test_param.apply(lambda pars_str: len(pars_str.split(' ')))
+
 
 
 def score_pval(y, y_pred):
@@ -570,6 +572,16 @@ def rmse(u,v):
     mse = u_.combine(v_, np.subtract).apply('square').apply('sum').sum()
     return np.sqrt(mse)
 
+
+def emd(u,v):
+    """ computes the Wasserstein distance (i.e. earth mover's distance) across pathways P between u and v """
+    d = []
+    for col in u.columns:
+        d.append(scipy.stats.wasserstein_distance(u[col], v[col]))
+    return np.sum(d)
+
+metric = {'rmse': rmse, 'emd':emd}
+
 def compute_rmse_restore_data(df_data, df_sims, args):
     """ [DEPRECATED] Compute Root Mean Squared Error between the data and batches from the simulation """
     pathways = df_data.pathway.unique()
@@ -585,27 +597,27 @@ def compute_rmse_restore_data(df_data, df_sims, args):
     return np.array(RMSEs)
 
 
-def compute_rmse_restore_sims(df_base, df_sims, args):
+def compute_distance_restore_sims(df_base, df_sims, args):
     """ Compute Root Mean Squared Error between batches of simulations in controls, patients and 
     continuous restoration from patients to controls """
     max_len = np.min([len(df_sims), len(df_base)])
     n_folds = int(np.floor(max_len/ args.n_sims))
     n_pathways = len(args.pathways)
     i_s = np.arange(0,n_folds*args.n_sims, args.n_sims)
-    RMSEs = []
+    distances = []
     for i,j in itertools.product(i_s, i_s):
         sim = df_sims.iloc[i:i+args.n_sims]
         base = df_base.iloc[j:j+args.n_sims]
-        RMSEs.append(rmse(sim[args.pathways], base[args.pathways]))
-    return np.array(RMSEs).squeeze()
+        distances.append(metric[args.distance_metric](sim[args.pathways], base[args.pathways]))
+    return np.array(distances).squeeze()
 
 
-def compute_rmse_restore(df_sims, args):
+def compute_distance_restore(df_sims, args):
     """ Compare base simulations (from patients and controls) to intervention simulations ("restoration") """
-    test_params = df_sims.test_param.unique()
+    test_params = df_sims[df_sims.n_test_params<=args.n_test_params].test_param.unique()
     df_base = get_df_base(args)
     df_base = fix_df_base(df_base)
-    rmses = Parallel(n_jobs=args.n_jobs, verbose=5)(delayed(compute_rmse_restore_sims)
+    distances = Parallel(n_jobs=args.n_jobs, verbose=5)(delayed(compute_distance_restore_sims)
                                         (df_base=df_base[df_base.base_cohort=='controls'], 
                                         df_sims=df_sims[(df_sims.base_cohort=='patients') 
                                                          & (df_sims.test_cohort=='controls') 
@@ -622,9 +634,9 @@ def compute_rmse_restore(df_sims, args):
     #                             args=args))
 
     lines = []
-    for tp,rmse in zip(test_params, rmses):
-        for rms in rmse:
-            lines.append({'test_param':tp, 'rmse':rms, 'mean':np.mean(rmse), 'std':np.std(rmse)})
+    for tp,distance in zip(test_params, distances):
+        for dist in distance:
+            lines.append({'test_param':tp, 'dist':dist, 'mean':np.mean(distance), 'std':np.std(distance)})
     return pd.DataFrame(lines) # <- df_restore
 
 """
@@ -655,39 +667,51 @@ def get_max_rmse_data(df_data):
     return np.sqrt(np.sum(RMSE))
 
 
-def get_max_rmse_sims(args):
-    """ Compute the RMSE between controls and patients in simulated dataset """
-    df = get_df_base(args)
-    n_pathways = len(df.pathway.unique())
+def get_max_distance_sims(args):
+    """ Compute the distance between controls and patients in simulated dataset """
+    df_base = get_df_base(args)
+    df_base = fix_df_base(df_base)
+    #n_pathways = len(df.pathway.unique())
 
-    cons = df[df.base_cohort=='controls']
-    pats = df[df.base_cohort=='patients']
+    cons = df_base[df_base.base_cohort=='controls']
+    pats = df_base[df_base.base_cohort=='patients']
 
     # using combinations and within cohort stats
-    rmse_combi = {'con':[], 'pat':[], 'con_pat':[]}
-    i_s = list(itertools.islice(range(len(cons)), 0, None, args.n_sims*6))
+    distances = {'con':[], 'pat':[], 'con_pat':[]}
+    i_s = list(itertools.islice(range(len(cons)), 0, None, args.n_sims))
     for i,j in itertools.combinations(i_s, 2):
-        con_mean_i = cons.iloc[i:i+args.n_sims*n_pathways].groupby('pathway')['corr'].mean()
-        con_std_i = cons.iloc[i:i+args.n_sims*n_pathways].groupby('pathway')['corr'].std()
-        pat_mean_i = pats.iloc[i:i+args.n_sims*n_pathways].groupby('pathway')['corr'].mean()
-        pat_std_i = pats.iloc[i:i+args.n_sims*n_pathways].groupby('pathway')['corr'].std()
+        cons_i = cons.iloc[i:i+args.n_sims]
+        cons_j = cons.iloc[j:j+args.n_sims]
+        pats_i = pats.iloc[i:i+args.n_sims]
+        pats_j = pats.iloc[j:j+args.n_sims]
+        distances['con'].append(metric[args.distance_metric](cons_i[args.pathways], cons_j[args.pathways]))
+        distances['pat'].append(metric[args.distance_metric](pats_i[args.pathways], pats_j[args.pathways]))
+        distances['con_pat'].append(metric[args.distance_metric](cons_i[args.pathways], pats_j[args.pathways]))
+    return distances
 
-        con_mean_j = cons.iloc[j:j+args.n_sims*n_pathways].groupby('pathway')['corr'].mean()
-        con_std_j = cons.iloc[j:j+args.n_sims*n_pathways].groupby('pathway')['corr'].std()
-        pat_mean_j = pats.iloc[j:j+args.n_sims*n_pathways].groupby('pathway')['corr'].mean()
-        pat_std_j = pats.iloc[j:j+args.n_sims*n_pathways].groupby('pathway')['corr'].std()
+    #i_s = list(itertools.islice(range(len(cons)), 0, None, args.n_sims*6))
+    #for i,j in itertools.combinations(i_s, 2):
+    #    con_mean_i = cons.iloc[i:i+args.n_sims*n_pathways].groupby('pathway')['corr'].mean()
+    #    con_std_i = cons.iloc[i:i+args.n_sims*n_pathways].groupby('pathway')['corr'].std()
+    #    pat_mean_i = pats.iloc[i:i+args.n_sims*n_pathways].groupby('pathway')['corr'].mean()
+    #    pat_std_i = pats.iloc[i:i+args.n_sims*n_pathways].groupby('pathway')['corr'].std()
 
-        rmse_con = np.sqrt(((con_mean_i-con_mean_j)**2).sum() + ((con_std_i-con_std_j)**2).sum())
-        rmse_pat = np.sqrt(((pat_mean_i-pat_mean_j)**2).sum() + ((pat_std_i-pat_std_j)**2).sum())
-        rmse_con_pat = np.sqrt(((con_mean_i-pat_mean_j)**2).sum() + ((con_std_i-pat_std_j)**2).sum())
-        rmse_combi['con'].append(rmse_con)
-        rmse_combi['pat'].append(rmse_pat)
-        rmse_combi['con_pat'].append(rmse_con_pat)
+    #   con_mean_j = cons.iloc[j:j+args.n_sims*n_pathways].groupby('pathway')['corr'].mean()
+    #    con_std_j = cons.iloc[j:j+args.n_sims*n_pathways].groupby('pathway')['corr'].std()
+    #    pat_mean_j = pats.iloc[j:j+args.n_sims*n_pathways].groupby('pathway')['corr'].mean()
+    #    pat_std_j = pats.iloc[j:j+args.n_sims*n_pathways].groupby('pathway')['corr'].std()
 
-    return rmse_combi
+    #    rmse_con = np.sqrt(((con_mean_i-con_mean_j)**2).sum() + ((con_std_i-con_std_j)**2).sum())
+    #    rmse_pat = np.sqrt(((pat_mean_i-pat_mean_j)**2).sum() + ((pat_std_i-pat_std_j)**2).sum())
+    #    rmse_con_pat = np.sqrt(((con_mean_i-pat_mean_j)**2).sum() + ((con_std_i-pat_std_j)**2).sum())
+    #    rmse_combi['con'].append(rmse_con)
+    #    rmse_combi['pat'].append(rmse_pat)
+    #    rmse_combi['con_pat'].append(rmse_con_pat)
+
+    #return rmse_combi
     
 
-def plot_restore_intersect(rmse):
+def plot_restore_intersect(distances):
     """ Plot KDEs of restoration RMSE between controls and patients to find a correct threshold value """
     
     def get_KDE(values):
@@ -698,39 +722,61 @@ def plot_restore_intersect(rmse):
         pdf = kde.score_samples(X)
         return {'kde':kde, 'pdf':pdf, 'X':X}
     
-    kde_con = get_KDE(rmse['con'])
-    kde_pat = get_KDE(rmse['pat'])
-    bias_pat = np.mean(rmse['pat'])
-    bias_con = np.mean(rmse['con'])
-    offset = np.mean(rmse['con_pat'])
-    scale = np.mean(rmse['con_pat'])
+    kde_con = get_KDE(distances['con'])
+    kde_pat = get_KDE(distances['pat'])
+    bias_pat = np.mean(distances['pat'])
+    bias_con = np.mean(distances['con'])
+    bias = np.mean([bias_con, bias_pat])
+    offset = np.mean(distances['con_pat'])
+    scale = np.mean(distances['con_pat'])
 
-    plt.figure(figsize=[12,4])
+    plt.figure(figsize=[12,8])
     plt.subplot(2,1,1)
-    plt.hist(rmse['pat'], color='orange', alpha=0.5, density=False)
-    plt.hist(rmse['con']+offset, color='lightblue', alpha=0.5, density=False)
+    plt.hist(distances['pat']-np.mean(distances['pat'])+offset, color='orange', alpha=0.5, density=False)
+    plt.hist(distances['con']-np.mean(distances['con']), color='lightblue', alpha=0.5, density=False)
+    #plt.xlim([0,1])
+    plt.xlabel('distance to mean healthy FC')
+    plt.ylabel('counts')
     plt.subplot(2,1,2)
-    plt.plot(100*(kde_pat['X']-bias_pat)/scale, kde_pat['pdf'], color='orange')
-    plt.plot(100*(kde_con['X']+offset-bias_con)/scale, kde_con['pdf'], color='lightblue')
+    plt.plot(100*(kde_pat['X']-bias)/scale, kde_pat['pdf'], color='orange')
+    plt.plot(100*(kde_con['X']-bias+offset)/scale, kde_con['pdf'], color='lightblue')
+    plt.xlabel('efficacy (% restoration towards mean healthy FC)')
+    plt.ylabel('density')
     plt.show()
 
 
-def plot_rmse_restore(df_restore, df_data, args):
+def plot_distance_restore(df_restore, df_data, args):
     """ plot best FC restoration outputs """
     # adds n_test_params column to dataframe 
     df_restore['n_test_params'] = df_restore.test_param.apply(lambda pars_str: len(pars_str.split(' ')))
     sub_df_restore = df_restore[df_restore.n_test_params<=args.n_test_params]
     # get top parameters that restore FC
     top_params = sub_df_restore.sort_values('mean').test_param.unique()[:args.n_restore]
-    df_top = sub_df_restore[sub_df_restore.test_param.apply(lambda x: x in top_params)]
+    df_top = sub_df_restore[sub_df_restore.test_param.apply(lambda x: x in top_params)]   
+    distances = get_max_distance_sims(args)
+    offset = np.mean([np.mean(distances['pat']), np.mean(distances['con'])])
+    scale = np.mean(distances['con_pat'])
+    #df_top['restore'] = (1-((df_top['dist']-np.mean(distances['pat']))/np.mean(distances['con_pat'])))*100 # make % of restoration
+    df_top['restore'] = (1-((df_top['dist']-offset))/scale)*100 # make % of restoration
 
-    rmse = get_max_rmse_sims(args)
+    # create df for base distances
+    df_pat = pd.DataFrame({'dist': distances['pat']-np.mean(distances['pat']), 'test_param':'patients', 'n_test_params': 0})
+    df_pat['restore'] = ((df_pat['dist']/np.mean(distances['con_pat'])))*100 # make % of restoration
+
+    df_con = pd.DataFrame({'dist': distances['con']-np.mean(distances['con']), 'test_param':'controls', 'n_test_params': 0})
+    df_con['restore'] = ((df_con['dist']/np.mean(distances['con_pat']))+1)*100 # make % of restoration
+    
+    df_top = pd.concat([df_pat, df_con, df_top], ignore_index=True)
+    top_params = np.concatenate([['patients','controls'],top_params])
 
     # plotting
     #df_top['restore'] = -((df_top['rmse']/get_max_rmse_data(df_data))-1)*100 # make % of restoration
-    df_top['restore'] = (1-((df_top['rmse']-np.mean(rmse['pat']))/np.mean(rmse['con_pat'])))*100 # make % of restoration
+    
     plt.figure(figsize=[6, int(args.n_restore/2)])
+    #sbn.boxplot(df_con, x='restore', y='test_param', hue='n_test_params', orient='h', saturation=3, width=1)
+    #sbn.boxplot(df_pat, x='restore', y='test_param', hue='n_test_params', orient='h', saturation=3, width=1)
     sbn.boxplot(df_top, x='restore', y='test_param', order=top_params, hue='n_test_params', orient='h', saturation=3, width=1)
+    #sbn.violinplot(df_top, x='restore', y='test_param', order=top_params, hue='n_test_params', orient='h', saturation=3, width=3)
     #plt.xlim([-100,100])
     #sbn.stripplot(df_top, x='test_param', y='mean', color='red', order=top_params)
     #plt.xticks(rotation=90)
@@ -748,11 +794,11 @@ def plot_rmse_restore(df_restore, df_data, args):
 
     plt.vlines(100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.75) 
 
-    plt.vlines((np.std(rmse['pat'])/np.mean(rmse['con_pat']))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.5)
-    plt.vlines((2*np.std(rmse['pat'])/np.mean(rmse['con_pat']))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.25)
+    plt.vlines((np.std(distances['pat'])/np.mean(distances['con_pat']))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.5)
+    plt.vlines((2*np.std(distances['pat'])/np.mean(distances['con_pat']))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.25)
 
-    plt.vlines((1 - (np.std(rmse['con'])/np.mean(rmse['con_pat'])))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.5)
-    plt.vlines((1 - (2*np.std(rmse['con'])/np.mean(rmse['con_pat'])))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.25)
+    plt.vlines((1 - (np.std(distances['con'])/np.mean(distances['con_pat'])))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.5)
+    plt.vlines((1 - (2*np.std(distances['con'])/np.mean(distances['con_pat'])))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.25)
     plt.show(block=False)
     
 
@@ -785,7 +831,7 @@ def get_X_y(df_restore, params):
         return list(out.values())
 
     X = df_restore.test_param.apply(transform_test_param)
-    y = df_restore['rmse']
+    y = df_restore['dist']
 
     return np.array(list(X)), np.array(y)
 
@@ -856,6 +902,7 @@ def parse_arguments():
     parser.add_argument('--restore_analysis', default=False, action='store_true', help='perform retoration analys of test parameters to move from patient to controls FC')
     parser.add_argument('--n_restore', type=int, default=10, action='store', help="number of best restorations for plotting")
     parser.add_argument('--n_test_params', type=int, default=4, action='store', help="max number of parameter combinations for plotting restoration outputs")
+    parser.add_argument('--distance_metric', type=str, default='rmse', help="distance used in restoration metric (rmse or emd)")
     args = parser.parse_args()
     return args
 
@@ -945,9 +992,9 @@ if __name__=='__main__':
         print("Restoration analysis...")
         args.pathways = df_data.pathway.unique()
         #df_restore = compute_rmse_restore(df_data, df_sims, args)
-        df_restore = compute_rmse_restore(df_sims, args)
-        plot_rmse_restore(df_restore, df_data, args=args)
-        decision_tree(df_restore, params)
+        df_restore = compute_distance_restore(df_sims, args)
+        plot_distance_restore(df_restore, df_data, args=args)
+        #decision_tree(df_restore, params)
 
 
     
