@@ -8,6 +8,7 @@ from concurrent.futures import ProcessPoolExecutor
 import copy
 import itertools
 from joblib import Parallel, delayed
+import matplotlib as mpl
 from matplotlib import pyplot as plt
 import multiprocessing
 import numpy as np
@@ -22,6 +23,7 @@ import seaborn as sbn
 import sklearn
 from sklearn.model_selection import KFold, RepeatedKFold, ShuffleSplit, LeaveOneOut
 from sklearn.metrics import make_scorer, r2_score
+from sklearn.inspection import permutation_importance
 import sqlite3 as sl
 
 import OCD_modeling
@@ -636,7 +638,7 @@ def compute_distance_restore(df_sims, args):
     lines = []
     for tp,distance in zip(test_params, distances):
         for dist in distance:
-            lines.append({'test_param':tp, 'dist':dist, 'mean':np.mean(distance), 'std':np.std(distance)})
+            lines.append({'test_param':tp, 'dist':dist, 'mean':np.mean(distance), 'median':np.median(distance), 'std':np.std(distance)})
     return pd.DataFrame(lines) # <- df_restore
 
 """
@@ -744,54 +746,100 @@ def plot_restore_intersect(distances):
     plt.ylabel('density')
     plt.show()
 
+def format_labels(labels):
+    new_labels = []
+    for label in labels:
+        new_label = []
+        params = label.get_text().split(' ')
+        for param in params:
+            par_ = param.split('_')
+
+            # handle greek letters
+            if (param.startswith('sigma') or param.startswith('eta')):
+                par_[0] = r"\\"[0]+par_[0]
+            
+            # handle C_
+            if len(par_)==2:
+                par_[1] = r'{'+par_[1]+r'}'
+            elif len(par_)==3:
+                par_[1] = r'{'+par_[1]
+                par_[2] = r'{'+par_[2]+r'}}'
+            
+            new_label.append('_'.join(par_))
+        new_label = '${}$'.format(r'\quad'.join(new_label))
+        #label.set_text(new_label)
+        new_labels.append(new_label)
+    return new_labels
+
+
+def compute_efficacy(df_restore, args):
+    """ create a new column with treatment efficacy based on distance to controls """
+    distances = get_max_distance_sims(args)
+    offset = np.mean([np.mean(distances['pat']), np.mean(distances['con'])])
+    scale = np.mean(distances['con_pat'])
+    #df_top['restore'] = (1-((df_top['dist']-np.mean(distances['pat']))/np.mean(distances['con_pat'])))*100 # make % of restoration
+    df_restore['efficacy'] = (1-((df_restore['dist']-offset))/scale)*100 # make % of restoration
+    return df_restore
+
+
+def get_df_top(sub_df_restore, args):
+    # get top parameters that restore FC
+    top_params = dict()
+    top_params['all'] = sub_df_restore.sort_values('mean').test_param.unique()[:args.n_restore]
+    top_params['by_n'] = [sub_df_restore[sub_df_restore.n_test_params==n].sort_values('median').test_param.unique()[:args.n_tops]
+                          for n in np.arange(1,args.n_test_params+1)]
+    top_params['by_n'] = np.concatenate(top_params['by_n'])
+    df_top = sub_df_restore[sub_df_restore.test_param.apply(lambda x: x in top_params[args.sort_style])]   
+    return df_top, top_params
 
 def plot_distance_restore(df_restore, df_data, args):
     """ plot best FC restoration outputs """
     # adds n_test_params column to dataframe 
     df_restore['n_test_params'] = df_restore.test_param.apply(lambda pars_str: len(pars_str.split(' ')))
     sub_df_restore = df_restore[df_restore.n_test_params<=args.n_test_params]
+
     # get top parameters that restore FC
-    top_params = sub_df_restore.sort_values('mean').test_param.unique()[:args.n_restore]
-    df_top = sub_df_restore[sub_df_restore.test_param.apply(lambda x: x in top_params)]   
+    top_params = dict()
+    top_params['all'] = sub_df_restore.sort_values('mean').test_param.unique()[:args.n_restore]
+    top_params['by_n'] = [sub_df_restore[sub_df_restore.n_test_params==n].sort_values('median').test_param.unique()[:5]
+                          for n in np.arange(1,args.n_test_params+1)]
+    top_params['by_n'] = np.concatenate(top_params['by_n'])
+    df_top = sub_df_restore[sub_df_restore.test_param.apply(lambda x: x in top_params[args.sort_style])]   
+    
+    # normalize distances to get efficacy 
     distances = get_max_distance_sims(args)
     offset = np.mean([np.mean(distances['pat']), np.mean(distances['con'])])
     scale = np.mean(distances['con_pat'])
     #df_top['restore'] = (1-((df_top['dist']-np.mean(distances['pat']))/np.mean(distances['con_pat'])))*100 # make % of restoration
-    df_top['restore'] = (1-((df_top['dist']-offset))/scale)*100 # make % of restoration
+    df_top['efficacy'] = (1-((df_top['dist']-offset))/scale)*100 # make % of restoration
 
-    # create df for base distances
+    # create dfs for base distances
     df_pat = pd.DataFrame({'dist': distances['pat']-np.mean(distances['pat']), 'test_param':'patients', 'n_test_params': 0})
-    df_pat['restore'] = ((df_pat['dist']/np.mean(distances['con_pat'])))*100 # make % of restoration
+    df_pat['efficacy'] = ((df_pat['dist']/np.mean(distances['con_pat'])))*100 # make % of restoration
 
     df_con = pd.DataFrame({'dist': distances['con']-np.mean(distances['con']), 'test_param':'controls', 'n_test_params': 0})
-    df_con['restore'] = ((df_con['dist']/np.mean(distances['con_pat']))+1)*100 # make % of restoration
+    df_con['efficacy'] = ((df_con['dist']/np.mean(distances['con_pat']))+1)*100 # make % of restoration
     
+    # merge base and restore dataframes
     df_top = pd.concat([df_pat, df_con, df_top], ignore_index=True)
-    top_params = np.concatenate([['patients','controls'],top_params])
+    top_params[args.sort_style] = np.concatenate([['patients','controls'],top_params[args.sort_style]])
 
     # plotting
     #df_top['restore'] = -((df_top['rmse']/get_max_rmse_data(df_data))-1)*100 # make % of restoration
-    
-    plt.figure(figsize=[6, int(args.n_restore/2)])
-    #sbn.boxplot(df_con, x='restore', y='test_param', hue='n_test_params', orient='h', saturation=3, width=1)
-    #sbn.boxplot(df_pat, x='restore', y='test_param', hue='n_test_params', orient='h', saturation=3, width=1)
-    sbn.boxplot(df_top, x='restore', y='test_param', order=top_params, hue='n_test_params', orient='h', saturation=3, width=1)
+    palette = {0: 'white', 1: 'lightpink', 2: 'plum', 3: 'mediumpurple', 4: 'lightsteelblue', 5:'skyblue', 6:'royalblue'}
+    plt.rcParams.update({'mathtext.default': 'regular', 'font.size':20})
+    plt.rcParams.update({'text.usetex': False})
+    fig = plt.figure(figsize=[10, int(args.n_restore/2)])
+    sbn.boxplot(df_top, x='efficacy', y='test_param', order=top_params[args.sort_style], hue='n_test_params', orient='h', 
+                saturation=3, width=0.5, whis=2, palette=palette, dodge=False)
     #sbn.violinplot(df_top, x='restore', y='test_param', order=top_params, hue='n_test_params', orient='h', saturation=3, width=3)
-    #plt.xlim([-100,100])
-    #sbn.stripplot(df_top, x='test_param', y='mean', color='red', order=top_params)
-    #plt.xticks(rotation=90)
-
+    
     # data and simulated references
     xmin,xmax = plt.gca().get_xlim()
     ymin,ymax = plt.gca().get_ylim()
-    #plt.hlines(y=, xmin=xmin, xmax=xmax, linestyle='dashed', color='black', label='data')
-    #plt.hlines(y=get_max_rmse_sims(), xmin=xmin, xmax=xmax, linestyle='dashed', color='blue', label='sim')
+    
     #plt.grid(axis='x')
-    plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.75)
-    #plt.vlines(-(((mu_sims-sigma_sims)/mu_sims)-1)*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.5)
-    #plt.vlines(-(((mu_sims-2*sigma_sims)/mu_sims)-1)*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='green', alpha=0.5)
-    #plt.vlines(-(((get_max_rmse_data(df_data))/mu_sims)-1)*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.5) 
-
+    plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.75) 
     plt.vlines(100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.75) 
 
     plt.vlines((np.std(distances['pat'])/np.mean(distances['con_pat']))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.5)
@@ -799,8 +847,18 @@ def plot_distance_restore(df_restore, df_data, args):
 
     plt.vlines((1 - (np.std(distances['con'])/np.mean(distances['con_pat'])))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.5)
     plt.vlines((1 - (2*np.std(distances['con'])/np.mean(distances['con_pat'])))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.25)
-    plt.show(block=False)
     
+    labels = plt.gca().get_yticklabels()
+    new_labels = format_labels(labels)
+    plt.gca().set_yticklabels(new_labels)
+    print(new_labels)
+    plt.show(block=False)
+    return fig
+
+
+#------------------------#
+# DECISION TREE ANALYSIS #
+#------------------------#
 
 def get_X_y(df_restore, params):
     """ 
@@ -831,12 +889,12 @@ def get_X_y(df_restore, params):
         return list(out.values())
 
     X = df_restore.test_param.apply(transform_test_param)
-    y = df_restore['dist']
+    y = df_restore['efficacy']
 
     return np.array(list(X)), np.array(y)
 
 
-def decision_tree(df_restore, params):
+def decision_tree(df_restore, params, args):
     """ create a tree from restoration output 
     Parameters:
     -----------
@@ -844,22 +902,199 @@ def decision_tree(df_restore, params):
         pandas DataFrame of restoration output
     params
         list of model parameters
+    args: argparse Namespace
+        global arguments, used to get number of tested parameters
     """
-    X,y = get_X_y(df_restore, params)
-    dt = sklearn.tree.DecisionTreeRegressor(max_depth=args.max_depth)
-    dt.fit(X, y)
+    # create a line in df for each number of params tested
+    lines = [] 
+    decision_trees = []
+    feat_imps = dict() # feature importances
+    for n_test_params in np.arange(args.n_test_params)+1:
+        X,y = get_X_y(df_restore[(df_restore.n_test_params==n_test_params) & (df_restore.efficacy>0)], params)
+        #X,y = get_X_y(df_restore, params)
+        dt = sklearn.tree.DecisionTreeRegressor(max_depth=args.max_depth)
+        dt.fit(X, y)
+        y_pred = dt.predict(X)
+        decision_trees.append({'dt':dt, 'y':y, 'y_pred':y_pred})
 
-    df_fi = pd.DataFrame([dict((feat, imp) for feat,imp in zip(params, dt.feature_importances_))])
+        # basic feature importances
+        line = dict((feat, imp) for feat,imp in zip(params, dt.feature_importances_))
+        line['n_test_params'] = n_test_params
+        lines.append(line)
+
+        # more detailed feature importances
+        feat_imps[n_test_params] = permutation_importance(dt, X, y, scoring='neg_mean_absolute_error', n_repeats=10)
+
+    df_feature_importance = pd.DataFrame(lines)
+    return df_feature_importance, decision_trees, feat_imps
+        
+def plot_decision_tree(df_dt, decision_trees, params):
+    """ Plot a bar plot of basic feature importance and a tree diagram """
+    plt.rcParams.update({'font.size':12})
+    for i,row in df_dt.iterrows():
+        plt.figure(figsize=[6,4])
+        sbn.barplot(row[params].to_frame().transpose())
+        plt.xticks(rotation=30)
+        plt.show()
+
+        plt.figure(figsize=[60,20])
+        sklearn.tree.plot_tree(decision_trees[i]['dt'], max_depth=6, feature_names=params, proportion=True, impurity=False)
+        plt.show()
     
 
-    plt.figure(figsize=[6,4])
-    sbn.barplot(df_fi)
-    plt.xticks(rotation=30)
+def compute_feature_importance(decision_tree, X, y):
+    feature_importances = sklearn.inspection.permutation_importance(decision_tree, X, y, scoring='neg_mean_absolute_error', n_repeat=10)
+
+
+def plot_feature_importances(feat_imps, params):
+    """ Plot feature importance using permutations (not bulit-in basic) """
+    fig = plt.figure(figsize=[16,6])
+    for i,(n_test_params, feat_imp) in enumerate(feat_imps.items()):
+        fi = dict()
+        for feat, imp in zip(params, feat_imp.importances_mean):
+            fi[feat] = imp
+        df_featimp = pd.DataFrame([fi])
+
+        ax = plt.subplot(2,3,i+1)
+        sbn.barplot(data=df_featimp, ax=ax)
+        plt.title(f'n_test_params = {n_test_params}')
+        plt.xticks(rotation=30)
+    plt.tight_layout()
     plt.show()
 
-    plt.figure(figsize=[40,10])
-    sklearn.tree.plot_tree(dt, max_depth=3, feature_names=params, proportion=True)
+
+def plot_dt_prediction(decision_trees):
+    """ Plot decision tree prediction vs ground truth for sanity check """
+    n_dts = len(decision_trees)
+    fig = plt.figure(figsize=[n_dts*5, 5])
+    for i,dt in enumerate(decision_trees):
+        plt.subplot(1,n_dts, i+1)
+        plt.scatter(dt['y'], dt['y_pred'], alpha=0.005, s=10)
+        plt.xlabel('y')
+        plt.ylabel('y_pred')
+        r,p = scipy.stats.pearsonr(dt['y'], dt['y_pred'])
+        r2 = r2_score(dt['y'], dt['y_pred'])
+        plt.title('r={:.2f}  p={:.3f}     r2={:.3f}'.format(r,p,r2))
     plt.show()
+
+
+def plot_feature_windrose(df_dt, params, feat_imps):
+    """ Make windrose vizualisation of decision tree feature importances """
+    theta = np.arange(len(params))/(len(params)) * 2*np.pi
+    theta = np.append(theta, theta[0])
+
+    palette = {0: 'white', 1: 'lightpink', 2: 'plum', 3: 'mediumpurple', 4: 'lightsteelblue', 5:'skyblue', 6:'royalblue'}
+
+    fig, axes = plt.subplots(1,6, subplot_kw={'projection': 'polar'}, figsize=[30,5])
+    for i in np.arange(len(df_dt)):
+        r = np.array(df_dt.iloc[i][params])
+        #r = np.array(feat_imps[i+1].importances_mean)
+        
+        rmin = r - np.array(feat_imps[i+1].importances_std)/2
+        rmin[rmin<0] = 0
+        rmax = r + np.array(feat_imps[i+1].importances_std)/2
+        
+        r = np.append(r, r[0]) 
+        rmin = np.append(rmin, rmin[0]) 
+        rmax = np.append(rmax, rmax[0]) 
+
+        axes[i].plot(theta, r, label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5)
+        #axes[i].bar(theta, r, label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5, width=0.5)
+        #axes[i].fill_between(theta, rmin, rmax)
+        axes[i].set_xticks(theta[:-1])
+        axes[i].set_xticklabels(params)
+        lbls = axes[i].get_xticklabels()
+        new_lbls = format_labels(lbls)
+        axes[i].set_xticklabels(new_lbls)
+        axes[i].set_rticks([0.1], labels=[])
+    #    axes[i].set_rmax(0.25)
+    plt.tight_layout()
+    plt.show()
+
+
+def compute_dt_best_paths(decision_tree, args):
+    """ Find best path and extract corresponding features 
+        Returns
+        -------
+        None. The paths are added in given decision_tree dictionary
+    """
+    dt = decision_tree['dt']
+    n_bests = 5
+    best_leaf = np.argsort(dt.tree_.value.squeeze() * np.array(dt.tree_.feature==-2, dtype=int))[::-1][:n_bests]
+    depth = dt.tree_.compute_node_depths()[best_leaf]
+
+    def get_parent(node_id):
+        for node in range(dt.tree_.node_count):
+            if dt.tree_.children_left[node]==node_id:
+                return {node:False}
+            elif dt.tree_.children_right[node]==node_id:
+                return {node:True}
+        return {}
+    
+    # get list of parents
+    parents = []
+    for i,p in enumerate(best_leaf):
+        branch = []
+        for _ in range(depth[i]):
+            parent = get_parent(p)
+            if parent!={}:
+                branch.append(parent)
+                p = list(parent.keys())[0]
+        parents.append(branch)
+    
+    decision_tree['paths'] = parents
+    decision_tree['best_leaves'] = best_leaf    
+
+
+def get_feat_scores(decision_tree, params):
+    """ 
+    Compute custom scores of features 
+    
+    Returns:
+    --------
+    feat_scores: dict
+        (key,value) = (feature_name, feature_score)
+    """
+    dt = decision_tree['dt']
+    parents = decision_tree['paths']
+    best_leaves = decision_tree['best_leaves']
+    pars = np.array(params)
+    feat_scores = dict((param,0) for param in params)
+    for i,branch in enumerate(parents):
+        for node in branch:
+            if list(node.values())[0]:
+                node_id = list(node.keys())[0]
+                feat_name = pars[dt.tree_.feature[node_id]]
+                score = dt.tree_.value[best_leaves[i]].squeeze()
+                feat_scores[feat_name] += score
+    return feat_scores
+
+
+def compute_custom_feature_scores(decision_trees, params, args):
+    lines= [] 
+    for i,decision_tree in enumerate(decision_trees):
+        compute_dt_best_paths(decision_tree, args)
+        feat_scores = get_feat_scores(decision_tree, params)
+        feat_scores['n_test_params'] = i+1
+        lines.append(feat_scores)
+    df_custom_feat_imps = pd.DataFrame(lines)
+    return df_custom_feat_imps
+
+
+def compute_simple_feature_scores(df_top, params, args):
+    """ Compute feature score simply based on top params weighted by efficacy """
+    lines = []
+    for n_test_params in np.arange(args.n_test_params)+1:
+        df_ = df_top[df_top.n_test_params==n_test_params]
+        Xs, ys = get_X_y(df_, params)
+        feat_imp = np.zeros((len(params),))
+        for X,y in zip(Xs, ys):
+            feat_imp += np.array(X*y).squeeze()
+        line = dict((feat,imp) for feat,imp in zip(params,feat_imp))
+        line['n_test_params'] = n_test_params
+        lines.append(line)
+    df_simple_feat_imps = pd.DataFrame(lines)
+    return df_simple_feat_imps
 
 def parse_arguments():
     " Script arguments when ran as main " 
@@ -903,6 +1138,8 @@ def parse_arguments():
     parser.add_argument('--n_restore', type=int, default=10, action='store', help="number of best restorations for plotting")
     parser.add_argument('--n_test_params', type=int, default=4, action='store', help="max number of parameter combinations for plotting restoration outputs")
     parser.add_argument('--distance_metric', type=str, default='rmse', help="distance used in restoration metric (rmse or emd)")
+    parser.add_argument('--sort_style', type=str, default='all', help="how to sort distances for visualization: 'by_n' or 'all' (default)")
+    parser.add_argument('--max_depth', type=int, default=3, action='store', help="max depth of the decision tree")
     args = parser.parse_args()
     return args
 
@@ -993,8 +1230,12 @@ if __name__=='__main__':
         args.pathways = df_data.pathway.unique()
         #df_restore = compute_rmse_restore(df_data, df_sims, args)
         df_restore = compute_distance_restore(df_sims, args)
+        df_restore = compute_efficacy(df_restore, args)
         plot_distance_restore(df_restore, df_data, args=args)
-        #decision_tree(df_restore, params)
+
+        df_feature_importance, decision_trees, feat_imps = decision_tree(df_restore, params, args)
+        df_custom_feat_imps = compute_custom_feature_scores(decision_trees, params, args)
+        plot_feature_windrose(df_custom_feat_imps, params, feat_imps)
 
 
     
