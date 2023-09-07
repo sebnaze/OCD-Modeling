@@ -254,6 +254,54 @@ def plot_phasespace_grid(outputs, order_params, args=None):
         plt.show()
     
 
+def plot_phasespace_row(outputs, order_params, rww=None, t_range=None, args=None):
+    """ Plot a row of graphs from outputs """
+    plt.rcParams['svg.fonttype'] = 'none'
+    plt.rcParams.update({'font.size':11, 'axes.titlesize':'medium', 'mathtext.default': 'regular'})
+    fig = plt.figure(figsize=[12,3])
+    p1s = list(order_params.values())[0]
+    gs = plt.GridSpec(nrows=1, ncols=len(p1s))
+    #o_pars = np.sort([k for k in output.keys() if k!='output'])
+    #i = [x for x,val in enumerate(order_params[o_pars[0]]) if val==output[o_pars[0]]]
+    for i,res in enumerate(outputs):
+        out = dill.loads(res)
+        output = out['output']    
+        
+        ax = fig.add_subplot(gs[0,i])
+        plot_phasespace(output['model'], output['fps'], output['ncs'], output['trajs'], ax=ax, args=args)
+
+        plt.axis('tight')
+        #plt.title("{}={:.3f}  {}={:.3f}".format(o_pars[0], p1s[i], o_pars[1], p2s[j]))
+        ttl = "$C_{2 \leftarrow 1}$=%s" %("{:.3f}".format(p1s[i]))
+        plt.title(ttl, fontdict={'fontsize': 11} )#.format(p1s[i], p2s[j]))
+        plt.xlabel('$S_1$')
+        if i==0:
+            plt.ylabel('$S_2$')
+        plt.tight_layout()
+
+        # makes quiver a bit more transparent and arrows a bit larger
+        plt.getp(ax, 'children')[0].set(alpha=0.7)
+        #for path in plt.getp(plt.getp(ax,'children')[0], 'paths'):
+        #    path.vertices = path.vertices*10
+
+        if rww!=None:
+            if t_range!=None:
+                start = t_range[0]*rww.sf
+                stop = t_range[1]*rww.sf
+            else:
+                start = 0
+                stop = rww.S_rec.shape[0]
+            plt.plot(rww.rec_C_12[start:stop], rww.S_rec[start:stop,0], lw=0.5, color='blue', alpha=0.4)
+            plt.plot(rww.rec_C_12[start:stop], rww.S_rec[start:stop,1], lw=0.5, color='red', alpha=0.4)
+
+    #pdb.set_trace()
+    if args.save_figs:
+        today = datetime.datetime.now().strftime("%Y%m%d")
+        plt.savefig(os.path.join(proj_dir, 'img', 'phase_space'+today+'.svg'), format='svg', transparent=True)
+    if args.plot_figs:
+        plt.show()
+
+
 def plot_bifurcation_grid(outputs, order_params, args=None):
     """ Plot a grid of bifurcation diagrams """
     plt.rcParams.update({'font.size':6, 'axes.titlesize':'medium'})
@@ -294,7 +342,7 @@ def plot_bifurcation_grid(outputs, order_params, args=None):
             plt.title("{}={:.3f}  {}={:.3f}".format(o_pars[0], p1s[i], o_pars[1], p2s[j]))
     plt.show(block=False)
 
-def plot_bifurcation_row(outputs, order_params, args=None):
+def plot_bifurcation_row(outputs, order_params, rww=None, t_range=None, args=None):
     """ Plot a row of bifurcation diagrams (ie. a 1 by n grid) """
     plt.rcParams.update({'font.size':10, 'axes.titlesize':'medium'})
     fig = plt.figure(figsize=[15,3])
@@ -331,6 +379,16 @@ def plot_bifurcation_row(outputs, order_params, args=None):
             plt.ylabel("")
             plt.yticks([])
             plt.title("{}={:.3f}".format(o_par, p1s[i]))
+        if rww!=None:
+            if t_range!=None:
+                start = t_range[0]*rww.sf
+                stop = t_range[1].sf
+            else:
+                start = 0
+                stop = rww.S_rec.shape[0]
+            plt.plot(rww.rec_C_12[start:stop], rww.S_rec[start:stop,0], lw=0.5, color='blue', alpha=0.4)
+            plt.plot(rww.rec_C_12[start:stop], rww.S_rec[start:stop,1], lw=0.5, color='red', alpha=0.4)
+
     plt.tight_layout()
     
     if args.save_figs:
@@ -367,14 +425,14 @@ def parse_args():
 
 if __name__=='__main__':
     args = parse_args()
-    default_params = {'a':270, 'b': 108, 'd': 0.154, 'C_12': 0, 'G':2.5, 'J_N':0.2609, 'I_0':0.3, 'I_1':0.0, 'tau_S':100, 'w':0.9, 'gam':0.000641}
+    default_params = {'a':270, 'b': 108, 'd': 0.154, 'C_12': 0.25, 'G':2.5, 'J_N':0.2609, 'I_0':0.3, 'I_1':0.0, 'tau_S':100, 'w':0.9, 'gam':0.000641}
     #order_params = {'C_12': np.linspace(-1,1,args.n_op), 'I_0': np.linspace(0.2,0.5,args.n_op)} #, 'C_21': np.linspace(-1,1,args.n_op)}
     #order_params = {'C_12': np.linspace(-0.5,0.5,args.n_op), 'C_21': np.linspace(-0.5,0.5,args.n_op)}
     order_params = {'C_21': np.linspace(0.2,0.3,args.n_op)}
     if args.run_stability_analysis:
         outputs, futures = run_stability_analysis(order_params, default_params, args)
         if args.save_outputs:
-            fname = 'outputs_dst_'+today()+'_op_C_12_fix_C21_023.pkl'
+            fname = 'outputs_dst_'+today()+'_op_C_12_fix025_C21_var023.pkl'
             with open(os.path.join(proj_dir, 'postprocessing', fname), 'wb') as f:
                 pickle.dump(outputs, f)
         if args.plot_bifurcation_diagrams:
@@ -388,5 +446,9 @@ if __name__=='__main__':
     if args.plot_phasespace_grid:
         #if ('outputs' not in globals()) & ('outputs' not in locals()):
         #    outputs = pickle.load(os.path.join(proj_dir, 'postprocessing', 'outputs_dst_20230227.pkl'))
-        plot_phasespace_grid(outputs, order_params, args)
+        if len(order_params.keys())==1:
+            plot_phasespace_row(outputs, order_params, args)
+        elif len(order_params.keys())==2:
+            plot_phasespace_grid(outputs, order_params, args)
+
             
