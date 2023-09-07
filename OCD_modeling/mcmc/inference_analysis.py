@@ -792,19 +792,14 @@ def get_df_top(sub_df_restore, args):
     df_top = sub_df_restore[sub_df_restore.test_param.apply(lambda x: x in top_params[args.sort_style])]   
     return df_top, top_params
 
-def plot_distance_restore(df_restore, df_data, args):
+def plot_distance_restore(df_restore, args):
     """ plot best FC restoration outputs """
     # adds n_test_params column to dataframe 
     df_restore['n_test_params'] = df_restore.test_param.apply(lambda pars_str: len(pars_str.split(' ')))
     sub_df_restore = df_restore[df_restore.n_test_params<=args.n_test_params]
 
     # get top parameters that restore FC
-    top_params = dict()
-    top_params['all'] = sub_df_restore.sort_values('mean').test_param.unique()[:args.n_restore]
-    top_params['by_n'] = [sub_df_restore[sub_df_restore.n_test_params==n].sort_values('median').test_param.unique()[:5]
-                          for n in np.arange(1,args.n_test_params+1)]
-    top_params['by_n'] = np.concatenate(top_params['by_n'])
-    df_top = sub_df_restore[sub_df_restore.test_param.apply(lambda x: x in top_params[args.sort_style])]   
+    df_top, top_params = get_df_top(df_restore, args)
     
     # normalize distances to get efficacy 
     distances = get_max_distance_sims(args)
@@ -827,11 +822,15 @@ def plot_distance_restore(df_restore, df_data, args):
     # plotting
     #df_top['restore'] = -((df_top['rmse']/get_max_rmse_data(df_data))-1)*100 # make % of restoration
     palette = {0: 'white', 1: 'lightpink', 2: 'plum', 3: 'mediumpurple', 4: 'lightsteelblue', 5:'skyblue', 6:'royalblue'}
-    plt.rcParams.update({'mathtext.default': 'regular', 'font.size':20})
+    plt.rcParams.update({'mathtext.default': 'regular', 'font.size':12})
     plt.rcParams.update({'text.usetex': False})
-    fig = plt.figure(figsize=[10, int(args.n_restore/2)])
-    sbn.boxplot(df_top, x='efficacy', y='test_param', order=top_params[args.sort_style], hue='n_test_params', orient='h', 
-                saturation=3, width=0.5, whis=2, palette=palette, dodge=False)
+    lw=1
+    if args.sort_style == 'all':
+        fig = plt.figure(figsize=[5, int(args.n_restore/3)])
+    else:
+        fig = plt.figure(figsize=[5, int(args.n_tops*args.n_test_params/3)])
+    sbn.boxplot(data=df_top, x='efficacy', y='test_param', order=top_params[args.sort_style], hue='n_test_params', orient='h', 
+                saturation=3, width=0.5, whis=2, palette=palette, dodge=False, linewidth=lw, fliersize=2)
     #sbn.violinplot(df_top, x='restore', y='test_param', order=top_params, hue='n_test_params', orient='h', saturation=3, width=3)
     
     # data and simulated references
@@ -839,19 +838,32 @@ def plot_distance_restore(df_restore, df_data, args):
     ymin,ymax = plt.gca().get_ylim()
     
     #plt.grid(axis='x')
-    plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.75) 
-    plt.vlines(100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.75) 
+    plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.75, linewidth=lw) 
+    plt.vlines(100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.75, linewidth=lw) 
 
-    plt.vlines((np.std(distances['pat'])/np.mean(distances['con_pat']))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.5)
-    plt.vlines((2*np.std(distances['pat'])/np.mean(distances['con_pat']))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.25)
+    plt.vlines((np.std(distances['pat'])/np.mean(distances['con_pat']))*100, ymin=ymin, ymax=ymax, 
+               linestyle='dashed', color='red', alpha=0.5, linewidth=lw)
+    plt.vlines((2*np.std(distances['pat'])/np.mean(distances['con_pat']))*100, ymin=ymin, ymax=ymax, 
+               linestyle='dashed', color='red', alpha=0.25, linewidth=lw)
 
-    plt.vlines((1 - (np.std(distances['con'])/np.mean(distances['con_pat'])))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.5)
-    plt.vlines((1 - (2*np.std(distances['con'])/np.mean(distances['con_pat'])))*100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.25)
+    plt.vlines((1 - (np.std(distances['con'])/np.mean(distances['con_pat'])))*100, ymin=ymin, ymax=ymax, 
+               linestyle='dashed', color='blue', alpha=0.5, linewidth=lw)
+    plt.vlines((1 - (2*np.std(distances['con'])/np.mean(distances['con_pat'])))*100, ymin=ymin, ymax=ymax, 
+               linestyle='dashed', color='blue', alpha=0.25, linewidth=lw)
     
     labels = plt.gca().get_yticklabels()
     new_labels = format_labels(labels)
     plt.gca().set_yticklabels(new_labels)
-    print(new_labels)
+    plt.gca().spines.top.set_visible(False)
+    plt.gca().spines.right.set_visible(False)
+    
+    sbn.move_legend(plt.gca(), "upper left", bbox_to_anchor=(1, 1))
+    
+    if args.save_figs:
+        #plt.rcParams['svg.fonttype'] = 'none'
+        fname = 'restoration_best_efficacy'+today()+'.svg'
+        plt.savefig(os.path.join(proj_dir, 'img', fname))
+
     plt.show(block=False)
     return fig
 
@@ -978,37 +990,48 @@ def plot_dt_prediction(decision_trees):
     plt.show()
 
 
-def plot_feature_windrose(df_dt, params, feat_imps):
+def plot_feature_windrose(df_dt, params, feat_imps={}, args=None):
     """ Make windrose vizualisation of decision tree feature importances """
     theta = np.arange(len(params))/(len(params)) * 2*np.pi
     theta = np.append(theta, theta[0])
 
     palette = {0: 'white', 1: 'lightpink', 2: 'plum', 3: 'mediumpurple', 4: 'lightsteelblue', 5:'skyblue', 6:'royalblue'}
 
-    fig, axes = plt.subplots(1,6, subplot_kw={'projection': 'polar'}, figsize=[30,5])
+    fig, axes = plt.subplots(3,2, subplot_kw={'projection': 'polar'}, figsize=[5,8])
     for i in np.arange(len(df_dt)):
+        j = int(np.floor(i/2))
+        k = i%2
         r = np.array(df_dt.iloc[i][params])
         #r = np.array(feat_imps[i+1].importances_mean)
         
-        rmin = r - np.array(feat_imps[i+1].importances_std)/2
-        rmin[rmin<0] = 0
-        rmax = r + np.array(feat_imps[i+1].importances_std)/2
+        #rmin = r - np.array(feat_imps[i+1].importances_std)/2
+        #rmin[rmin<0] = 0
+        #rmax = r + np.array(feat_imps[i+1].importances_std)/2
         
         r = np.append(r, r[0]) 
-        rmin = np.append(rmin, rmin[0]) 
-        rmax = np.append(rmax, rmax[0]) 
+        #rmin = np.append(rmin, rmin[0]) 
+        #rmax = np.append(rmax, rmax[0]) 
 
-        axes[i].plot(theta, r, label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5)
-        #axes[i].bar(theta, r, label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5, width=0.5)
+        #axes[i].plot(theta, r, label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5)
+        axes[j,k].bar(theta, r, label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5, width=0.5)
         #axes[i].fill_between(theta, rmin, rmax)
-        axes[i].set_xticks(theta[:-1])
-        axes[i].set_xticklabels(params)
-        lbls = axes[i].get_xticklabels()
+        axes[j,k].set_xticks(theta[:-1])
+        axes[j,k].set_xticklabels(params)
+        lbls = axes[j,k].get_xticklabels()
         new_lbls = format_labels(lbls)
-        axes[i].set_xticklabels(new_lbls)
-        axes[i].set_rticks([0.1], labels=[])
-    #    axes[i].set_rmax(0.25)
+        axes[j,k].set_xticklabels(new_lbls)
+        #axes[i].set_rticks([0.1], labels=[])
+        axes[j,k].set_yticklabels([])
+        axes[j,k].set_yticks([])
+        #axes[i].set_rmax(0.25)
+        axes[j,k].spines.polar.set_visible(False)
+        axes[j,k].xaxis.grid(linewidth=0.5, linestyle='--')
+
     plt.tight_layout()
+    if args.save_figs:
+        #plt.rcParams['svg.fonttype'] = 'none'
+        fname = 'restoration_param_importances'+today()+'.svg'
+        plt.savefig(os.path.join(proj_dir, 'img', fname))
     plt.show()
 
 
@@ -1096,6 +1119,39 @@ def compute_simple_feature_scores(df_top, params, args):
     df_simple_feat_imps = pd.DataFrame(lines)
     return df_simple_feat_imps
 
+
+#---------------------#
+# PREDICTIVE ANALYSIS #
+#---------------------#
+
+def plot_fc_dist_pre_post_behav(df_dist_fc, args):
+    """ plot behavioral relationship to distance to FC controls """
+    #behav = 'YBOCS_Total' #'OCIR_Total'
+    behavs=['YBOCS_Total', 'OCIR_Total', 'OBQ_Total', 'MADRS_Total', 'HAMA_Total', 'Dep_Total', 'Anx_total']
+    colors={'group1':'orange', 'group2':'green'}
+
+    plt.figure(figsize=[21,3])
+    for i,behav in enumerate(behavs):
+        plt.subplot(1,len(behavs), i+1)
+        dists_diffs = []
+        ybocs_diffs = []
+        for subj in df_dist_fc.subj.unique():
+            df_subj = df_dist_fc[df_dist_fc.subj==subj]
+            diff = float(df_subj[df_subj.ses=='ses-pre'].dist) - float(df_subj[df_subj.ses=='ses-post'].dist)
+            if diff > 0:
+                ybocs_diff = float(df_subj[df_subj.ses=='ses-pre'][behav]) - float(df_subj[df_subj.ses=='ses-post'][behav])
+                dists_diffs.append(diff)
+                ybocs_diffs.append(ybocs_diff)
+
+                plt.scatter(ybocs_diff, diff, color=colors[df_subj['group'].unique()[0]], alpha=0.5)
+
+        r,p = scipy.stats.pearsonr(dists_diffs, ybocs_diffs)
+        plt.title("n={}     r={:.2f}     p={:.3f}".format(len(ybocs_diffs), r,p))
+        plt.xlabel("$\Delta \, {}$".format(behav.split('_')[0]))
+        plt.ylabel("$\Delta \, distance$")
+    plt.tight_layout()
+
+
 def parse_arguments():
     " Script arguments when ran as main " 
     parser = argparse.ArgumentParser()
@@ -1136,10 +1192,12 @@ def parse_arguments():
     parser.add_argument('--print_ANOVA', default=False, action='store_true', help='print stats for mixed and multiple one-way ANOVAs')
     parser.add_argument('--restore_analysis', default=False, action='store_true', help='perform retoration analys of test parameters to move from patient to controls FC')
     parser.add_argument('--n_restore', type=int, default=10, action='store', help="number of best restorations for plotting")
+    parser.add_argument('--n_tops', type=int, default=5, action='store', help="number of best restorations for each n_test_param for plotting")
     parser.add_argument('--n_test_params', type=int, default=4, action='store', help="max number of parameter combinations for plotting restoration outputs")
     parser.add_argument('--distance_metric', type=str, default='rmse', help="distance used in restoration metric (rmse or emd)")
     parser.add_argument('--sort_style', type=str, default='all', help="how to sort distances for visualization: 'by_n' or 'all' (default)")
     parser.add_argument('--max_depth', type=int, default=3, action='store', help="max depth of the decision tree")
+    parser.add_argument('--predictive_analysis', default=False, action='store_true', help='Analyse predictive power of model based on distance to controls FC')
     args = parser.parse_args()
     return args
 
@@ -1231,11 +1289,20 @@ if __name__=='__main__':
         #df_restore = compute_rmse_restore(df_data, df_sims, args)
         df_restore = compute_distance_restore(df_sims, args)
         df_restore = compute_efficacy(df_restore, args)
+        df_top, top_params = get_df_top(df_restore, args)
         plot_distance_restore(df_restore, df_data, args=args)
 
         df_feature_importance, decision_trees, feat_imps = decision_tree(df_restore, params, args)
         df_custom_feat_imps = compute_custom_feature_scores(decision_trees, params, args)
-        plot_feature_windrose(df_custom_feat_imps, params, feat_imps)
+        df_simple_feat_imps = compute_simple_feature_scores(df_top, params, args)
+        plot_feature_windrose(df_custom_feat_imps, params, args)
 
 
-    
+    # prediction 
+    if args.predictive_analysis:
+        fname = fname= os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls_20230907.pkl')
+        with open(fname, 'rb') as f:
+            distances = pickle.load(f)
+            df_fc_pre_post = distances['indiv']
+        df_dist_fc = df_fc_pre_post.merge(df_fc_pat, on=['subj', 'ses', 'group'], how='inner')
+        plot_fc_dist_pre_post_behav(df_dist_fc, args)
