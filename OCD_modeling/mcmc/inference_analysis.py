@@ -57,7 +57,7 @@ def compute_dist(in_tuple):
     pat_vec = np.array([df_data[(df_data.subj==patient)&(df_data.pathway==p)]['corr'] for p in pathways])
     sims = []
     for sim_name,sim_vec in sim_vecs:
-        d = np.sqrt(np.sum((a-b)**2 for a,b in zip(pat_vec,sim_vec)))
+        d = np.sqrt(sum((a-b)**2 for a,b in zip(pat_vec,sim_vec)))
         if d < args.tolerance:
             sims.append({'sim':sim_name, 'distance':d})
     return sims
@@ -73,19 +73,27 @@ def compute_distances(df_data, df_sims, args):
         sim_vec = np.array(sim[pathways])
         return (sim['subj'],sim_vec)
     
-    print("extracting simulation vectors...")
-    sim_vecs = Parallel(n_jobs=args.n_jobs, verbose=10)(delayed(get_sim_vector)(sim) for i,sim in df_sims.iterrows())
+    if args.compute_sim_vecs:
+        print("Computing simulation vectors...")
+        sim_vecs = Parallel(n_jobs=args.n_jobs, verbose=10)(delayed(get_sim_vector)(sim) for i,sim in df_sims.iterrows())
+    else:
+        print("Loading simulation vectors")
+        fname = os.path.join(proj_dir, 'postprocessing', 'sim_vecs.pkl')
+        with open(fname, 'rb') as f:
+            sim_vecs = pickle.load(f)
 
     print("computing distances in parallel...")
     assoc = dict()
-    with ProcessPoolExecutor(max_workers=args.n_jobs, mp_context=multiprocessing.get_context('spawn')) as pool: 
-        pt_sims = pool.map(compute_dist, [(patient, sim_vecs, df_data, pathways, args) for patient in patients])
-        pt_sims = list(pt_sims)
+    #with ProcessPoolExecutor(max_workers=args.n_jobs, mp_context=multiprocessing.get_context('spawn')) as pool: 
+    #with ProcessPoolExecutor(max_workers=args.n_jobs) as pool: 
+    #    pt_sims = pool.map(compute_dist, [(patient, sim_vecs, df_data, pathways, args) for patient in patients])
+    #    pt_sims = list(pt_sims)
+    pt_sims = Parallel(n_jobs=args.n_jobs, verbose=10)(delayed(compute_dist)((patient, sim_vecs, df_data, pathways, args)) for patient in patients)
     for patient, sims in zip(patients, pt_sims):
         assoc[patient] = sims
 
     if args.save_distances:
-        fname = os.path.join(proj_dir, 'postprocessing', args.db_name+'_distances100eps'+str(int(args.tolerance*100))+".pkl")
+        fname = os.path.join(proj_dir, 'postprocessing', args.db_name+'_distances100eps'+str(int(args.tolerance*100))+"_post.pkl")
         with open(fname, 'wb') as f:
             pickle.dump(assoc, f)
     return assoc
@@ -1162,7 +1170,7 @@ def parse_arguments():
     parser.add_argument('--n_batch', type=int, default=10, action='store', help="batch size")
     parser.add_argument('--plot_figs', default=False, action='store_true', help='plot figures')
     parser.add_argument('--save_kdes', default=False, action='store_true', help='save KDEs')
-    parser.add_argument('--db_name', type=str, default="sim_test_20230614", help="identifier of the sqlite3 database")
+    parser.add_argument('--db_name', type=str, default="sim_pat_20230628", help="identifier of the sqlite3 database (use sim_pat_20230628 for digital twin, sim_pat_20230721 for restoration analysis")
     parser.add_argument('--df_sims', type=str, default="df_sims_pat_20230621", help="identifier of the fixed dataframe")
     parser.add_argument('--base_cohort', type=str, default='controls', help="Cohort from which to infer posterior as default")
     parser.add_argument('--test_cohort', type=str, default='patients', help="Cohort from which to infer posterior of individual params")
@@ -1172,7 +1180,7 @@ def parse_arguments():
     parser.add_argument('--save_distances', default=False, action='store_true', help='save distances between patients and simulations')
     parser.add_argument('--load_distances', default=False, action='store_true', help='load distances between patients and simulations from previously saved')
     parser.add_argument('--compute_distances', default=False, action='store_true', help='compute distances between patients and simulations')
-    parser.add_argument('--n_closest', type=int, default=1, action='store', help="batch size")
+    parser.add_argument('--n_closest', type=int, default=1, action='store', help="number of digital twins to retain sorted by increasing distance")
     parser.add_argument('--plot_param_behav', default=False, action='store_true', help='plot param-behavioral relationship')
     parser.add_argument('--verbose', default=False, action='store_true', help='print extra processing info')
     parser.add_argument('--session', default=None, action='store', help='which session (ses-pre or ses-post) for behavioral scores (default:None => both are used')
@@ -1198,6 +1206,9 @@ def parse_arguments():
     parser.add_argument('--sort_style', type=str, default='all', help="how to sort distances for visualization: 'by_n' or 'all' (default)")
     parser.add_argument('--max_depth', type=int, default=3, action='store', help="max depth of the decision tree")
     parser.add_argument('--predictive_analysis', default=False, action='store_true', help='Analyse predictive power of model based on distance to controls FC')
+    parser.add_argument('--plot_fc_dist_pre_post_behav', default=False, action='store_true', help='plot FC distance to controls in pre-post TMS data')
+    parser.add_argument('--compute_post_distances', default=False, action='store_true', help='Compute distances for digital twins analysis using post-TMS FC')
+    parser.add_argument('--compute_sim_vecs', default=False, action='store_true', help='Compute simulation vectors in FC space (otherwise load pre-computed)')
     args = parser.parse_args()
     return args
 
@@ -1300,9 +1311,20 @@ if __name__=='__main__':
 
     # prediction 
     if args.predictive_analysis:
+        print('Run predictive analysis...')
         fname = fname= os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls_20230907.pkl')
         with open(fname, 'rb') as f:
             distances = pickle.load(f)
             df_fc_pre_post = distances['indiv']
         df_dist_fc = df_fc_pre_post.merge(df_fc_pat, on=['subj', 'ses', 'group'], how='inner')
-        plot_fc_dist_pre_post_behav(df_dist_fc, args)
+        
+        if args.plot_fc_dist_pre_post_behav:
+            plot_fc_dist_pre_post_behav(df_dist_fc, args)
+
+        if args.compute_post_distances:
+            pathways = np.sort(df_data.pathway.unique())
+            df_post_data = df_fc_pre_post[df_fc_pre_post.ses=='ses-post'].melt(id_vars=['subj', 'cohort', 'group'], 
+                                               value_vars=pathways, var_name='pathway', value_name='corr')
+            assoc_post = compute_distances(df_post_data, df_sims, args)
+            df_sim_post = merge_data_sim_dfs(df_pat[df_pat.ses=='ses-post'], df_sims, assoc_post, args)
+
