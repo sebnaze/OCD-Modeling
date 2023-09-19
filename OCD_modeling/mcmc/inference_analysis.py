@@ -31,14 +31,23 @@ import OCD_modeling
 from OCD_modeling.utils.utils import *
 from OCD_modeling.mcmc.history_analysis import import_results, compute_kdes
 from OCD_modeling.mcmc.simulate_inference import batched
-
+from OCD_modeling.analysis.fc_data_analysis import drop_single_session
 
 def load_df_sims(args):
     """ Load infered simulations from database """
-    with sl.connect(os.path.join(proj_dir, 'postprocessing', args.db_name+'.db')) as conn:
-        df = pd.read_sql(''' SELECT * FROM SIMTEST ''', conn)
-    conn.close()
-    return df
+    if type(args.db_names)==list:
+        dfs = []
+        for db_name in args.db_names:
+            with sl.connect(os.path.join(proj_dir, 'postprocessing', db_name+'.db')) as conn:
+                df = pd.read_sql(''' SELECT * FROM SIMTEST ''', conn)
+            conn.close()
+            dfs.append(df)
+        return pd.concat(dfs, ignore_index=True, copy=False)
+    else:
+        with sl.connect(os.path.join(proj_dir, 'postprocessing', args.db_names+'.db')) as conn:
+            df = pd.read_sql(''' SELECT * FROM SIMTEST ''', conn)
+        conn.close()
+        return df
 
 def load_df_data(args):
     """ Loads clinical FC data in pandas Dataframe """
@@ -51,49 +60,53 @@ def load_df_data(args):
 #   Digital twin analysis #
 #-------------------------#
 
-def compute_dist(in_tuple):
-    patient, sim_vecs, df_data, pathways, args = in_tuple
-    """ compute distance between single patient to each simulation """
-    pat_vec = np.array([df_data[(df_data.subj==patient)&(df_data.pathway==p)]['corr'] for p in pathways])
-    sims = []
-    for sim_name,sim_vec in sim_vecs:
-        d = np.sqrt(sum((a-b)**2 for a,b in zip(pat_vec,sim_vec)))
-        if d < args.tolerance:
-            sims.append({'sim':sim_name, 'distance':d})
-    return sims
+def get_sim_vector(sim):
+        sim_vec = np.array(sim[pathways])
+        return (sim['subj'],sim_vec)
 
 
-def compute_distances(df_data, df_sims, args):
+def compute_sim_vecs(df_sims):
+    """ Compute vector of each simulation in FC space in parallel """
+    sim_vecs = Parallel(n_jobs=args.n_jobs, verbose=10)(delayed(get_sim_vector)(sim) for i,sim in df_sims.iterrows())
+    return sim_vecs
+
+
+
+def compute_distances(df_data, df_sims, ses, args):
     """ Compute euclidian distance between single empirical FC and simulated FC """ 
     print("Computing distances between patients and simulations")
     pathways = np.sort(df_data.pathway.unique())
     patients = np.sort(df_data[df_data.cohort=='patients'].subj.unique())
 
-    def get_sim_vector(sim):
-        sim_vec = np.array(sim[pathways])
-        return (sim['subj'],sim_vec)
-    
-    if args.compute_sim_vecs:
-        print("Computing simulation vectors...")
-        sim_vecs = Parallel(n_jobs=args.n_jobs, verbose=10)(delayed(get_sim_vector)(sim) for i,sim in df_sims.iterrows())
-    else:
-        print("Loading simulation vectors")
-        fname = os.path.join(proj_dir, 'postprocessing', 'sim_vecs.pkl')
-        with open(fname, 'rb') as f:
-            sim_vecs = pickle.load(f)
+    sim_vecs = df_sims[pathways]
+    sim_vecs = zip(df_sims['subj'], sim_vecs)
 
-    print("computing distances in parallel...")
+    def compute_dist(patient, df_data, pathways, args):
+        """ compute distance between single patient to each simulation """
+        pat_vec = np.array([df_data[(df_data.subj==patient)&(df_data.pathway==p)]['corr'] for p in pathways])
+        sims = []
+        for _,sim_row in df_sims.iterrows():
+            sim_vec = np.array(sim_row[pathways])
+            sim_name = sim_row['subj']
+            d = np.sqrt(sum((a-b)**2 for a,b in zip(pat_vec,sim_vec)))[0]
+            if d < args.tolerance:
+                sims.append({'sim':sim_name, 'distance':d})
+        return sims
+
     assoc = dict()
     #with ProcessPoolExecutor(max_workers=args.n_jobs, mp_context=multiprocessing.get_context('spawn')) as pool: 
     #with ProcessPoolExecutor(max_workers=args.n_jobs) as pool: 
     #    pt_sims = pool.map(compute_dist, [(patient, sim_vecs, df_data, pathways, args) for patient in patients])
     #    pt_sims = list(pt_sims)
-    pt_sims = Parallel(n_jobs=args.n_jobs, verbose=10)(delayed(compute_dist)((patient, sim_vecs, df_data, pathways, args)) for patient in patients)
+    pt_sims = Parallel(n_jobs=args.n_jobs, verbose=10)(delayed(compute_dist)(patient, df_data, pathways, args) for patient in patients)
     for patient, sims in zip(patients, pt_sims):
         assoc[patient] = sims
 
     if args.save_distances:
-        fname = os.path.join(proj_dir, 'postprocessing', args.db_name+'_distances100eps'+str(int(args.tolerance*100))+"_post.pkl")
+        if len(args.db_names)==1:
+            fname = os.path.join(proj_dir, 'postprocessing', args.db_names[0]+'_distances100eps'+str(int(args.tolerance*100))+"_"+ses+today()+".pkl")
+        else:
+            fname = os.path.join(proj_dir, 'postprocessing', 'assoc_distances100eps'+str(int(args.tolerance*100))+"_"+ses+today()+".pkl")
         with open(fname, 'wb') as f:
             pickle.dump(assoc, f)
     return assoc
@@ -140,8 +153,8 @@ def plot_param_behav(df_sim_pat, params=['C_12', 'C_13', 'C_24', 'C_31', 'C_34',
 def fix_df_sims_names(df_sims, args):
     """ Fix duplicate sim names in dataframe (sometimes sqlite3 locking mechanism does fail, the db is not corrupted but 
       simulation indices may need fixing (duplicate names)  """
-    df_sims['subj'] = df_sims.apply(lambda row: "sim-"+args.base_cohort[:3]+"{:06d}".format(int(row.name)+1), axis=1)
-    df_sims['n_test_params'] = df_sims.test_param.apply(lambda pars_str: len(pars_str.split(' ')))
+    df_sims['subj'] = df_sims.apply(lambda row: "sim{:06d}".format(int(row.name)+1), axis=1)
+    df_sims['n_test_params'] = df_sims.test_param.apply(lambda pars_str: 0 if pars_str=='none' else len(pars_str.split(' ')))
 
 
 
@@ -271,7 +284,7 @@ def plot_multivariate_results(multivar, models=['Ridge'], args=None):
         plt.show()
 
 
-def plot_cv_regression(multivar, args=None):
+def plot_cv_regression(multivar, df_sim_pat, args=None):
     """ Scatter plots of cross-validated regression """
     behavs = multivar.keys()
     params = multivar['YBOCS_Total']['Ridge']['model'].feature_names_in_
@@ -754,26 +767,33 @@ def plot_restore_intersect(distances):
     plt.ylabel('density')
     plt.show()
 
+
+def format_param(param):
+    """ return LaTeX formated string of parameter (without dollar signs) """
+    par_ = param.split('_')
+
+    # handle greek letters
+    if (param.startswith('sigma') or param.startswith('eta')):
+        par_[0] = r"\\"[0]+par_[0]
+    
+    # handle C_
+    if len(par_)==2:
+        par_[1] = r'{'+par_[1]+r'}'
+    elif len(par_)==3:
+        par_[1] = r'{'+par_[1]
+        par_[2] = r'{'+par_[2]+r'}}'
+    formatted_param = '_'.join(par_)
+    return formatted_param
+
+
 def format_labels(labels):
     new_labels = []
     for label in labels:
         new_label = []
         params = label.get_text().split(' ')
         for param in params:
-            par_ = param.split('_')
-
-            # handle greek letters
-            if (param.startswith('sigma') or param.startswith('eta')):
-                par_[0] = r"\\"[0]+par_[0]
-            
-            # handle C_
-            if len(par_)==2:
-                par_[1] = r'{'+par_[1]+r'}'
-            elif len(par_)==3:
-                par_[1] = r'{'+par_[1]
-                par_[2] = r'{'+par_[2]+r'}}'
-            
-            new_label.append('_'.join(par_))
+            formatted_param = format_param(param)
+            new_label.append(formatted_param)
         new_label = '${}$'.format(r'\quad'.join(new_label))
         #label.set_text(new_label)
         new_labels.append(new_label)
@@ -962,10 +982,6 @@ def plot_decision_tree(df_dt, decision_trees, params):
         plt.show()
     
 
-def compute_feature_importance(decision_tree, X, y):
-    feature_importances = sklearn.inspection.permutation_importance(decision_tree, X, y, scoring='neg_mean_absolute_error', n_repeat=10)
-
-
 def plot_feature_importances(feat_imps, params):
     """ Plot feature importance using permutations (not bulit-in basic) """
     fig = plt.figure(figsize=[16,6])
@@ -1132,31 +1148,148 @@ def compute_simple_feature_scores(df_top, params, args):
 # PREDICTIVE ANALYSIS #
 #---------------------#
 
-def plot_fc_dist_pre_post_behav(df_dist_fc, args):
+def plot_fc_dist_pre_post_behav(df_summary, args=None):
     """ plot behavioral relationship to distance to FC controls """
     #behav = 'YBOCS_Total' #'OCIR_Total'
     behavs=['YBOCS_Total', 'OCIR_Total', 'OBQ_Total', 'MADRS_Total', 'HAMA_Total', 'Dep_Total', 'Anx_total']
     colors={'group1':'orange', 'group2':'green'}
 
-    plt.figure(figsize=[21,3])
+    plt.figure(figsize=[21,5])
     for i,behav in enumerate(behavs):
         plt.subplot(1,len(behavs), i+1)
-        dists_diffs = []
-        ybocs_diffs = []
-        for subj in df_dist_fc.subj.unique():
-            df_subj = df_dist_fc[df_dist_fc.subj==subj]
-            diff = float(df_subj[df_subj.ses=='ses-pre'].dist) - float(df_subj[df_subj.ses=='ses-post'].dist)
-            if diff > 0:
-                ybocs_diff = float(df_subj[df_subj.ses=='ses-pre'][behav]) - float(df_subj[df_subj.ses=='ses-post'][behav])
-                dists_diffs.append(diff)
-                ybocs_diffs.append(ybocs_diff)
+        dist_diffs = {'group1':[], 'group2':[], 'both':[]}
+        behav_diffs = {'group1':[], 'group2':[], 'both':[]}
+        responders = {'dist':copy.deepcopy(dist_diffs), 'behav':copy.deepcopy(behav_diffs)}
+        for subj in df_summary.subj.unique():
+            df_subj = df_summary[df_summary.subj==subj]
+            group = df_subj['group'].unique()[0]
+            diff = df_subj[df_subj.ses=='ses-post'].dist.iloc[0] - df_subj[df_subj.ses=='ses-pre'].dist.iloc[0]
+            behav_diff = df_subj[df_subj.ses=='ses-post'][behav].iloc[0] - df_subj[df_subj.ses=='ses-pre'][behav].iloc[0]
+            dist_diffs[group].append(diff)
+            behav_diffs[group].append(behav_diff)
+            dist_diffs['both'].append(diff)
+            behav_diffs['both'].append(behav_diff)
+            if diff < 0:
+                plt.scatter(behav_diff, diff, color=colors[group], alpha=0.5)
+                responders['dist'][group].append(diff)
+                responders['behav'][group].append(behav_diff)
+                responders['dist']['both'].append(diff)
+                responders['behav']['both'].append(behav_diff)
+            else:
+                plt.scatter(behav_diff, diff, color=colors[group], alpha=0.2)
 
-                plt.scatter(ybocs_diff, diff, color=colors[df_subj['group'].unique()[0]], alpha=0.5)
-
-        r,p = scipy.stats.pearsonr(dists_diffs, ybocs_diffs)
-        plt.title("n={}     r={:.2f}     p={:.3f}".format(len(ybocs_diffs), r,p))
+        r,p = scipy.stats.pearsonr(dist_diffs['both'], behav_diffs['both'])
+        r1,p1 = scipy.stats.pearsonr(dist_diffs['group1'], behav_diffs['group1'])
+        r2,p2 = scipy.stats.pearsonr(dist_diffs['group2'], behav_diffs['group2'])
+        rr,pr = scipy.stats.pearsonr(responders['dist']['both'], responders['behav']['both'])
+        r1r,p1r = scipy.stats.pearsonr(responders['dist']['group1'], responders['behav']['group1'])
+        r2r,p2r = scipy.stats.pearsonr(responders['dist']['group2'], responders['behav']['group2'])
+        plt.title("n={}  r={:.2f}  p={:.3f}\ng1: n={} r={:.2f} p={:.3f}\ng2: n={} r={:.2f} p={:.3f}\n\
+            Responders:\n n={}  r={:.2f}  p={:.3f}\ng1: n={} r={:.2f} p={:.3f}\ng2: n={} r={:.2f} p={:.3f}".format(
+            len(dist_diffs['both']),r,p, len(dist_diffs['group1']), r1, p1, len(dist_diffs['group2']), r2, p2,
+            len(responders['dist']['both']),rr,pr, len(responders['dist']['group1']), r1r, p1r, len(responders['dist']['group2']), r2r, p2r))
         plt.xlabel("$\Delta \, {}$".format(behav.split('_')[0]))
-        plt.ylabel("$\Delta \, distance$")
+        plt.ylabel("$\Delta \, distance \, (FC)$")
+        plt.gca().spines.top.set_visible(False)
+        plt.gca().spines.right.set_visible(False)
+    plt.tight_layout()
+
+
+def plot_fc_dist_pre_post_params(df_summary, args=None):
+    """ plot behavioral relationship to distance to FC controls """
+    #behav = 'YBOCS_Total' #'OCIR_Total'
+    params=['C_12', 'C_13', 'C_24', 'C_31', 'C_34', 'C_42', 'eta_C_13', 'eta_C_24', 'sigma', 'sigma_C_13', 'sigma_C_24']
+    colors={'group1':'orange', 'group2':'green'}
+
+    plt.figure(figsize=[18,10])
+    for i,param in enumerate(params):
+        plt.subplot(2,int(np.ceil(len(params)/2)), i+1)
+        dist_diffs = {'group1':[], 'group2':[], 'both':[]}
+        param_diffs = {'group1':[], 'group2':[], 'both':[]}
+        responders = {'dist':copy.deepcopy(dist_diffs), 'param':copy.deepcopy(param_diffs)}
+        for subj in df_summary.subj.unique():
+            df_subj = df_summary[df_summary.subj==subj]
+            group = df_subj['group'].unique()[0]
+            diff = df_subj[df_subj.ses=='ses-post'].dist.iloc[0] - df_subj[df_subj.ses=='ses-pre'].dist.iloc[0]
+            param_diff = df_subj[df_subj.ses=='ses-post'][param].iloc[0] - df_subj[df_subj.ses=='ses-pre'][param].iloc[0]
+            dist_diffs[group].append(diff)
+            param_diffs[group].append(param_diff)
+            dist_diffs['both'].append(diff)
+            param_diffs['both'].append(param_diff)
+            if diff < 0:
+                plt.scatter(param_diff, diff, color=colors[group], alpha=0.5)
+                responders['dist'][group].append(diff)
+                responders['param'][group].append(param_diff)
+                responders['dist']['both'].append(diff)
+                responders['param']['both'].append(param_diff)
+            else:
+                plt.scatter(param_diff, diff, color=colors[group], alpha=0.2)
+
+        r,p = scipy.stats.pearsonr(dist_diffs['both'], param_diffs['both'])
+        r1,p1 = scipy.stats.pearsonr(dist_diffs['group1'], param_diffs['group1'])
+        r2,p2 = scipy.stats.pearsonr(dist_diffs['group2'], param_diffs['group2'])
+        rr,pr = scipy.stats.pearsonr(responders['dist']['both'], responders['param']['both'])
+        r1r,p1r = scipy.stats.pearsonr(responders['dist']['group1'], responders['param']['group1'])
+        r2r,p2r = scipy.stats.pearsonr(responders['dist']['group2'], responders['param']['group2'])
+        plt.title("n={}  r={:.2f}  p={:.3f}\ng1: n={} r={:.2f} p={:.3f}\ng2: n={} r={:.2f} p={:.3f}\n\
+            Responders:\n n={}  r={:.2f}  p={:.3f}\ng1: n={} r={:.2f} p={:.3f}\ng2: n={} r={:.2f} p={:.3f}".format(
+            len(dist_diffs['both']),r,p, len(dist_diffs['group1']), r1, p1, len(dist_diffs['group2']), r2, p2,
+            len(responders['dist']['both']),rr,pr, len(responders['dist']['group1']), r1r, p1r, len(responders['dist']['group2']), r2r, p2r))
+        plt.xlabel("$\Delta \, {}$".format(format_param(param)))
+        plt.ylabel("$\Delta \, distance \, (FC)$")
+        plt.gca().spines.top.set_visible(False)
+        plt.gca().spines.right.set_visible(False)
+    plt.tight_layout()
+
+
+
+def plot_pre_post_params_behavs(df_summary, args=None):
+    """ plot behavioral relationship to distance to FC controls """
+
+    params=['dist', 'C_12', 'C_13', 'C_24', 'C_31', 'C_34', 'C_42', 'eta_C_13', 'eta_C_24', 'sigma', 'sigma_C_13', 'sigma_C_24']
+    behavs=['YBOCS_Total', 'OCIR_Total', 'OBQ_Total', 'MADRS_Total', 'HAMA_Total', 'Dep_Total', 'Anx_total']
+    colors={'group1':'orange', 'group2':'green'}
+
+    fig = plt.figure(figsize=[len(behavs)*3,len(params)*5])
+    gs = plt.GridSpec(nrows=len(params), ncols=len(behavs))
+    for i,param in enumerate(params):
+        for j,behav in enumerate(behavs):
+            ax = fig.add_subplot(gs[i,j])
+            behav_diffs = {'group1':[], 'group2':[], 'both':[]}
+            param_diffs = {'group1':[], 'group2':[], 'both':[]}
+            responders = {'behav':copy.deepcopy(behav_diffs), 'param':copy.deepcopy(param_diffs)}
+            for subj in df_summary.subj.unique():
+                df_subj = df_summary[df_summary.subj==subj]
+                group = df_subj['group'].unique()[0]
+                behav_diff = df_subj[df_subj.ses=='ses-post'][behav].iloc[0] - df_subj[df_subj.ses=='ses-pre'][behav].iloc[0]
+                param_diff = df_subj[df_subj.ses=='ses-post'][param].iloc[0] - df_subj[df_subj.ses=='ses-pre'][param].iloc[0]
+                behav_diffs[group].append(behav_diff)
+                param_diffs[group].append(param_diff)
+                behav_diffs['both'].append(behav_diff)
+                param_diffs['both'].append(param_diff)
+                if behav_diff < -1:
+                    plt.scatter(param_diff, behav_diff, color=colors[group], alpha=0.5)
+                    responders['behav'][group].append(behav_diff)
+                    responders['param'][group].append(param_diff)
+                    responders['behav']['both'].append(behav_diff)
+                    responders['param']['both'].append(param_diff)
+                else:
+                    plt.scatter(param_diff, behav_diff, color=colors[group], alpha=0.2)
+
+            r,p = scipy.stats.pearsonr(behav_diffs['both'], param_diffs['both'])
+            r1,p1 = scipy.stats.pearsonr(behav_diffs['group1'], param_diffs['group1'])
+            r2,p2 = scipy.stats.pearsonr(behav_diffs['group2'], param_diffs['group2'])
+            rr,pr = scipy.stats.pearsonr(responders['behav']['both'], responders['param']['both'])
+            r1r,p1r = scipy.stats.pearsonr(responders['behav']['group1'], responders['param']['group1'])
+            r2r,p2r = scipy.stats.pearsonr(responders['behav']['group2'], responders['param']['group2'])
+            plt.title("n={}  r={:.2f}  p={:.3f}\ng1: n={} r={:.2f} p={:.3f}\ng2: n={} r={:.2f} p={:.3f}\n\
+                Responders:\n n={}  r={:.2f}  p={:.3f}\ng1: n={} r={:.2f} p={:.3f}\ng2: n={} r={:.2f} p={:.3f}".format(
+                len(behav_diffs['both']),r,p, len(behav_diffs['group1']), r1, p1, len(behav_diffs['group2']), r2, p2,
+                len(responders['behav']['both']),rr,pr, len(responders['behav']['group1']), r1r, p1r, len(responders['behav']['group2']), r2r, p2r))
+            plt.xlabel("$\Delta \, {}$".format(format_param(param)))
+            plt.ylabel("$\Delta \, {}$".format(behav.split('_')[0]))
+            plt.gca().spines.top.set_visible(False)
+            plt.gca().spines.right.set_visible(False)
     plt.tight_layout()
 
 
@@ -1165,18 +1298,19 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--save_figs', default=False, action='store_true', help='save figures')
     parser.add_argument('--save_outputs', default=False, action='store_true', help='save outputs')
+    parser.add_argument('--save_summary', default=False, action='store_true', help='save output summary')
     parser.add_argument('--n_jobs', type=int, default=10, action='store', help="number of parallel processes launched")
     parser.add_argument('--n_sims', type=int, default=50, action='store', help="number of simulations ran with the same parameters (e.g. to get distribution that can be campared to clinical observations)")
     parser.add_argument('--n_batch', type=int, default=10, action='store', help="batch size")
     parser.add_argument('--plot_figs', default=False, action='store_true', help='plot figures')
     parser.add_argument('--save_kdes', default=False, action='store_true', help='save KDEs')
-    parser.add_argument('--db_name', type=str, default="sim_pat_20230628", help="identifier of the sqlite3 database (use sim_pat_20230628 for digital twin, sim_pat_20230721 for restoration analysis")
+    parser.add_argument('--db_names', type=str, nargs='+', default=["sim_pat_20230628", "sim_pat_20230721"], help="identifier of the sqlite3 database (use sim_pat_20230628 for digital twin, sim_pat_20230721 for restoration analysis")
     parser.add_argument('--df_sims', type=str, default="df_sims_pat_20230621", help="identifier of the fixed dataframe")
     parser.add_argument('--base_cohort', type=str, default='controls', help="Cohort from which to infer posterior as default")
     parser.add_argument('--test_cohort', type=str, default='patients', help="Cohort from which to infer posterior of individual params")
     parser.add_argument('--test_params', nargs='+', default=[], help="posterior parameter to swap between base and test cohort, if empty list then all params are tested")
     parser.add_argument('--tolerance', type=float, default=0.05, action='store', help="maximal distance allow to take into consideration 'digital sigling'")
-    parser.add_argument('--tolerance_plot', type=float, default=0.05, action='store', help="maximal distance allow to take into consideration 'digital sigling' (for plotting) ")
+    parser.add_argument('--tolerance_plot', type=float, default=0.3, action='store', help="maximal distance allow to take into consideration 'digital sigling' (for plotting) ")
     parser.add_argument('--save_distances', default=False, action='store_true', help='save distances between patients and simulations')
     parser.add_argument('--load_distances', default=False, action='store_true', help='load distances between patients and simulations from previously saved')
     parser.add_argument('--compute_distances', default=False, action='store_true', help='compute distances between patients and simulations')
@@ -1209,6 +1343,10 @@ def parse_arguments():
     parser.add_argument('--plot_fc_dist_pre_post_behav', default=False, action='store_true', help='plot FC distance to controls in pre-post TMS data')
     parser.add_argument('--compute_post_distances', default=False, action='store_true', help='Compute distances for digital twins analysis using post-TMS FC')
     parser.add_argument('--compute_sim_vecs', default=False, action='store_true', help='Compute simulation vectors in FC space (otherwise load pre-computed)')
+    parser.add_argument('--save_sim_vecs', default=False, action='store_true', help='Save simulation vectors in FC space after being computed')
+    parser.add_argument('--load_sim_vecs', default=False, action='store_true', help='Load simulation vectors in FC space')
+    parser.add_argument('--load_post_distances', default=False, action='store_true', help='load distances in post-TMS inference')
+    parser.add_argument('--plot_pre_post_associations', default=False, action='store_true', help='plot pre-post TMS associations between FC, params and behavioral measures')
     args = parser.parse_args()
     return args
 
@@ -1229,6 +1367,7 @@ if __name__=='__main__':
     
     print("Loading functional connectivity data...")
     df_data = load_df_data(args)
+    pathways = np.sort(df_data.pathway.unique())
     
     print("Loading behavioral data...")
     with open(os.path.join(proj_dir, 'postprocessing', 'df_pat_.pkl'), 'rb') as f:
@@ -1237,22 +1376,36 @@ if __name__=='__main__':
             df_pat = df_pat[df_pat.ses==args.session]
     df_fc_pat = df_data.pivot(columns='pathway', values='corr', index='subj').reset_index().merge(df_pat)
 
+    if args.compute_sim_vecs:
+        print("Computing simulation vectors...")
+        sim_vecs = compute_sim_vecs(df_sims)
+        if args.save_sim_vecs:
+            print("Saving simulation vectors...")
+            fname = os.path.join(proj_dir, 'postprocessing', 'sim_vecs'+today()+'.pkl')
+            with open(fname, 'wb') as f:
+                pickle.dump(sim_vecs, f)
+    elif args.load_sim_vecs:
+        print("Loading simulation vectors...")
+        fname = os.path.join(proj_dir, 'postprocessing', 'sim_vecs.pkl') #sim_vecs.pkl without restoration, sim_vecs_20230915.pkl with restoration
+        with open(fname, 'rb') as f:
+            sim_vecs = pickle.load(f)
+
     
     if args.load_distances:
         print("Loading distances...")
-        fname = os.path.join(proj_dir, 'postprocessing', args.db_name+'_distances100eps'+str(int(args.tolerance*100))+".pkl")
+        fname = os.path.join(proj_dir, 'postprocessing', args.db_namess[0]+'_distances100eps'+str(int(args.tolerance*100))+".pkl")
         with open(fname, 'rb') as f:
             assoc = pickle.load(f)
-        df_sim_pat = merge_data_sim_dfs(df_pat, df_sims, assoc, args)
+        df_sim_pre = merge_data_sim_dfs(df_pat[df_pat.ses=='ses-pre'], df_sims, assoc, args)
     elif args.compute_distances:
         print("Computing distances...")
-        assoc = compute_distances(df_data, df_sims, args)
-        df_sim_pat = merge_data_sim_dfs(df_pat, df_sims, assoc, args)
+        assoc = compute_distances(df_data, df_sims[df_sims.test_param=='None'], ses='pre', args=args)
+        df_sim_pre = merge_data_sim_dfs(df_pat[df_pat.ses=='ses-pre'], df_sims, assoc, args)
     
 
     # univariate analysis
     if args.plot_param_behav:
-        plot_param_behav(df_sim_pat, params=params, args=args)
+        plot_param_behav(df_sim_pre, params=params, args=args)
 
     # multivariate analysis
     if args.multivariate_analysis:
@@ -1263,13 +1416,13 @@ if __name__=='__main__':
                                              params=params, 
                                              args=args)
         else:
-            multivar = multivariate_analysis(df_sim_pat, params=params, args=args)
+            multivar = multivariate_analysis(df_sim_pre, params=params, args=args)
 
         if args.plot_multivariate_results:
             plot_multivariate_results(multivar, args=args)
         
         if args.plot_cv_regression:
-            plot_cv_regression(multivar, args=args)
+            plot_cv_regression(multivar, df_sim_pre, args=args)
         
         if args.plot_multivar_svd:
             plot_multivar_svd(multivar, behavs=behavs, args=args)
@@ -1278,7 +1431,7 @@ if __name__=='__main__':
             print("Creating Null distribution...")
             models = dict(('null_model{:04d}'.format(i), sklearn.linear_model.Ridge(alpha=0.01)) 
                                 for i in range(args.n_null))
-            multivar_null = multivariate_analysis(df_sim_pat, 
+            multivar_null = multivariate_analysis(df_sim_pre, 
                                                   params=params, 
                                                   models=models, 
                                                   null=True, 
@@ -1290,13 +1443,13 @@ if __name__=='__main__':
                 plot_null_distrib(multivar, args)
 
         if args.print_ANOVA:
-            print_ANOVA(df_sim_pat, behavs, params)
+            print_ANOVA(df_sim_pre, behavs, params)
 
 
     # restoration analysis
     if args.restore_analysis:
         print("Restoration analysis...")
-        args.pathways = df_data.pathway.unique()
+        args.pathways = pathways
         #df_restore = compute_rmse_restore(df_data, df_sims, args)
         df_restore = compute_distance_restore(df_sims, args)
         df_restore = compute_efficacy(df_restore, args)
@@ -1311,20 +1464,56 @@ if __name__=='__main__':
 
     # prediction 
     if args.predictive_analysis:
-        print('Run predictive analysis...')
+        print('Load functional distances (data)...')
         fname = fname= os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls_20230907.pkl')
         with open(fname, 'rb') as f:
             distances = pickle.load(f)
             df_fc_pre_post = distances['indiv']
-        df_dist_fc = df_fc_pre_post.merge(df_fc_pat, on=['subj', 'ses', 'group'], how='inner')
-        
+            df_fc_pre_post = df_fc_pre_post.reset_index(drop=True)
+            df_fc_pre_post.index.name = None
+
+        # delta FC vs delta YBOCS
+        df_dist_fc = df_fc_pre_post.merge(df_fc_pat, on=['subj', 'ses', 'group', *pathways], how='inner')    
+        df_dist_fc = drop_single_session(df_dist_fc)
         if args.plot_fc_dist_pre_post_behav:
             plot_fc_dist_pre_post_behav(df_dist_fc, args)
 
+
+        # Load or compute distances (post)
         if args.compute_post_distances:
+            print("Computing functional distances (post)...")
             pathways = np.sort(df_data.pathway.unique())
             df_post_data = df_fc_pre_post[df_fc_pre_post.ses=='ses-post'].melt(id_vars=['subj', 'cohort', 'group'], 
                                                value_vars=pathways, var_name='pathway', value_name='corr')
-            assoc_post = compute_distances(df_post_data, df_sims, args)
-            df_sim_post = merge_data_sim_dfs(df_pat[df_pat.ses=='ses-post'], df_sims, assoc_post, args)
+            assoc_post = compute_distances(df_post_data, df_sims, ses='post', args=args)
+
+        elif args.load_post_distances:
+            print("Loading functional distances (post)...")
+            fname = os.path.join(proj_dir, 'postprocessing', args.db_names[0]+'_distances100eps'+str(int(args.tolerance*100))+"_post.pkl")
+            with open(fname, 'rb') as f:
+                assoc_post = pickle.load(f) 
+        
+        df_sim_post = merge_data_sim_dfs(df_pat[df_pat.ses=='ses-post'], df_sims, assoc_post, args)
+        df_post = pd.merge(df_fc_pre_post[df_fc_pre_post.ses=='ses-post'], df_sim_post, on=['subj', 'ses', 'group'], how='outer', suffixes=[None, '_sim'])
+
+
+        # pre-post analysis summary
+        df_pre = pd.merge(df_fc_pre_post[df_fc_pre_post.ses=='ses-pre'], df_sim_pre, on=['subj', 'ses', 'group'], how='outer', suffixes=[None, '_sim'])
+        if args.save_summary:
+            with open(os.path.join(proj_dir, 'postprocessing', 'df_pre'+today()+".pkl"), 'wb') as f:
+                pickle.dump(df_pre, f)
+            with open(os.path.join(proj_dir, 'postprocessing', 'df_post'+today()+".pkl"), 'wb') as f:
+                pickle.dump(df_post, f)
+        
+        df_summary = df_post[df_post.cohort=='patients'].merge(df_pre[df_pre.cohort=='patients'], how='outer')
+        if args.save_summary:
+            with open(os.path.join(proj_dir, 'postprocessing', 'df_summary'+today()+".pkl"), 'wb') as f:
+                pickle.dump(df_summary, f)
+            
+    
+        if args.plot_pre_post_associations:
+            plot_fc_dist_pre_post_behav(df_summary)
+            plot_fc_dist_pre_post_params(df_summary)
+            plot_pre_post_params_behavs(df_summary)
+        
 
