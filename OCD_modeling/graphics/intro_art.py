@@ -112,8 +112,46 @@ opts = {'Putamen': {'color': 'RoyalBlue',
                     'opacity': 1 }       
         }
 
+# Figure 1: Single fronto striatal pathway
+"""
+opts = {'Putamen': {'color': 'limegreen',
+                          'show_edges': False,
+                          'line_width': 1,
+                          'opacity':1},
+        'Caudate': {'color': 'limegreen',
+                          'show_edges': False,
+                          'line_width': 1,
+                          'opacity':1},
+        'NucleusAccumbens': {   'color': 'limegreen',
+                                      'show_edges': False,
+                                      'line_width': 1,
+                                      'opacity':1},
+        'OFC': {   'color': 'dodgerblue',
+                                      'show_edges': False,
+                                      'line_width': 1,
+                                      'opacity':1},
+        'PFC': {   'color': 'dodgerblue',
+                                      'show_edges': False,
+                                      'line_width': 1,
+                                      'opacity':1},
+        'cortex_mesh' : {   'color': 'gray',
+                            'show_edges': True,
+                            'line_width': 0.5,
+                            'opacity': 0.2,
+                            'style': 'wireframe' 
+                        } ,
+        'cortex_surf' : {   'color': 'whitesmoke',
+                            'show_edges': False,
+                            'line_width': 0.1,
+                            'opacity': 1,
+                            'style': 'surface' 
+                   } 
+        }
 
-opts = {'Putamen': {'color': 'lightcoral',
+"""
+# Option 1: opaque surfaces
+
+opts = {'Putamen': {'color': 'orange',
                           'show_edges': False,
                           'line_width': 1,
                           'opacity':1},
@@ -129,10 +167,10 @@ opts = {'Putamen': {'color': 'lightcoral',
                                       'show_edges': False,
                                       'line_width': 1,
                                       'opacity':1},
-        'cortex_mesh' : {   'color': 'whitesmoke',
+        'cortex_mesh' : {   'color': 'gray',
                             'show_edges': True,
-                            'line_width': 0.1,
-                            'opacity': 0.1,
+                            'line_width': 0.5,
+                            'opacity': 0.2,
                             'style': 'wireframe' 
                         } ,
         'cortex_surf' : {   'color': 'lightgray',
@@ -143,6 +181,9 @@ opts = {'Putamen': {'color': 'lightcoral',
                    } 
         }
 
+# Figure 2: Two-pathways fronto-striatal system
+# Otion 2: mesh surfaces 
+"""
 opts = {'Putamen': {'color': 'orange', #'lightcoral'
                           'show_edges': True,
                           'line_width': 0.2,
@@ -163,19 +204,20 @@ opts = {'Putamen': {'color': 'orange', #'lightcoral'
                                       'line_width': 0.2,
                                       'opacity':0.2,
                                       'style': 'wireframe' },
-        'cortex_mesh' : {   'color': 'lightgray',
+        'cortex_mesh' : {   'color': 'gray',
                             'show_edges': True,
-                            'line_width': 0.2,
+                            'line_width': 0.5,
                             'opacity': 0.2,
                             'style': 'wireframe' 
                         } ,
-        'cortex_surf' : {   'color': 'lightgray',
+        'cortex_surf' : {   'color': 'gray',
                             'show_edges': False,
                             'line_width': 0.1,
                             'opacity': 1,
                             'style': 'surface' 
                    } 
         }
+"""
 
 def create_mesh(roi_img, alpha=1., n_iter=80):
     """ creates pyvista mesh from all non-zero entries of a niftii image """
@@ -261,7 +303,7 @@ pl.screenshot(filename='/home/sebastin/working/lab_lucac/sebastiN/projects/OCD_m
 """
 #pl.camera.azimuth += 180
 pl.renderer.reset_camera_clipping_range()
-pl.screenshot(filename='/home/sebastin/working/lab_lucac/sebastiN/projects/OCD_modeling/img/frontostriatal_lateral001_20230906.png',
+pl.screenshot(filename='/home/sebastin/working/lab_lucac/sebastiN/projects/OCD_modeling/img/OFC_PFC_NAcc_dPut_lateral002_20230926.png',
               transparent_background=True,
               return_img=False,
               )

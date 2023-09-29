@@ -136,8 +136,8 @@ def compute_stats(histories, args=None):
         print(line)
         
         df_line = {'param':col, 't':t, 'p_t':p_t, 'p_t_bf':p_t/len(cols), 'normality':(p_norm_con>0.05)&(p_norm_pat>0.05), \
-                'u':u, 'p_u':p_u, 'p_u_bf':p_u/len(cols), \
-                'h':h, 'p_h':p_h, 'p_h_bf':p_h/len(cols), 'd':d, 'ks':ks_res.statistic, 'p_ks':ks_res.pvalue}
+                'u':u, 'p_u':p_u, 'p_u_bf':p_u*len(cols), \
+                'h':h, 'p_h':p_h, 'p_h_bf':p_h*len(cols), 'd':d, 'ks':ks_res.statistic, 'p_ks':ks_res.pvalue}
         stats.append(df_line)
     df_stats = pd.DataFrame(stats)
     return df_stats
@@ -175,7 +175,9 @@ def compute_kdes(histories, n_pts = 100, args=None):
     cols = np.unique(cols)
 
     if args.save_kdes:
-        fname = os.path.join()
+        fname = os.path.join(proj_dir, 'postprocessing', 'kdes_'+'_'.join(args.histories)+today()+'.pkl')
+        with open(fname, 'wb') as f:
+            pickle.dump(kdes, f)
 
     return kdes, cols
 
@@ -217,6 +219,7 @@ def plot_fc_sim_vs_data(axes=None, args=None):
     
     palette = {'controls': 'lightblue', 'patients': 'orange'}
     pathways = ['Acc_OFC', 'Acc_PFC', 'Acc_dPut', 'OFC_PFC', 'dPut_OFC', 'dPut_PFC']
+    pathway_names = ['NAcc-OFC', 'NAcc-lPFC', 'NAcc-dPut', 'OFC-lPFC', 'dPut-OFC', 'dPut-lPFC']
     df_tmp = df_base.iloc[:384].melt(id_vars=['subj', 'base_cohort'], value_vars=pathways, var_name='pathway', value_name='corr')
 
     if axes==None:
@@ -246,7 +249,8 @@ def plot_fc_sim_vs_data(axes=None, args=None):
     ax_data.set_title('Observed')
     ax_data.set_ylim([-0.35, 0.5])
     ax_data.set_ylabel('R', fontsize=12)
-    ax_data.set_xlabel('Pathway', fontsize=12)
+    #ax_data.set_xlabel('Pathway', fontsize=12)
+    ax_data.set_xticklabels(pathway_names)
 
 
     # SIMULATION
@@ -268,7 +272,8 @@ def plot_fc_sim_vs_data(axes=None, args=None):
     ax_sim.set_ylim([-0.35, 0.5])
     ax_sim.set_ylabel('')
     ax_sim.set_yticklabels([])
-    ax_sim.set_xlabel('Pathway', fontsize=12)
+    #ax_sim.set_xlabel('Pathway', fontsize=12)
+    ax_sim.set_xticklabels(pathway_names)
 
     if args.save_figs:
         today = datetime.now().strftime('_%Y%m%d')
@@ -277,22 +282,22 @@ def plot_fc_sim_vs_data(axes=None, args=None):
     
     
 
-def plot_kdes(kdes, cols, histories, args=None):
+def plot_kdes(kdes, cols, df_stats, histories, args=None):
     """  Plot Kernel Density Estimates of posteriors """
 
     plt.rcParams.update({'mathtext.default': 'regular', 'font.size':10})
     plt.rcParams.update({'text.usetex': False})
     plt.rcParams.update({'figure.constrained_layout.use': False})
 
-    nrows, ncols = 3,6
-    row_offset, col_offset = 2,2
+    nrows, ncols = 4,5
+    row_offset, col_offset = 2,3
 
-    fig = plt.figure(figsize=[10,5])
+    fig = plt.figure(figsize=[10,7])
     gs = plt.GridSpec(nrows=nrows, ncols=ncols)
     
     # EPSILONS
-    ax = fig.add_subplot(gs[0:row_offset, 0:col_offset])
-    custom_plot_epsilons(histories, ax=ax)
+    #ax = fig.add_subplot(gs[0:row_offset, 0:col_offset])
+    #custom_plot_epsilons(histories, ax=ax)
     
     # KDES
     ax_inds = get_kde_ax_inds(nrows, ncols, row_offset, col_offset)
@@ -317,7 +322,14 @@ def plot_kdes(kdes, cols, histories, args=None):
         ax.spines.top.set_visible(False)
         ax.spines.right.set_visible(False)
         
-
+        ttl=''
+        if df_stats[df_stats.param==col]['p_u_bf'].iloc[0]<0.05:
+            ttl+='*'
+            if np.abs(df_stats[df_stats.param==col]['d'].iloc[0])>0.2:
+                ttl+='*'
+                if np.abs(df_stats[df_stats.param==col]['d'].iloc[0])>0.5:
+                    ttl+='*'
+        plt.title(ttl, fontsize=14)
 
     # FC
     #axes = {'data': fig.add_subplot(gs[3:, 0:3]),
@@ -413,7 +425,7 @@ if __name__=='__main__':
     if args.compute_kdes:
         kdes,cols = compute_kdes(histories, args=args)
     if args.plot_kdes:
-        plot_kdes(kdes, cols, histories=histories, args=args)
+        plot_kdes(kdes, cols, df_stats, histories=histories, args=args)
 
     if args.plot_fc_sim_vs_data:
         plot_fc_sim_vs_data(args=args)

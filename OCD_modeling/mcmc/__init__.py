@@ -16,8 +16,12 @@ from .inference_analysis import (
     create_df_null,
     plot_null_distrib,
     print_ANOVA,
-    compute_rmse_restore,
-    plot_rmse_restore
+    compute_distance_restore,
+    plot_distance_restore,
+    format_labels,
+    get_df_base,
+    fix_df_base,
+    load_df_data
 )
 
 from .history_analysis import (

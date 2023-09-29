@@ -119,7 +119,7 @@ def compute_equilibrium_point_curve(model, fps, pdomain):
 
 
 
-def stability_analysis(order_params, default_params, out_queue, args, pdomain={'C_12':[-0.5, 0.5]}):
+def stability_analysis(order_params, default_params, out_queue, args, pdomain={'C_12':[-1, 2]}):
     """ Create model and analyse dynamics using PyDSTool """
     for k,v in order_params.items(): 
         default_params[k] = v
@@ -401,6 +401,107 @@ def plot_bifurcation_row(outputs, order_params, rww=None, t_range=None, args=Non
         fig.close()
 
 
+def plot_timeseries_phasespace_bif(outputs, rww, args):
+    """ Neat figure for paper with S1, S2, C_12 timeseries, 
+    S1-S2 phase space with trajectories and C_12 S1/S2 phase space with bifurcation diagram """
+    t_range = [2800,6000]
+
+    ticks = [0 ,0.3, 0.6, 0.9]
+
+    start = t_range[0]*rww.sf
+    stop = t_range[1]*rww.sf
+
+
+    fig = plt.figure(figsize=[9,6])
+    gs = plt.GridSpec(nrows=2, ncols=3)
+    sub_gs = gs[1,0:3].subgridspec(3,1)
+
+    # Time series
+    #------------
+    ax = fig.add_subplot(sub_gs[0,0])
+    ax.plot(rww.t[start:stop], rww.S_rec[start:stop,0], color='dodgerblue')
+    ax.spines.top.set_visible(False)
+    ax.spines.bottom.set_visible(False)
+    ax.spines.right.set_visible(False)
+    plt.xticks([], label='')
+    plt.yticks([0,1])
+    plt.ylabel('$S_1$', rotation=0, labelpad=15, fontsize=12)
+
+    ax = fig.add_subplot(sub_gs[1,0])
+    ax.plot(rww.t[start:stop], rww.S_rec[start:stop,1], color='forestgreen')
+    ax.spines.top.set_visible(False)
+    ax.spines.bottom.set_visible(False)
+    ax.spines.right.set_visible(False)
+    plt.xticks([], label='')
+    plt.yticks([0,1])
+    plt.ylabel('$S_2$', rotation=0, labelpad=15, fontsize=12)
+
+    ax = fig.add_subplot(sub_gs[2,0])
+    ax.hlines(y=0, xmin=t_range[0], xmax=t_range[1], lw=0.5, linestyle='--', color='gray')
+    ax.plot(rww.t[start:stop], rww.rec_C_12[start:stop], lw=0.25, color='orange')
+    ax.spines.top.set_visible(False)
+    ax.spines.right.set_visible(False)
+    #plt.yticks([-0.5,0.75])
+    plt.yticks([-1.2,1.6])
+    plt.ylabel('$C_{12}$', rotation=0, labelpad=0, fontsize=12)
+
+    xticks = np.arange(t_range[0], t_range[1], 600) # 10min ticks
+    plt.xticks(xticks, labels=np.array((xticks-t_range[0])/60, dtype=int))
+    ax.set_xlabel('time (min)', fontsize=12)
+
+
+    # S1-S2 State space
+    #------------------
+    output = dill.loads(outputs[3])['output']
+    ax = fig.add_subplot(gs[0,1])
+    ax.plot(output['ncs'][1][:,0], output['ncs'][1][:,1], color='forestgreen', lw=3)
+    ax.plot(output['ncs'][0][:,0], output['ncs'][0][:,1], color='dodgerblue', lw=3)
+    ax.plot(rww.S_rec[start:stop,0], rww.S_rec[start:stop,1], lw=1, color='gray', alpha=1)
+    for fp in output['fps']:
+        x,y = fp.toarray()
+        ax.scatter(x, y, color='black', s=80)
+        
+    ax.spines.top.set_visible(False)
+    ax.spines.right.set_visible(False)
+    ax.set_xlabel('$S_1$', fontsize=12)
+    ax.set_ylabel('$S_2$', rotation=0, labelpad=15, fontsize=12)
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(ticks)
+    ax.set_yticks(ticks)
+    ax.set_yticklabels(ticks)
+    ax.set_xlim([-0.05,1])
+    ax.set_ylim([-0.05,1])
+    plt.tight_layout()
+
+
+    # S - C_12 state space
+    ax = fig.add_subplot(gs[0,2])
+    cont = dill.loads(output['dilled_cont'])
+    cont.display(axes=ax, coords=['C_12', 'S1'], stability=True, color='blue', linewidth=1.6)
+    cont.display(axes=ax, coords=['C_12', 'S2'], stability=True, color='red', linewidth=1.6)
+
+    plt.plot(rww.rec_C_12[start:stop], rww.S_rec[start:stop,0], lw=0.25, color='blue', alpha=0.2, label='$S_1$')
+    plt.plot(rww.rec_C_12[start:stop], rww.S_rec[start:stop,1], lw=0.25, color='red', alpha=0.2, label='$S_2$')
+    ax.spines.top.set_visible(False)
+    ax.spines.left.set_color('blue')
+    ax.spines.right.set_color('red')
+    ax.set_yticks(ticks)
+    ax.set_yticklabels(ticks)
+    ax.set_ylim([-0.05,1])
+    ax.set_xlim([-0.6,1.6])
+    ax.tick_params(axis='y', which='both', labelleft='on', left=True)
+    ax.tick_params(axis='y', which='both', labelright='on', right=True)
+    plt.xlabel('$C_{12}$', fontsize=12)
+    plt.ylabel('$S_1$', rotation=0, fontsize=12)
+    plt.title('')
+
+    plt.tight_layout()
+
+    if args.save_figs:
+        fname = os.path.join(proj_dir, 'img', 'single_pathway_model'+today()+'.svg')
+        plt.savefig(fname)
+
+
 
 def parse_args():
     """ parsing global argument """
@@ -410,15 +511,18 @@ def parse_args():
     parser.add_argument('--compute_epc', default=False, action='store_true', help='compute equilibrium point curves numerically')
     parser.add_argument('--save_model', default=False, action='store_true', help='save symbolic model with its ciomputed attributes')
     parser.add_argument('--run_stability_analysis', default=False, action='store_true', help='run stability analysis: find fixed point (semi-analytically) and perform linear stability analysis around them')
+    parser.add_argument('--load_stability_analysis', default=False, action='store_true', help='load previously completed stability analysis')
     parser.add_argument('--plot_figs', default=False, action='store_true', help='plot figures')
     parser.add_argument('--plot_phasespace_grid', default=False, action='store_true', help='plot grid of phase spaces using order_params')
     parser.add_argument('--plot_bifurcation_diagrams', default=False, action='store_true', help='plot grid of phase spaces using order_params')
     parser.add_argument('--save_figs', default=False, action='store_true', help='save figures')
     parser.add_argument('--save_outputs', default=False, action='store_true', help='save analysis outputs')
-    parser.add_argument('--timeout', type=int, default=60, action='store', help='timeout of the stability analysis (per parameter combination invoked)')
+    parser.add_argument('--timeout', type=int, default=3000, action='store', help='timeout of the stability analysis (per parameter combination invoked)')
     parser.add_argument('--n_jobs', type=int, default=20, action='store', help='number of processes used in parallelization')
     parser.add_argument('--n_trajs', type=int, default=10, action='store', help='number of trajectories (traces) to compute for phase space projection')
     parser.add_argument('--n_op', type=int, default=5, action='store', help='number of values taken for each order parameters')
+    parser.add_argument('--load_sample_rww', default=False, action='store_true', help='load a sample of rww object previously ran for illustration')
+    parser.add_argument('--plot_timeseries_phasespace_bif', default=False, action='store_true', help='plot neat figure of timeseries, phase spce and bifurcations with trajectories')
     args = parser.parse_args()
     return args
 
@@ -428,11 +532,18 @@ if __name__=='__main__':
     default_params = {'a':270, 'b': 108, 'd': 0.154, 'C_12': 0.25, 'G':2.5, 'J_N':0.2609, 'I_0':0.3, 'I_1':0.0, 'tau_S':100, 'w':0.9, 'gam':0.000641}
     #order_params = {'C_12': np.linspace(-1,1,args.n_op), 'I_0': np.linspace(0.2,0.5,args.n_op)} #, 'C_21': np.linspace(-1,1,args.n_op)}
     #order_params = {'C_12': np.linspace(-0.5,0.5,args.n_op), 'C_21': np.linspace(-0.5,0.5,args.n_op)}
-    order_params = {'C_21': np.linspace(0.2,0.3,args.n_op)}
-    if args.run_stability_analysis:
+    order_params = {'C_21': np.linspace(0.2,0.8,args.n_op)}
+    
+    if args.load_stability_analysis:
+        #fname = os.path.join(proj_dir, 'postprocessing', 'outputs_dst__20230925_op_C_12_fix025_C21_var023.pkl')
+        fname = os.path.join(proj_dir, 'postprocessing', 'outputs_dst__20230925_op_C_12_fix025_C21_var0_1_10.pkl')
+        with open(fname, 'rb') as f:
+            outputs = pickle.load(f) 
+    
+    elif args.run_stability_analysis:
         outputs, futures = run_stability_analysis(order_params, default_params, args)
         if args.save_outputs:
-            fname = 'outputs_dst_'+today()+'_op_C_12_fix025_C21_var023.pkl'
+            fname = 'outputs_dst_'+today()+'_op_C_12_fix025_C21_var02_08_4.pkl'
             with open(os.path.join(proj_dir, 'postprocessing', fname), 'wb') as f:
                 pickle.dump(outputs, f)
         if args.plot_bifurcation_diagrams:
@@ -451,4 +562,9 @@ if __name__=='__main__':
         elif len(order_params.keys())==2:
             plot_phasespace_grid(outputs, order_params, args)
 
+    if args.load_sample_rww:
+        with open(os.path.join(proj_dir, 'postprocessing', 'sample_rww.pkl'), 'rb') as f:
+            rww = pickle.load(f)
             
+    if args.plot_timeseries_phasespace_bif:
+        plot_timeseries_phasespace_bif(outputs, rww, args)

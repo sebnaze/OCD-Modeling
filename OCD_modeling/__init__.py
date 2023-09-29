@@ -17,7 +17,9 @@ from .mcmc import (
     import_results,
     compute_stats,
     compute_kdes,
-    compute_rmse_restore,
+    compute_distance_restore,
     simulate_rww,
     simulate_population_rww
 )
+
+from .utils import get_working_dir, cohen_d, emd

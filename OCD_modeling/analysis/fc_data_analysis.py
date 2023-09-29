@@ -26,8 +26,7 @@ from OCD_baseline.functional.seed_to_voxel_analysis import *
 
 import OCD_clinical_trial
 
-from OCD_modeling.utils import get_working_dir, today
-from OCD_modeling.mcmc.inference_analysis import emd
+from OCD_modeling.utils import get_working_dir, today, emd
 
 working_dir = get_working_dir()
 proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')
@@ -241,7 +240,7 @@ def plot_pre_post_fc_vs_controls(df_rois_corr, args):
 #----------------------------------#
 
 def compute_distances(df_rois_corr):
-    """ Compute Wassertein distacne between distributions across groups """ 
+    """ Compute Wassertein and euclidian distances between distributions across groups """ 
     pathways = np.sort(df_rois_corr.pathway.unique())
     distances = {'indiv':pd.DataFrame([]), 'group':[]}
     for ses,group in itertools.product(['ses-pre', 'ses-post'], ['group1', 'group2']):
@@ -258,6 +257,8 @@ def compute_distances(df_rois_corr):
         ref = df_con[pathways].apply(np.mean, axis=0)
         def dist(x):
             return np.sqrt(np.sum(np.array(x)-np.array(ref))**2)
+        
+        # format outputs into dataframe
         df_con['dist'] = df_con[pathways].apply(dist, axis=1)
         df_con['ses'] = ses
         df_con['cohort'] = 'controls'
@@ -274,36 +275,74 @@ def compute_distances(df_rois_corr):
 
 def plot_pointplot_pre_post(df):
     """ Point plot of individuals pre vs post distacne to controls FC based on euclidean distance"""
-    plt.figure(figsize=[18,4])
+    plt.figure(figsize=[12,4])
 
     plt.subplot(1,3,1)
     df_tmp = df[df.group=='none']
     for subj in df_tmp.subj.unique():
         sbn.pointplot(data=df_tmp[df_tmp.subj==subj], x='ses', y='dist', color='lightblue', lw=0.2)
     plt.title('controls')
-    plt.ylim([0,1])
+    plt.ylim([0,1.2])
+    plt.gca().spines.top.set_visible(False)
+    plt.gca().spines.right.set_visible(False)
 
     plt.subplot(1,3,2)
     df_tmp = df[df.group=='group1']
+    responders = {'pre':[], 'post':[]}
     for subj in df_tmp.subj.unique():
-        sbn.pointplot(data=df_tmp[df_tmp.subj==subj], x='ses', y='dist', color='orange', lw=0.2)
-    plt.title('group1')
-    plt.ylim([0,1])
+        pre = df_tmp[(df_tmp.subj==subj) & (df_tmp.ses=='ses-pre')]['dist'].iloc[0]
+        post = df_tmp[(df_tmp.subj==subj) & (df_tmp.ses=='ses-post')]['dist'].iloc[0]
+        if pre > post:
+            sbn.pointplot(data=df_tmp[df_tmp.subj==subj], x='ses', y='dist', order=['ses-pre', 'ses-post'], color='orange', lw=0.2)
+            responders['pre'].append(pre)
+            responders['post'].append(post)
+        else:
+            sbn.pointplot(data=df_tmp[df_tmp.subj==subj], x='ses', y='dist', order=['ses-pre', 'ses-post'], color='gold', lw=0.2, alpha=0.4)
+    val_1 = df[(df.group=='group1') & (df.ses=='ses-pre')].dist
+    val_2 = df[(df.group=='group1') & (df.ses=='ses-post')].dist
+    t,p = scipy.stats.ttest_rel(val_1, val_2)
+    tr,pr = scipy.stats.ttest_rel(responders['pre'], responders['post'])
+    plt.title('group1\nn={}  t={:.2f}  p={:.3f}\nResponders: n={}  t={:.2f}  p={:.3f}'.format(
+        len(val_1), t, p, len(responders['pre']), tr, pr))
+    plt.ylim([0,1.2])
+    plt.gca().spines.top.set_visible(False)
+    plt.gca().spines.right.set_visible(False)
 
     plt.subplot(1,3,3)
     df_tmp = df[df.group=='group2']
+    responders = {'pre':[], 'post':[]}
     for subj in df_tmp.subj.unique():
-        sbn.pointplot(data=df_tmp[df_tmp.subj==subj], x='ses', y='dist', color='green', lw=0.2)
-    plt.title('group2')
-    plt.ylim([0,1])
+        pre = df_tmp[(df_tmp.subj==subj) & (df_tmp.ses=='ses-pre')]['dist'].iloc[0]
+        post = df_tmp[(df_tmp.subj==subj) & (df_tmp.ses=='ses-post')]['dist'].iloc[0]
+        if pre > post:
+            responders['pre'].append(pre)
+            responders['post'].append(post)
+            sbn.pointplot(data=df_tmp[df_tmp.subj==subj], x='ses', y='dist', order=['ses-pre', 'ses-post'], color='green', lw=0.2)
+        else:
+            sbn.pointplot(data=df_tmp[df_tmp.subj==subj], x='ses', y='dist', order=['ses-pre', 'ses-post'], color='lime', lw=0.2, alpha=0.4)
+    val_1 = df[(df.group=='group2') & (df.ses=='ses-pre')].dist
+    val_2 = df[(df.group=='group2') & (df.ses=='ses-post')].dist
+    t,p = scipy.stats.ttest_rel(val_1, val_2)
+    tr,pr = scipy.stats.ttest_rel(responders['pre'], responders['post'])
+    plt.title('group2\nn={}  t={:.2f}  p={:.3f}\nResponders: n={}  t={:.2f}  p={:.3f}'.format(
+        len(val_1), t, p, len(responders['pre']), tr, pr))
+    plt.ylim([0,1.2])
+    plt.gca().spines.top.set_visible(False)
+    plt.gca().spines.right.set_visible(False)
+
+    plt.tight_layout()
+    plt.show()
 
 
 def drop_single_session(df):
     """ remove subjects with only pre or only post sessions """
-    rm_subjA = [s for s in df[df.ses=='ses-pre'].subj if s not in df[df.ses=='ses-post'].subj]
-    rm_subjB = [s for s in df[df.ses=='ses-post'].subj if s not in df[df.ses=='ses-pre'].subj]
-    rm_subj = list(set(rm_subjA).difference(rm_subjB))
-    [df.drop(index=df[df.subj==subj].index, inplace=True) for subj in rm_subj]
+    rm_subjA = [s for s in df[df.ses=='ses-pre'].subj.to_list() if not s in df[df.ses=='ses-post'].subj.to_list()]
+    rm_subjB = [s for s in df[df.ses=='ses-post'].subj.to_list() if not s in df[df.ses=='ses-pre'].subj.to_list()]
+    rm_subj = np.unique(np.concatenate([rm_subjA, rm_subjB]))
+    for subj in rm_subj:
+        df.drop(index=df[df.subj==subj].index, inplace=True)
+    df.sort_values('subj', inplace=True, ignore_index=True)
+    return df
 
 
 def main(args):
@@ -326,11 +365,11 @@ def main(args):
     if args.compute_distances:
         distances = compute_distances(df_rois_corr)
 
+    df_fc_dist = drop_single_session(distances['indiv'])
     if args.plot_pointplot_pre_post:
-        plot_pointplot_pre_post(distances['indiv'])
+        plot_pointplot_pre_post(df_fc_dist)
 
     if args.save_outputs:
-        drop_single_session(distances['indiv'])
         fname= os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls'+today()+'.pkl')
         with open(fname, 'wb') as f:
             pickle.dump(distances, f)

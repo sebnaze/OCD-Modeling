@@ -26,7 +26,6 @@ from sklearn.metrics import make_scorer, r2_score
 from sklearn.inspection import permutation_importance
 import sqlite3 as sl
 
-import OCD_modeling
 # import most relevant environment and project variable
 from OCD_modeling.utils.utils import *
 from OCD_modeling.mcmc.history_analysis import import_results, compute_kdes
@@ -54,6 +53,25 @@ def load_df_data(args):
     with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2023.pkl'), 'rb') as f:
         df_data = pickle.load(f)
     return df_data
+
+
+def load_kdes(args):
+    """ Load Kernel Density Estimates from Optimization outcomes (see history_analysis.py) """
+    fname = 'kdes_rww4D_OU_HPC_20230510_rww4D_OU_HPC_20230605_20230919.pkl'
+    with open(os.path.join(proj_dir, 'postprocessing', fname), 'rb') as f:
+        kdes = pickle.load(f)
+    return kdes
+
+
+def load_dist_to_FC_controls(args):
+    """ Load distances in FC space of data (control & patients) to controls from clinical trial (PRE and POST) """ 
+    fname = fname= os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls_20230907.pkl')
+    with open(fname, 'rb') as f:
+        distances = pickle.load(f)
+        df_fc_pre_post = distances['indiv']
+        df_fc_pre_post = df_fc_pre_post.reset_index(drop=True)
+        df_fc_pre_post.index.name = None
+    return df_fc_pre_post
 
 
 #-------------------------#
@@ -595,14 +613,6 @@ def rmse(u,v):
     mse = u_.combine(v_, np.subtract).apply('square').apply('sum').sum()
     return np.sqrt(mse)
 
-
-def emd(u,v):
-    """ computes the Wasserstein distance (i.e. earth mover's distance) across pathways P between u and v """
-    d = []
-    for col in u.columns:
-        d.append(scipy.stats.wasserstein_distance(u[col], v[col]))
-    return np.sum(d)
-
 metric = {'rmse': rmse, 'emd':emd}
 
 def compute_rmse_restore_data(df_data, df_sims, args):
@@ -621,18 +631,21 @@ def compute_rmse_restore_data(df_data, df_sims, args):
 
 
 def compute_distance_restore_sims(df_base, df_sims, args):
-    """ Compute Root Mean Squared Error between batches of simulations in controls, patients and 
+    """ Compute distance metric between batches of simulations in controls, patients and 
     continuous restoration from patients to controls """
     max_len = np.min([len(df_sims), len(df_base)])
     n_folds = int(np.floor(max_len/ args.n_sims))
     n_pathways = len(args.pathways)
     i_s = np.arange(0,n_folds*args.n_sims, args.n_sims)
-    distances = []
+    outputs = []
     for i,j in itertools.product(i_s, i_s):
         sim = df_sims.iloc[i:i+args.n_sims]
         base = df_base.iloc[j:j+args.n_sims]
-        distances.append(metric[args.distance_metric](sim[args.pathways], base[args.pathways]))
-    return np.array(distances).squeeze()
+        distance = metric[args.distance_metric](sim[args.pathways], base[args.pathways])
+        output = dict((param, np.mean(sim[param])) for param in args.params)
+        output['dist'] = distance
+        outputs.append(output)
+    return outputs
 
 
 def compute_distance_restore(df_sims, args):
@@ -640,7 +653,7 @@ def compute_distance_restore(df_sims, args):
     test_params = df_sims[df_sims.n_test_params<=args.n_test_params].test_param.unique()
     df_base = get_df_base(args)
     df_base = fix_df_base(df_base)
-    distances = Parallel(n_jobs=args.n_jobs, verbose=5)(delayed(compute_distance_restore_sims)
+    distance_outputs = Parallel(n_jobs=args.n_jobs, verbose=3)(delayed(compute_distance_restore_sims)
                                         (df_base=df_base[df_base.base_cohort=='controls'], 
                                         df_sims=df_sims[(df_sims.base_cohort=='patients') 
                                                          & (df_sims.test_cohort=='controls') 
@@ -657,10 +670,16 @@ def compute_distance_restore(df_sims, args):
     #                             args=args))
 
     lines = []
-    for tp,distance in zip(test_params, distances):
-        for dist in distance:
-            lines.append({'test_param':tp, 'dist':dist, 'mean':np.mean(distance), 'median':np.median(distance), 'std':np.std(distance)})
-    return pd.DataFrame(lines) # <- df_restore
+    for tp,outputs in zip(test_params, distance_outputs):
+        df_test_param = pd.DataFrame(outputs)
+        df_test_param['test_param'] = tp
+        df_test_param['mean'] = np.mean(df_test_param.dist)
+        df_test_param['median'] = np.median(df_test_param.dist)
+        df_test_param['std'] = np.std(df_test_param.dist)
+        lines.append(df_test_param)
+        #for dist in distance:
+        #    lines.append({'test_param':tp, 'dist':dist, 'mean':np.mean(distance), 'median':np.median(distance), 'std':np.std(distance)})
+    return pd.concat(lines, ignore_index=True) # <- df_restore
 
 """
 def compute_rmse_restore(df_data, df_sims, args):
@@ -680,14 +699,27 @@ def compute_rmse_restore(df_data, df_sims, args):
     return pd.DataFrame(lines) # <- df_restore
 """    
 
-def get_max_rmse_data(df_data):
-    """ Compute the RMSE between controls and patients in real data """
-    RMSE = []
-    for pathway in df_data.pathway.unique():
-        con = df_data[(df_data.cohort=='controls') & (df_data.pathway==pathway)]['corr']
-        pat = df_data[(df_data.cohort=='patients') & (df_data.pathway==pathway)]['corr']
-        RMSE.append((con.mean()-pat.mean())**2 + (con.std()-pat.std())**2)
-    return np.sqrt(np.sum(RMSE))
+def get_max_distance_data(args):
+    """ Compute the distance between controls and patients in real data """
+    df_fc_pre_post = load_dist_to_FC_controls(args)
+    df_fc_pre = df_fc_pre_post[df_fc_pre_post.ses=='ses-pre'] 
+    #pathways = np.sort(df_data.pathway.unique())
+    #df_tmp = df_data.pivot(index=['subj', 'cohort'], columns='pathway', values='corr').reset_index()
+    cons,pats = df_fc_pre[df_fc_pre.cohort=='controls'],df_fc_pre[df_fc_pre.cohort=='patients']
+     
+     # compute euclidian distances to mean controls
+    con_ref = cons[args.pathways].apply(np.mean, axis=0)
+    pat_ref = pats[args.pathways].apply(np.mean, axis=0)
+    def dist_con(x):
+        return np.sqrt(np.sum(np.array(x)-np.array(con_ref))**2)
+    def dist_pat(x):
+        return np.sqrt(np.sum(np.array(x)-np.array(pat_ref))**2)
+    
+    distances = {'con':[], 'pat':[], 'con_pat':[]}
+    distances['con'] = cons[args.pathways].apply(dist_con, axis=1)
+    distances['pat'] = pats[args.pathways].apply(dist_pat, axis=1)
+    distances['con_pat'] = pats[args.pathways].apply(dist_con, axis=1)
+    return distances
 
 
 def get_max_distance_sims(args):
@@ -712,27 +744,6 @@ def get_max_distance_sims(args):
         distances['con_pat'].append(metric[args.distance_metric](cons_i[args.pathways], pats_j[args.pathways]))
     return distances
 
-    #i_s = list(itertools.islice(range(len(cons)), 0, None, args.n_sims*6))
-    #for i,j in itertools.combinations(i_s, 2):
-    #    con_mean_i = cons.iloc[i:i+args.n_sims*n_pathways].groupby('pathway')['corr'].mean()
-    #    con_std_i = cons.iloc[i:i+args.n_sims*n_pathways].groupby('pathway')['corr'].std()
-    #    pat_mean_i = pats.iloc[i:i+args.n_sims*n_pathways].groupby('pathway')['corr'].mean()
-    #    pat_std_i = pats.iloc[i:i+args.n_sims*n_pathways].groupby('pathway')['corr'].std()
-
-    #   con_mean_j = cons.iloc[j:j+args.n_sims*n_pathways].groupby('pathway')['corr'].mean()
-    #    con_std_j = cons.iloc[j:j+args.n_sims*n_pathways].groupby('pathway')['corr'].std()
-    #    pat_mean_j = pats.iloc[j:j+args.n_sims*n_pathways].groupby('pathway')['corr'].mean()
-    #    pat_std_j = pats.iloc[j:j+args.n_sims*n_pathways].groupby('pathway')['corr'].std()
-
-    #    rmse_con = np.sqrt(((con_mean_i-con_mean_j)**2).sum() + ((con_std_i-con_std_j)**2).sum())
-    #    rmse_pat = np.sqrt(((pat_mean_i-pat_mean_j)**2).sum() + ((pat_std_i-pat_std_j)**2).sum())
-    #    rmse_con_pat = np.sqrt(((con_mean_i-pat_mean_j)**2).sum() + ((con_std_i-pat_std_j)**2).sum())
-    #    rmse_combi['con'].append(rmse_con)
-    #    rmse_combi['pat'].append(rmse_pat)
-    #    rmse_combi['con_pat'].append(rmse_con_pat)
-
-    #return rmse_combi
-    
 
 def plot_restore_intersect(distances):
     """ Plot KDEs of restoration RMSE between controls and patients to find a correct threshold value """
@@ -800,13 +811,25 @@ def format_labels(labels):
     return new_labels
 
 
-def compute_efficacy(df_restore, args):
-    """ create a new column with treatment efficacy based on distance to controls """
-    distances = get_max_distance_sims(args)
-    offset = np.mean([np.mean(distances['pat']), np.mean(distances['con'])])
-    scale = np.mean(distances['con_pat'])
+def compute_efficacy(df_restore, base='sims', args=None):
+    """ create a new column with treatment efficacy based on distance to controls (in sims or data accroding to argument 'base') 
+        Note that simulation metric is the Wassertein distance and the data metric is the euclidiean distance. You have to make
+        comparision in FC space using the correct metric. 
+    """
+    if base=='sims':
+        distances = get_max_distance_sims(args)
+        offset = np.mean([np.mean(distances['pat']), np.mean(distances['con'])])
+        scale = np.mean(distances['con_pat'])
+        df_restore['efficacy'] = (1-((df_restore['dist']-offset))/scale)*100 # make % of restoration
+    else:
+        distances = get_max_distance_data(args)
+        offset = np.mean([np.mean(distances['pat']), np.mean(distances['con'])])
+        scale = np.mean(distances['con_pat'])
+        df_restore['efficacy'] = (1-((df_restore['dist']))/scale)*100 # make % of restoration
+    
     #df_top['restore'] = (1-((df_top['dist']-np.mean(distances['pat']))/np.mean(distances['con_pat'])))*100 # make % of restoration
-    df_restore['efficacy'] = (1-((df_restore['dist']-offset))/scale)*100 # make % of restoration
+    
+    df_restore['n_test_params'] = df_restore.test_param.apply(lambda pars_str: len(pars_str.split(' ')) if pars_str!='None' else 0)
     return df_restore
 
 
@@ -823,7 +846,6 @@ def get_df_top(sub_df_restore, args):
 def plot_distance_restore(df_restore, args):
     """ plot best FC restoration outputs """
     # adds n_test_params column to dataframe 
-    df_restore['n_test_params'] = df_restore.test_param.apply(lambda pars_str: len(pars_str.split(' ')))
     sub_df_restore = df_restore[df_restore.n_test_params<=args.n_test_params]
 
     # get top parameters that restore FC
@@ -837,10 +859,10 @@ def plot_distance_restore(df_restore, args):
     df_top['efficacy'] = (1-((df_top['dist']-offset))/scale)*100 # make % of restoration
 
     # create dfs for base distances
-    df_pat = pd.DataFrame({'dist': distances['pat']-np.mean(distances['pat']), 'test_param':'patients', 'n_test_params': 0})
+    df_pat = pd.DataFrame({'dist': distances['pat']-np.mean(distances['pat']), 'test_param':'patients', 'n_test_params': 0}) # test_param=patients for legend label
     df_pat['efficacy'] = ((df_pat['dist']/np.mean(distances['con_pat'])))*100 # make % of restoration
 
-    df_con = pd.DataFrame({'dist': distances['con']-np.mean(distances['con']), 'test_param':'controls', 'n_test_params': 0})
+    df_con = pd.DataFrame({'dist': distances['con']-np.mean(distances['con']), 'test_param':'controls', 'n_test_params': 0}) # test_param=controls for legend label
     df_con['efficacy'] = ((df_con['dist']/np.mean(distances['con_pat']))+1)*100 # make % of restoration
     
     # merge base and restore dataframes
@@ -1014,7 +1036,7 @@ def plot_dt_prediction(decision_trees):
     plt.show()
 
 
-def plot_feature_windrose(df_dt, params, feat_imps={}, args=None):
+def plot_feature_windrose(df_dt, params, rscale='linear', args=None):
     """ Make windrose vizualisation of decision tree feature importances """
     theta = np.arange(len(params))/(len(params)) * 2*np.pi
     theta = np.append(theta, theta[0])
@@ -1037,7 +1059,14 @@ def plot_feature_windrose(df_dt, params, feat_imps={}, args=None):
         #rmax = np.append(rmax, rmax[0]) 
 
         #axes[i].plot(theta, r, label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5)
-        axes[j,k].bar(theta, r, label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5, width=0.5)
+        #axes[j,k].bar(theta_, np.abs(r_), label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5, width=0.5)
+        for r_, theta_ in zip(r,theta):
+            if r_<0:
+                r__ = np.log10(np.abs(r_)) if rscale=='log' else np.abs(r_)
+                axes[j,k].bar(theta_, r__, facecolor=palette[df_dt.iloc[i].n_test_params], lw=1, linestyle='--', width=0.5, edgecolor='black')
+            else:
+                r__ = np.log10(r_) if rscale=='log' else r_
+                axes[j,k].bar(theta_, r__, facecolor=palette[df_dt.iloc[i].n_test_params], lw=1, linestyle='-', width=0.5, edgecolor='black')
         #axes[i].fill_between(theta, rmin, rmax)
         axes[j,k].set_xticks(theta[:-1])
         axes[j,k].set_xticklabels(params)
@@ -1045,9 +1074,10 @@ def plot_feature_windrose(df_dt, params, feat_imps={}, args=None):
         new_lbls = format_labels(lbls)
         axes[j,k].set_xticklabels(new_lbls)
         #axes[i].set_rticks([0.1], labels=[])
+        axes[j,k].set_yticks([-1,0,1,2])
         axes[j,k].set_yticklabels([])
-        axes[j,k].set_yticks([])
-        #axes[i].set_rmax(0.25)
+        #axes[j,k].set_rmax(2)
+        #axes[j,k].set_rmin(-2)
         axes[j,k].spines.polar.set_visible(False)
         axes[j,k].xaxis.grid(linewidth=0.5, linestyle='--')
 
@@ -1144,11 +1174,124 @@ def compute_simple_feature_scores(df_top, params, args):
     return df_simple_feat_imps
 
 
+def scale_efficacy_to_kdes(df_row, params, kdes, scaling):
+    normalized = dict()
+    for param in params:
+        val = (df_row[param] - kdes['patients'][param]['vals'].mean()) / kdes['patients'][param]['vals'].std()
+        if scaling=='contribution':
+            normalized[param] = df_row['efficacy']*val
+        else: # sensitivity
+            normalized[param] = df_row['efficacy']/val
+    return normalized
+
+
+def compute_scaled_feature_score(df_top, params, kdes, scaling='contribution', args=None):
+    """ Compute feature scores scaled by their locaion on the KDEs distribution """
+    lines = []
+    for n_test_params in np.arange(args.n_test_params)+1:
+        df_ = df_top[df_top.n_test_params==n_test_params]
+        print("Compute param sensitivity for n_test_params={}".format(n_test_params))
+        rows = []
+        for i,row in df_.iterrows():
+            new_row = scale_efficacy_to_kdes(row, params, kdes, scaling)
+            rows.append(new_row)
+        #rows = Parallel(n_jobs=args.n_jobs, verbose=5)(delayed(scale_efficacy_to_kdes)(row,params,kdes) for _,row in df_.iterrows())
+        line = pd.DataFrame(rows).mean(axis=0).to_frame().transpose()
+        line['n_test_params'] = n_test_params
+        lines.append(line)
+    df_kdes_scaled_feats = pd.concat(lines, ignore_index=True)
+    return df_kdes_scaled_feats
+
+
+def plot_contribution_windrose(df_params_contribution, params, args=None):
+    """ Make windrose vizualisation of (normalized) parameter contribution in log-scaled """
+    theta = np.arange(len(params))/(len(params)) * 2*np.pi
+    theta = np.append(theta, theta[0])
+
+    palette = {0: 'white', 1: 'lightpink', 2: 'plum', 3: 'mediumpurple', 4: 'lightsteelblue', 5:'skyblue', 6:'royalblue'}
+
+    fig, axes = plt.subplots(3,2, subplot_kw={'projection': 'polar'}, figsize=[4,6])
+    for i in np.arange(len(df_params_contribution)):
+        j = int(np.floor(i/2))
+        k = i%2
+        r = np.array(df_params_contribution.iloc[i][params])
+        r = np.append(r, r[0]) 
+        
+        for r_, theta_ in zip(r,theta):
+            if r_<0:
+                axes[j,k].bar(theta_, np.abs(r_), facecolor=palette[df_params_contribution.iloc[i].n_test_params], lw=0.75, linestyle='--', width=0.5, edgecolor='black', zorder=3)
+            else:
+                axes[j,k].bar(theta_, r_, facecolor=palette[df_params_contribution.iloc[i].n_test_params], lw=0.75, linestyle='-', width=0.5, edgecolor='black', zorder=3)
+        
+        axes[j,k].set_xticks(theta[:-1])
+        axes[j,k].set_xticklabels(params)
+        lbls = axes[j,k].get_xticklabels()
+        new_lbls = format_labels(lbls)
+        axes[j,k].set_xticklabels(new_lbls, fontsize=8)
+        
+        r_max = np.max([np.abs(r).max(), 26])
+        axes[j,k].set_yticks(np.arange(0,r_max, 25))
+        axes[j,k].set_yticklabels([])
+        #axes[j,k].set_rmax(2.2)
+        axes[j,k].grid(zorder=0)
+        
+        axes[j,k].spines.polar.set_visible(False)
+        axes[j,k].xaxis.grid(linewidth=0.5, linestyle='--')
+
+    plt.tight_layout()
+    if args.save_figs:
+        #plt.rcParams['svg.fonttype'] = 'none'
+        fname = 'normalized_params_contribution'+today()+'_small.svg'
+        plt.savefig(os.path.join(proj_dir, 'img', fname))
+    plt.show()
+
+    
+def plot_sensitivity_windrose(df_params_sensitivity, params, args=None):
+    """ Make windrose vizualisation of (normalized) parameter sensitivity in log-scale """
+    theta = np.arange(len(params))/(len(params)) * 2*np.pi
+    theta = np.append(theta, theta[0])
+
+    palette = {0: 'white', 1: 'lightpink', 2: 'plum', 3: 'mediumpurple', 4: 'lightsteelblue', 5:'skyblue', 6:'royalblue'}
+
+    fig, axes = plt.subplots(3,2, subplot_kw={'projection': 'polar'}, figsize=[5,8])
+    for i in np.arange(len(df_params_sensitivity)):
+        j = int(np.floor(i/2))
+        k = i%2
+        r = np.array(df_params_sensitivity.iloc[i][params])
+        r = np.append(r, r[0]) 
+        
+        for r_, theta_ in zip(r,theta):
+            if r_<0:
+                axes[j,k].bar(theta_, np.log10(np.abs(r_)), facecolor=palette[df_params_sensitivity.iloc[i].n_test_params], lw=0, linestyle='--', width=0.5, edgecolor='black')
+            else:
+                axes[j,k].bar(theta_, np.log10(r_), facecolor=palette[df_params_sensitivity.iloc[i].n_test_params], lw=0, linestyle='-', width=0.5, edgecolor='black')
+        
+        axes[j,k].set_xticks(theta[:-1])
+        axes[j,k].set_xticklabels(params)
+        lbls = axes[j,k].get_xticklabels()
+        new_lbls = format_labels(lbls)
+        axes[j,k].set_xticklabels(new_lbls)
+        
+        axes[j,k].set_yticks([0,1,2,3,4])
+        axes[j,k].set_yticklabels([])
+        axes[j,k].set_rmax(4.5)
+
+        axes[j,k].spines.polar.set_visible(False)
+        axes[j,k].xaxis.grid(linewidth=0.5, linestyle='--')
+
+    plt.tight_layout()
+    if args.save_figs:
+        #plt.rcParams['svg.fonttype'] = 'none'
+        fname = 'normalized_params_log_sensitivity'+today()+'.svg'
+        plt.savefig(os.path.join(proj_dir, 'img', fname))
+    plt.show()
+
+
 #---------------------#
 # PREDICTIVE ANALYSIS #
 #---------------------#
 
-def plot_fc_dist_pre_post_behav(df_summary, args=None):
+def plot_fc_dist_pre_post_behav(df_summary, feature='dist', args=None):
     """ plot behavioral relationship to distance to FC controls """
     #behav = 'YBOCS_Total' #'OCIR_Total'
     behavs=['YBOCS_Total', 'OCIR_Total', 'OBQ_Total', 'MADRS_Total', 'HAMA_Total', 'Dep_Total', 'Anx_total']
@@ -1157,39 +1300,39 @@ def plot_fc_dist_pre_post_behav(df_summary, args=None):
     plt.figure(figsize=[21,5])
     for i,behav in enumerate(behavs):
         plt.subplot(1,len(behavs), i+1)
-        dist_diffs = {'group1':[], 'group2':[], 'both':[]}
+        feat_diffs = {'group1':[], 'group2':[], 'both':[]}
         behav_diffs = {'group1':[], 'group2':[], 'both':[]}
-        responders = {'dist':copy.deepcopy(dist_diffs), 'behav':copy.deepcopy(behav_diffs)}
+        responders = {feature:copy.deepcopy(feat_diffs), 'behav':copy.deepcopy(behav_diffs)}
         for subj in df_summary.subj.unique():
             df_subj = df_summary[df_summary.subj==subj]
             group = df_subj['group'].unique()[0]
-            diff = df_subj[df_subj.ses=='ses-post'].dist.iloc[0] - df_subj[df_subj.ses=='ses-pre'].dist.iloc[0]
+            diff = df_subj[df_subj.ses=='ses-post'][feature].iloc[0] - df_subj[df_subj.ses=='ses-pre'][feature].iloc[0]
             behav_diff = df_subj[df_subj.ses=='ses-post'][behav].iloc[0] - df_subj[df_subj.ses=='ses-pre'][behav].iloc[0]
-            dist_diffs[group].append(diff)
+            feat_diffs[group].append(diff)
             behav_diffs[group].append(behav_diff)
-            dist_diffs['both'].append(diff)
+            feat_diffs['both'].append(diff)
             behav_diffs['both'].append(behav_diff)
             if diff < 0:
                 plt.scatter(behav_diff, diff, color=colors[group], alpha=0.5)
-                responders['dist'][group].append(diff)
+                responders[feature][group].append(diff)
                 responders['behav'][group].append(behav_diff)
-                responders['dist']['both'].append(diff)
+                responders[feature]['both'].append(diff)
                 responders['behav']['both'].append(behav_diff)
             else:
                 plt.scatter(behav_diff, diff, color=colors[group], alpha=0.2)
 
-        r,p = scipy.stats.pearsonr(dist_diffs['both'], behav_diffs['both'])
-        r1,p1 = scipy.stats.pearsonr(dist_diffs['group1'], behav_diffs['group1'])
-        r2,p2 = scipy.stats.pearsonr(dist_diffs['group2'], behav_diffs['group2'])
-        rr,pr = scipy.stats.pearsonr(responders['dist']['both'], responders['behav']['both'])
-        r1r,p1r = scipy.stats.pearsonr(responders['dist']['group1'], responders['behav']['group1'])
-        r2r,p2r = scipy.stats.pearsonr(responders['dist']['group2'], responders['behav']['group2'])
+        r,p = scipy.stats.pearsonr(feat_diffs['both'], behav_diffs['both'])
+        r1,p1 = scipy.stats.pearsonr(feat_diffs['group1'], behav_diffs['group1'])
+        r2,p2 = scipy.stats.pearsonr(feat_diffs['group2'], behav_diffs['group2'])
+        rr,pr = scipy.stats.pearsonr(responders[feature]['both'], responders['behav']['both'])
+        r1r,p1r = scipy.stats.pearsonr(responders[feature]['group1'], responders['behav']['group1'])
+        r2r,p2r = scipy.stats.pearsonr(responders[feature]['group2'], responders['behav']['group2'])
         plt.title("n={}  r={:.2f}  p={:.3f}\ng1: n={} r={:.2f} p={:.3f}\ng2: n={} r={:.2f} p={:.3f}\n\
             Responders:\n n={}  r={:.2f}  p={:.3f}\ng1: n={} r={:.2f} p={:.3f}\ng2: n={} r={:.2f} p={:.3f}".format(
-            len(dist_diffs['both']),r,p, len(dist_diffs['group1']), r1, p1, len(dist_diffs['group2']), r2, p2,
-            len(responders['dist']['both']),rr,pr, len(responders['dist']['group1']), r1r, p1r, len(responders['dist']['group2']), r2r, p2r))
+            len(feat_diffs['both']),r,p, len(feat_diffs['group1']), r1, p1, len(feat_diffs['group2']), r2, p2,
+            len(responders[feature]['both']),rr,pr, len(responders[feature]['group1']), r1r, p1r, len(responders[feature]['group2']), r2r, p2r))
         plt.xlabel("$\Delta \, {}$".format(behav.split('_')[0]))
-        plt.ylabel("$\Delta \, distance \, (FC)$")
+        plt.ylabel("$\Delta \, {} \, (FC)$".format(feature))
         plt.gca().spines.top.set_visible(False)
         plt.gca().spines.right.set_visible(False)
     plt.tight_layout()
@@ -1246,7 +1389,7 @@ def plot_fc_dist_pre_post_params(df_summary, args=None):
 def plot_pre_post_params_behavs(df_summary, args=None):
     """ plot behavioral relationship to distance to FC controls """
 
-    params=['dist', 'C_12', 'C_13', 'C_24', 'C_31', 'C_34', 'C_42', 'eta_C_13', 'eta_C_24', 'sigma', 'sigma_C_13', 'sigma_C_24']
+    params=['dist', 'efficacy', 'C_12', 'C_13', 'C_24', 'C_31', 'C_34', 'C_42', 'eta_C_13', 'eta_C_24', 'sigma', 'sigma_C_13', 'sigma_C_24']
     behavs=['YBOCS_Total', 'OCIR_Total', 'OBQ_Total', 'MADRS_Total', 'HAMA_Total', 'Dep_Total', 'Anx_total']
     colors={'group1':'orange', 'group2':'green'}
 
@@ -1293,6 +1436,306 @@ def plot_pre_post_params_behavs(df_summary, args=None):
     plt.tight_layout()
 
 
+def plot_pre_post_dist_ybocs(df_summary, gs=None, args=None):
+    """ plot behavioral relationship to distance to FC controls """
+    param = 'dist'
+    behav = 'YBOCS_Total'
+    if gs==None:
+        fig = plt.figure(figsize=[3,3])
+        ax = fig.add_subplot(1,1,1)
+    else:
+        ax = plt.subplot(gs)
+
+    behav_diffs = {'group1':[], 'group2':[], 'both':[]}
+    param_diffs = {'group1':[], 'group2':[], 'both':[]}
+    responders = {'behav':copy.deepcopy(behav_diffs), 'param':copy.deepcopy(param_diffs)}
+    lines=[]
+    for subj in df_summary.subj.unique():
+        df_subj = df_summary[df_summary.subj==subj]
+        group = df_subj['group'].unique()[0]
+        behav_diff = df_subj[df_subj.ses=='ses-post'][behav].iloc[0] - df_subj[df_subj.ses=='ses-pre'][behav].iloc[0]
+        param_diff = df_subj[df_subj.ses=='ses-post'][param].iloc[0] - df_subj[df_subj.ses=='ses-pre'][param].iloc[0]
+        behav_diffs[group].append(behav_diff)
+        param_diffs[group].append(param_diff)
+        behav_diffs['both'].append(behav_diff)
+        param_diffs['both'].append(param_diff)
+        if param_diff < 0:
+            #plt.scatter(behav_diff, param_diff, color='gray', alpha=0.5)
+            responders['behav'][group].append(behav_diff)
+            responders['param'][group].append(param_diff)
+            responders['behav']['both'].append(behav_diff)
+            responders['param']['both'].append(param_diff)
+            lines.append({'subj':subj, 'group':group, 'param':param, 'behav':behav, 'param_diff':param_diff, 'behav_diff':behav_diff})
+        #else:
+            #plt.scatter(param_diff, behav_diff, color=colors[group], alpha=0.2)
+
+    rr,pr = scipy.stats.pearsonr(responders['behav']['both'], responders['param']['both'])
+
+    sbn.regplot(data=pd.DataFrame(lines), x='behav_diff', y='param_diff', ax=ax, color='gray', scatter_kws={'s':10})
+
+    plt.title("n={}  r={:.2f}  p={:.3f}".format(len(responders['behav']['both']),rr,pr), fontsize=10)
+    plt.gca().spines.top.set_visible(False)
+    plt.gca().spines.right.set_visible(False)
+    plt.ylabel("$\Delta \, FC$")
+    plt.xlabel("$\Delta \, {}$".format(behav.split('_')[0]))
+    
+
+    if gs==None:
+        plt.tight_layout()
+        if args.save_figs:
+            fname = 'FC_YBOCS_scatter'+today()+'.svg'
+            plt.savefig(os.path.join(proj_dir, 'img', fname))
+
+        plt.show()
+
+
+#----------------------#
+# IMPROVEMENT ANALYSIS #
+#----------------------#
+
+def get_param_zscore(df, params, kdes):
+    """ score each parameter based on kdes distributions """
+    score = []
+    for param in params:
+        mean, std = kdes['patients'][param]['vals'].mean(), kdes['patients'][param]['vals'].std()
+        zpar = (df[param].iloc[0] - mean) / std
+        score.append(zpar)
+    return np.array(score)
+
+def score_improvement(df, params, kdes, feature=None):
+    """ Score parameters based on improvement in FC space """
+    lines = []
+    for subj in df.subj.unique():
+        df_subj = df[df.subj==subj]
+
+        if feature==None:
+            diff_feat = 1
+        else:
+            diff_feat = df_subj[df_subj.ses=='ses-post'][feature].iloc[0] - df_subj[df_subj.ses=='ses-pre'][feature].iloc[0]
+        
+        pre = get_param_zscore(df_subj[df_subj.ses=='ses-pre'], params, kdes)
+        post = get_param_zscore(df_subj[df_subj.ses=='ses-post'], params, kdes)
+        diff_params = post-pre
+        
+        score = diff_params*diff_feat
+        score_dict = dict((par,val) for par,val in zip(params,score))
+        score_dict['subj'] = subj
+        score_dict['group'] = df_subj.group.unique()[0]
+        lines.append(score_dict)
+    df_improvement = pd.DataFrame(lines)
+    return df_improvement
+
+
+def plot_improvement_windrose(df_improvement, params, feature=None, gs=None, args=None):
+    """ Make windrose vizualisation of improvement in parameter-feature measure space """
+    theta = np.arange(len(params))/(len(params)) * 2*np.pi
+    theta = np.append(theta, theta[0])
+
+    palette = {'group1': 'orange', 'group2': 'green'}
+
+    if gs==None:
+        fig, ax = plt.subplots(1,1, subplot_kw={'projection': 'polar'}, figsize=[3,3])
+    else:
+        ax = plt.subplot(gs, projection='polar')
+    
+    #for i,group in enumerate(df_improvement.group.unique()):
+    sub_df = df_improvement#[df_improvement.group==group]
+    r = np.array(sub_df[params].sum(axis=0))/len(sub_df)
+    
+    r = np.append(r, r[0]) 
+    
+    #axes[0,i].plot(theta, r, label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5)
+    #ax.bar(theta, r, label=group, color=palette[group], lw=5, width=0.5, alpha=0.3)
+    for theta_, r_ in zip(theta, r):
+        if r_ > 0:
+            # increase of parameter due to treatment 
+            #ax.bar(theta_, np.abs(r_), color='red', lw=5, width=0.5, alpha=0.2+np.abs(r_)/2)
+            ax.bar(theta_, np.abs(r_), color='gray', width=0.5, alpha=0.2+np.abs(r_)/2, lw=1, edgecolor='k', linestyle='-')
+        else:
+            # decreae of paramter due to treatment
+            #ax.bar(theta_, np.abs(r_), color='blue', lw=5, width=0.5, alpha=0.2+np.abs(r_)/2)
+            ax.bar(theta_, np.abs(r_), color='gray', width=0.5, alpha=0.2+np.abs(r_)/2, lw=1, edgecolor='k', linestyle='--')
+
+    #axes[i].fill_between(theta, rmin, rmax)
+    ax.set_xticks(theta[:-1])
+    ax.set_xticklabels(params)
+    lbls = ax.get_xticklabels()
+    new_lbls = format_labels(lbls)
+    ax.set_xticklabels(new_lbls)
+    #axes[i].set_rticks([0.1], labels=[])
+    ax.set_yticklabels([])
+    ax.set_yticks([1])
+    #ax.set_rmin(-1)
+    #ax.set_rmax(1)
+    ax.spines.polar.set_visible(False)
+    ax.xaxis.grid(linewidth=0.5, linestyle='--')
+
+    if gs==None:
+        plt.tight_layout()
+        if args.save_figs:
+            #plt.rcParams['svg.fonttype'] = 'none'
+            fname = 'improvement_params'+today()+'.svg'
+            plt.savefig(os.path.join(proj_dir, 'img', fname))
+        plt.show()
+
+
+def plot_improvement_distrib(df_improvement, param_imp=None):
+    plt.figure(figsize=[12,3])
+    df_imp = df_improvement.melt(id_vars=['subj', 'group'], value_vars=params, var_name='param', value_name='diff', ignore_index=True)
+    sbn.swarmplot(data=df_imp, x='param', y='diff', hue='group', dodge=True, palette={'group1':'orange', 'group2':'green'}, alpha=0.5, size=3)
+    plt.hlines(0, -1, len(params), color='black', linestyle='--', lw=0.5, alpha=0.5)
+    plt.legend().set_visible(False)
+    plt.gca().spines.top.set_visible(False)
+    plt.gca().spines.right.set_visible(False)
+    if param_imp==None:
+        plt.title('Normalized improvement')
+    else:
+        plt.title('Normalized improvement scaled by '+param_imp)
+    plt.show()
+
+
+def print_stats_improvement(df_improvement, params, param_imp=None):
+    print("STATS FOR NORMALIZED PARAMETER IMPROVEMENT SCALED BY "+str(param_imp))
+    for param in params:
+        gp1 = df_improvement[df_improvement.group=='group1'][param]
+        gp2 = df_improvement[df_improvement.group=='group2'][param]
+        t,p = scipy.stats.ttest_ind(gp1, gp2)
+        print("{:12} \t t={:.2f} \t p={:.3f}".format(param, t, p))
+
+
+def plot_improvement_pre_post_params(df_summary, params, args):
+    """ Plot pre and post distributions of parameters from digital twin analysis """
+    plt.figure(figsize=[22,3])
+    for i,param in enumerate(params):
+        plt.subplot(1, len(params), i+1)
+        df_sum = df_summary.melt(id_vars=['subj', 'ses'], value_vars=param, var_name='param', ignore_index=True)
+        sbn.swarmplot(data=df_sum, x='param', y='value', hue='ses', hue_order=['ses-pre', 'ses-post'], dodge=True, palette={'ses-pre':'orange', 'ses-post':'purple'}, size=3.5, alpha=0.5)
+        plt.legend().set_visible(False)
+        plt.gca().spines.top.set_visible(False)
+        plt.gca().spines.right.set_visible(False)
+        #plt.gca().spines.bottom.set_visible(False)
+        s_pre, p_pre = scipy.stats.normaltest(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value)
+        s_post, p_post = scipy.stats.normaltest(df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
+        u,p = scipy.stats.mannwhitneyu(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
+        d = cohen_d(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
+        t,pt = scipy.stats.ttest_rel(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
+        T,pT = scipy.stats.wilcoxon(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
+        print("{:15}: normality={:1}/{:1}   d={: 1.2}    u={:5}  p={:.4f}    t={: .2f}  p={:.4f}   T={: }  p={:.4f}".format(param, p_pre>0.05, p_post>0.05,d, int(u), p, t, pt,int(T), pT))
+        #plt.title("u={}  p={:.3f}".format(int(u),p))
+        ttl = ''
+        if p<.05:
+            ttl = ttl+'*'
+        if p*len(params)<0.05:
+            ttl = ttl+'*'
+        plt.title(ttl, fontsize=14)
+        #plt.ylabel("${}$".format(format_param(param)), fontsize=12)
+        plt.xticks([0], labels=[])
+        plt.xlabel("${}$".format(format_param(param)), fontsize=12)
+        plt.ylabel('')
+
+        if param.startswith('C_'):
+            plt.ylim([-0.12, 0.55])
+            if i>1:
+                plt.gca().spines.left.set_visible(False)
+                plt.yticks([], labels=None)
+        elif param.startswith('eta_'):
+            plt.ylim([-0.01, 0.11])
+
+        if args.save_figs:
+            fname = 'distrib_params'+today()+'.svg'
+            plt.savefig(os.path.join(proj_dir, 'img', fname))
+
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_improvement_pre_post_params_paper(df_summary, params, gs=None, args=None):
+    """ Plot pre and post distributions of parameters from digital twin analysis (trimmed for paper)"""
+    i_params = [1,2,5,7] # indices of params to plot
+
+    if gs==None:
+        fig = plt.figure(figsize=[6,2])
+        sub_gs = plt.GridSpec(nrows=1, ncols=len(i_params)+1)
+    else:
+        sub_gs = gs.subgridspec(nrows=1, ncols=len(i_params)+1, width_ratios=[1,1,1,0.5,1])
+
+    for i,i_param in enumerate(i_params):
+        param = params[i_param]
+        #plt.subplot(1, 4, i+1)
+        if param.startswith('eta_'):
+            ax = plt.subplot(sub_gs[0,i+1])
+        else:
+            ax = plt.subplot(sub_gs[0,i])
+        df_sum = df_summary.melt(id_vars=['subj', 'ses'], value_vars=param, var_name='param', ignore_index=True)
+        sbn.swarmplot(data=df_sum, x='param', y='value', hue='ses', hue_order=['ses-pre', 'ses-post'], dodge=True, 
+                      palette={'ses-pre':'orange', 'ses-post':'purple'}, size=3, alpha=0.5, ax=ax)
+        plt.legend().set_visible(False)
+        plt.gca().spines.top.set_visible(False)
+        plt.gca().spines.right.set_visible(False)
+        #plt.gca().spines.bottom.set_visible(False)
+        u,p = scipy.stats.mannwhitneyu(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
+        d = cohen_d(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
+        t,pt = scipy.stats.ttest_rel(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
+        T,pT = scipy.stats.wilcoxon(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
+        print("{:15}: d={: 1.2}    u={:5}  p={:.4f}    t={: .2f}  p={:.4f}   T={: }  p={:.4f}".format(param, d, int(u), p, t, pt,int(T), pT))
+        #plt.title("u={}  p={:.3f}".format(int(u),p))
+        ttl = ''
+        if p<.05:
+            ttl = ttl+'*'
+        if p*len(params)<0.05:
+            ttl = ttl+'*'
+        ttl = plt.title(ttl, fontsize=14)
+        x,y = ttl.get_position()
+        ttl.set_position([x,y-0.2])
+        #plt.ylabel("${}$".format(format_param(param)), fontsize=12)
+        plt.xticks([0], labels=[])
+        plt.xlabel("${}$".format(format_param(param)), fontsize=12)
+        plt.ylabel('')
+
+        if param.startswith('C_'):
+            plt.ylim([-0.12, 0.55])
+            if i>0:
+                plt.gca().spines.left.set_visible(False)
+                plt.yticks([], labels=None)
+                plt.subplots_adjust(left=0, right=0.8)
+        elif param.startswith('eta_'):
+            plt.ylim([-0.01, 0.11])
+            plt.yticks([0, 0.05, 0.1])
+            plt.subplots_adjust(left=0.2, right=1)
+    plt.tight_layout()
+    
+    if gs==None:
+        plt.tight_layout()
+        if args.save_figs:
+                fname = 'distrib_params_paper'+today()+'.svg'
+                plt.savefig(os.path.join(proj_dir, 'img', fname))
+        plt.show()
+
+
+def plot_summary_improvement(df_summary, df_improvement, params, feature=None, args=None):
+    """ Just a layout organization to have all plots in same figure """
+    fig = plt.figure(figsize=[6,5])
+    gs = plt.GridSpec(nrows=2,ncols=4, height_ratios=[1,1])
+
+    # FC - YBOCS scatter + regrression plot
+    plot_pre_post_dist_ybocs(df_summary, gs=gs[0,0:2], args=args)
+
+    # Param contribution 
+    plot_improvement_windrose(df_improvement, params=params, gs=gs[0,2:4], args=args)
+
+    # pre-post change in param space
+    plot_improvement_pre_post_params_paper(df_summary, params=params, gs=gs[1,:], args=args)
+
+    plt.tight_layout()
+
+    if args.save_figs:
+        fname = os.path.join(proj_dir, 'img', 'summary_improvement'+today()+'.svg')
+        plt.savefig(fname)
+    
+    plt.show()
+
+
+
 def parse_arguments():
     " Script arguments when ran as main " 
     parser = argparse.ArgumentParser()
@@ -1303,9 +1746,10 @@ def parse_arguments():
     parser.add_argument('--n_sims', type=int, default=50, action='store', help="number of simulations ran with the same parameters (e.g. to get distribution that can be campared to clinical observations)")
     parser.add_argument('--n_batch', type=int, default=10, action='store', help="batch size")
     parser.add_argument('--plot_figs', default=False, action='store_true', help='plot figures')
-    parser.add_argument('--save_kdes', default=False, action='store_true', help='save KDEs')
+    
     parser.add_argument('--db_names', type=str, nargs='+', default=["sim_pat_20230628", "sim_pat_20230721"], help="identifier of the sqlite3 database (use sim_pat_20230628 for digital twin, sim_pat_20230721 for restoration analysis")
-    parser.add_argument('--df_sims', type=str, default="df_sims_pat_20230621", help="identifier of the fixed dataframe")
+    parser.add_argument('--load_sims', default=False, action='store_true', help='Load simulations based on db_names')
+    
     parser.add_argument('--base_cohort', type=str, default='controls', help="Cohort from which to infer posterior as default")
     parser.add_argument('--test_cohort', type=str, default='patients', help="Cohort from which to infer posterior of individual params")
     parser.add_argument('--test_params', nargs='+', default=[], help="posterior parameter to swap between base and test cohort, if empty list then all params are tested")
@@ -1318,6 +1762,7 @@ def parse_arguments():
     parser.add_argument('--plot_param_behav', default=False, action='store_true', help='plot param-behavioral relationship')
     parser.add_argument('--verbose', default=False, action='store_true', help='print extra processing info')
     parser.add_argument('--session', default=None, action='store', help='which session (ses-pre or ses-post) for behavioral scores (default:None => both are used')
+    
     parser.add_argument('--multivariate_analysis', default=False, action='store_true', help='perform multivariate analysis on simulations parameters')
     parser.add_argument('--multivar_fc', default=False, action='store_true', help='perform multivariate analysis on FC variables')
     parser.add_argument('--cv_type', type=str, default='LeaveOneOut', help="which cross-validation scheme to apply (KFold, RepeatedKFold, ShuffleSplit, LeaveOneOut)")
@@ -1327,11 +1772,14 @@ def parse_arguments():
     parser.add_argument('--plot_cv_regression', default=False, action='store_true', help='plot cross validation regression scatters')
     parser.add_argument('--plot_multivar_svd', default=False, action='store_true', help='plot dimensionality reduction on regression coefficients')
     parser.add_argument('--plot_multivariate_results', default=False, action='store_true', help='plot multivariate linear regression coefficients')
+    
     parser.add_argument('--null', default=False, action='store_true', help='shuffle coupling weights to create null hypothesis for regression coefficients')
     parser.add_argument('--n_null', type=int, default=100, action='store', help="number of elements to make null distribution")
     parser.add_argument('--plot_null_distrib', default=False, action='store_true', help='plot null distribution analysis of linear regression coefficients')
     parser.add_argument('--plot_cv_null_distrib', default=False, action='store_true', help='plot null distribution analysis of linear regression coefficients for all CV folds')
+    
     parser.add_argument('--print_ANOVA', default=False, action='store_true', help='print stats for mixed and multiple one-way ANOVAs')
+    
     parser.add_argument('--restore_analysis', default=False, action='store_true', help='perform retoration analys of test parameters to move from patient to controls FC')
     parser.add_argument('--n_restore', type=int, default=10, action='store', help="number of best restorations for plotting")
     parser.add_argument('--n_tops', type=int, default=5, action='store', help="number of best restorations for each n_test_param for plotting")
@@ -1339,6 +1787,11 @@ def parse_arguments():
     parser.add_argument('--distance_metric', type=str, default='rmse', help="distance used in restoration metric (rmse or emd)")
     parser.add_argument('--sort_style', type=str, default='all', help="how to sort distances for visualization: 'by_n' or 'all' (default)")
     parser.add_argument('--max_depth', type=int, default=3, action='store', help="max depth of the decision tree")
+    parser.add_argument('--plot_distance_restore', default=False, action='store_true', help='plot efficacy horizontal box plots')
+    parser.add_argument('--load_param_contribution', default=False, action='store_true', help='load parameter contributions from previously computed restoration analysis')
+    parser.add_argument('--load_param_sensitivity', default=False, action='store_true', help='load parameter sensitivity from previously computed restoration analysis')
+    parser.add_argument('--plot_params_contribution_sensitivity', default=False, action='store_true', help='plot contribution and sensitivity of parameters in restoration analysis')
+
     parser.add_argument('--predictive_analysis', default=False, action='store_true', help='Analyse predictive power of model based on distance to controls FC')
     parser.add_argument('--plot_fc_dist_pre_post_behav', default=False, action='store_true', help='plot FC distance to controls in pre-post TMS data')
     parser.add_argument('--compute_post_distances', default=False, action='store_true', help='Compute distances for digital twins analysis using post-TMS FC')
@@ -1347,6 +1800,10 @@ def parse_arguments():
     parser.add_argument('--load_sim_vecs', default=False, action='store_true', help='Load simulation vectors in FC space')
     parser.add_argument('--load_post_distances', default=False, action='store_true', help='load distances in post-TMS inference')
     parser.add_argument('--plot_pre_post_associations', default=False, action='store_true', help='plot pre-post TMS associations between FC, params and behavioral measures')
+
+    parser.add_argument('--load_summary', default=False, action='store_true', help='load summary of digital twin analysis')
+    parser.add_argument('--improvement_analysis', default=False, action='store_true', help='Analyse improvement of models parameters pre-post TMS')
+    parser.add_argument('--param_improvement', type=str, default=None, help="defines which parameter to scale improvement with")
     args = parser.parse_args()
     return args
 
@@ -1359,12 +1816,13 @@ if __name__=='__main__':
     behavs=['YBOCS_Total', 'OCIR_Total', 'OBQ_Total', 'MADRS_Total', 'HAMA_Total', 'Dep_Total', 'Anx_total']
     params=['C_12', 'C_13', 'C_24', 'C_31', 'C_34', 'C_42', 'eta_C_13', 'eta_C_24', 'sigma', 'sigma_C_13', 'sigma_C_24']
 
-    print("Loading simulations...")
-    df_sims = load_df_sims(args)
-    
-    print("Fixing simulations indices...")
-    fix_df_sims_names(df_sims, args)
-    
+    if args.load_sims:
+        print("Loading simulations...")
+        df_sims = load_df_sims(args)
+        
+        print("Fixing simulations indices...")
+        fix_df_sims_names(df_sims, args)
+        
     print("Loading functional connectivity data...")
     df_data = load_df_data(args)
     pathways = np.sort(df_data.pathway.unique())
@@ -1375,6 +1833,8 @@ if __name__=='__main__':
         if args.session!=None:
             df_pat = df_pat[df_pat.ses==args.session]
     df_fc_pat = df_data.pivot(columns='pathway', values='corr', index='subj').reset_index().merge(df_pat)
+
+    kdes = load_kdes(args)
 
     if args.compute_sim_vecs:
         print("Computing simulation vectors...")
@@ -1450,33 +1910,56 @@ if __name__=='__main__':
     if args.restore_analysis:
         print("Restoration analysis...")
         args.pathways = pathways
+        args.params = params
         #df_restore = compute_rmse_restore(df_data, df_sims, args)
         df_restore = compute_distance_restore(df_sims, args)
         df_restore = compute_efficacy(df_restore, args)
         df_top, top_params = get_df_top(df_restore, args)
-        plot_distance_restore(df_restore, df_data, args=args)
+        if args.plot_distance_restore:
+            plot_distance_restore(df_restore, df_data, args=args)
 
-        df_feature_importance, decision_trees, feat_imps = decision_tree(df_restore, params, args)
-        df_custom_feat_imps = compute_custom_feature_scores(decision_trees, params, args)
-        df_simple_feat_imps = compute_simple_feature_scores(df_top, params, args)
-        plot_feature_windrose(df_custom_feat_imps, params, args)
+        #df_feature_importance, decision_trees, feat_imps = decision_tree(df_restore, params, args)
+        #df_custom_feat_imps = compute_custom_feature_scores(decision_trees, params, args)
+        #df_simple_feat_imps = compute_simple_feature_scores(df_top, params, args)
+
+        # Parameters contribution
+        if args.load_param_contribution:
+            with open(os.path.join(proj_dir, 'postprocessing', 'df_param_contribution.pkl'), 'rb') as f:
+                df_params_contribution = pickle.load(f)
+        else:
+            df_params_contribution = compute_scaled_feature_score(df_restore[df_restore.efficacy>0], params, kdes, scaling='contribution', args=args)
+            if args.save_outputs:
+                with open(os.path.join(proj_dir, 'postprocessing', 'df_param_contribution.pkl'), 'wb') as f:
+                    pickle.dump(df_params_contribution, f)        
+        if args.plot_params_contribution_sensitivity:
+            plot_contribution_windrose(df_params_contribution, params, args=args)
+
+        # Parameters sensitivity
+        if args.load_param_sensitivity:
+            with open(os.path.join(proj_dir, 'postprocessing', 'df_param_sensitivity.pkl'), 'rb') as f:
+                df_param_sensitivity = pickle.load(f)
+        else:
+            df_param_sensitivity = compute_scaled_feature_score(df_restore[df_restore.efficacy>0], params, kdes, scaling='sensitivity', args=args)
+            if args.save_outputs:
+                with open(os.path.join(proj_dir, 'postprocessing', 'df_param_sensitivity.pkl'), 'wb') as f:
+                    pickle.dump(df_param_sensitivity, f)        
+        if args.plot_params_contribution_sensitivity:
+            plot_sensitivity_windrose(df_param_sensitivity, params, args=args)
+        
+
+        
 
 
     # prediction 
     if args.predictive_analysis:
         print('Load functional distances (data)...')
-        fname = fname= os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls_20230907.pkl')
-        with open(fname, 'rb') as f:
-            distances = pickle.load(f)
-            df_fc_pre_post = distances['indiv']
-            df_fc_pre_post = df_fc_pre_post.reset_index(drop=True)
-            df_fc_pre_post.index.name = None
+        df_fc_pre_post = load_dist_to_FC_controls(args)
 
         # delta FC vs delta YBOCS
         df_dist_fc = df_fc_pre_post.merge(df_fc_pat, on=['subj', 'ses', 'group', *pathways], how='inner')    
         df_dist_fc = drop_single_session(df_dist_fc)
         if args.plot_fc_dist_pre_post_behav:
-            plot_fc_dist_pre_post_behav(df_dist_fc, args)
+            plot_fc_dist_pre_post_behav(df_dist_fc, args=args)
 
 
         # Load or compute distances (post)
@@ -1515,5 +1998,27 @@ if __name__=='__main__':
             plot_fc_dist_pre_post_behav(df_summary)
             plot_fc_dist_pre_post_params(df_summary)
             plot_pre_post_params_behavs(df_summary)
+    
+
+    if args.load_summary:
+        # df_summary_20230915.pkl : pre and post with controls/patients param swaps
+        # df_summary_20230918.pkl : only post with param swaps
+        with open(os.path.join(proj_dir, 'postprocessing', 'df_summary_20230918.pkl'), 'rb') as f:
+                df_summary = pickle.load(f)
+
+    if args.improvement_analysis:
+        #plot_pre_post_dist_ybocs(df_summary, args=args)
+        df_improvement = score_improvement(df_summary, params, kdes)
+        plot_summary_improvement(df_summary, df_improvement, params, args=args)
+        #plot_improvement_windrose(df_improvement, params, args=args)
         
+        #for param_imp in [None]:
+        #    df_improvement = score_improvement(df_summary, params, kdes, feature=param_imp)
+        #    plot_improvement_windrose(df_improvement, params, feature=param_imp, args=args)
+            #plot_improvement_distrib(df_improvement, param_imp=param_imp)
+            #print_stats_improvement(df_improvement, params, param_imp=param_imp)
+            #plot_improvement_pre_post_params(df_summary, params, args)
+        
+        #plot_improvement_pre_post_params_paper(df_summary, params, args)
+
 
