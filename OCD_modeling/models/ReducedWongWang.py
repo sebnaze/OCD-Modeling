@@ -131,10 +131,11 @@ class ReducedWongWangND:
 
     def H(self, x):
         """ Average synaptic gating
-            -----------------------
-                a: slope (n/C); default=270
-                b: offset (Hz); default=108
-                d: decay (s);   default=0.154
+
+        a: slope (n/C); default=270
+        b: offset (Hz); default=108
+        d: decay (s);   default=0.154
+
         """
 
         return (self.a * x - self.b) / (1. - np.exp(-self.d * (self.a * x - self.b)))
@@ -145,18 +146,16 @@ class ReducedWongWangND:
 
     def dS(self):
         """ ODE of firing rate
-            ------------------
-                tau_S: kinetic parameter of local population (ms); default=100
-                gamma: kinetic parameter of coupled population (ms); default=0.000641
-                sigma: noise amplitude (nA); default=0.001
-                v_i: gaussian noise (n/a); default=0
+        
+        tau_S: kinetic parameter of local population (ms); default=100
+        gamma: kinetic parameter of coupled population (ms); default=0.000641
+        sigma: noise amplitude (nA); default=0.001
+        v_i: gaussian noise (n/a); default=0
+
         """
         return (-self.S/self.tau_S + (1 - self.S) @ (self.gamma * self.H(x=self.x)) + self.sigma*self.v())
 
-    """def x(self):
-        return self.w * self.J_N * self.S + self.G * self.J_N * self.C @ self.S + self.I_0
-    """
-
+    
     def integrate(self):
         """ Euler(-Maruyama) integration of the ODE """
         self.x = self.w * self.J_N * self.S + self.G * self.J_N * self.C @ self.S + self.I_0
@@ -166,11 +165,13 @@ class ReducedWongWangND:
         self.S = self.S + dS*self.dt
 
     def run(self, t_tot=1000, sf=100, t_rec=None, rec_vars=[]):
-        """ Run the model
-                t_tot:      total simu;ation time (s)
-                sf:         sampling frequency of the reccording (Hz)
-                t_rec:      interval of recording (s)
-                rec_vars:   variables to records (note that S is always recorded)  
+        """ Runs the model.
+
+        :param t_tot: total simu;ation time (s).
+        :param sf: sampling frequency of the reccording (Hz).
+        :param t_rec: interval of recording (s).
+        :param rec_vars: variables to records (note that S is always recorded).
+
         """
         n_ts = int(t_tot/self.dt)
         sf_dt = 1./(sf*self.dt)
@@ -213,16 +214,15 @@ class ReducedWongWangND:
 
 
     def set_control_params(self, params:dict):
-        """ Set the parameters to be updated during the simulation (e.g. a slow control parameter) 
-        inputs:
-            params: dict
-                dictionary of parameters to be udpated, keys of this dict must match parameters names of the model.
-                values of the dictionary are list of tuple indicating times and values of the parameter
-                to be updated, i.e.:
-                params = {I_0: [ (t0,v0), (t1,v1), (t2,v2), ... ]}
+        """ Set the parameters to be updated during the simulation (e.g. a slow control parameter).
+        
+        :param params: dictionary of parameters to be udpated, keys of this dict must match parameters names of the model.
+        values of the dictionary are list of tuple indicating times and values of the parameter to be updated, i.e.:
+        ``params = {I_0: [ (t0,v0), (t1,v1), (t2,v2), ... ]}``
 
-                Note that the update is linear monotonic between referenced points, and the update frequency used is 
-                the sampling frequency (SF). Control parameter can only be changed during recording period.
+        Note that the update is linear monotonic between referenced points, and the update frequency used is 
+        the sampling frequency (SF). Control parameter can only be changed during recording period.
+
         """
         for k,v in params.items():
             if not hasattr(self,k):
@@ -290,18 +290,18 @@ class ReducedWongWangND:
 
 
     def record_auxiliary_variables(self, rec_vars, rec_idx):
-            """ Record variables other than S """
-            for var in rec_vars:
-                if hasattr(self, var):
-                    val = getattr(self, var)                  
-                elif var.startswith('C_'):
-                    ij = var.split('_')[1]
-                    i,j = int(ij[0])-1,int(ij[1])-1
-                    val = self.C[i,j]
-                else:
-                    continue
-                rec_var = getattr(self, 'rec_'+var)
-                rec_var[rec_idx] = val.copy()
+        """ Record variables other than S """
+        for var in rec_vars:
+            if hasattr(self, var):
+                val = getattr(self, var)                  
+            elif var.startswith('C_'):
+                ij = var.split('_')[1]
+                i,j = int(ij[0])-1,int(ij[1])-1
+                val = self.C[i,j]
+            else:
+                continue
+            rec_var = getattr(self, 'rec_'+var)
+            rec_var[rec_idx] = val.copy()
 
 
     def update_control_params(self, index):
@@ -358,11 +358,12 @@ class ReducedWongWangOU(ReducedWongWangND):
 #  POST PROCESSING FUNCTIONS  #
 # --------------------------- #
 def compute_bold(model, t_range=None, transient=30):
-    """ BOLD timeseries and functional connectivity between regions 
-            Args:
-                model: instance if reduced wong wang model
-                t_range: times of interest (in sec). default: all recorded time 
-                transient: time discarded at the beginning of t_range due to BOLD transient (in sec). default: 30s
+    """ BOLD timeseries and functional connectivity between regions.
+
+    :param model: instance if reduced wong wang model.
+    :param t_range: times of interest (in sec). default: all recorded time.
+    :param transient: time discarded at the beginning of t_range due to BOLD transient (in sec). default: 30s.
+
     """
     inds = get_inds(model, t_range)
     #bold_ts, s, f, v, q = balloonWindkessel(model.S_rec[inds,:].T, 1./model.sf)
@@ -372,6 +373,38 @@ def compute_bold(model, t_range=None, transient=30):
     bold_ts, x, f, q, v = simulateBOLD(ts.T, 1./model.sf, voxelCounts=None)
     model.bold_ts = bold_ts[:,int(model.sf*transient):] # discard first 10 sec due to transient
     model.bold_fc = np.corrcoef(model.bold_ts)
+
+
+def compute_transitions(model, threshold=0.3, min_diff=3, t_range=None):
+    """ Compute the number of transitions between low and high activity states """
+    inds = get_inds(model, t_range)
+    ts = model.S_rec[inds,:]
+    ts_thr = ts > threshold
+        
+    transitions = dict()
+    
+    for i in range(model.N):
+        bin_ts = ts_thr[:,i]    
+        trans = np.where((np.roll(bin_ts,1) != bin_ts))[0] / model.sf
+        # handle supra-threshold initial conditions, need to remove first element
+        if len(trans)>1:
+            if trans[0]==0:
+                trans = trans[1:]
+            trans_inds = np.where(np.diff(trans)>min_diff)[0]+1
+            trans_inds = np.concatenate([[0], trans_inds])
+        elif len(trans)==1:
+            if trans[0]==0:
+                trans = []
+                trans_inds = []
+            else:
+                trans_inds = [0]
+        elif len(trans)==0:
+            trans_inds = []
+            
+        transitions['S'+str(i+1)] = np.array(trans[trans_inds], dtype=int)
+    
+    model.transitions = transitions
+    
 
 
 def create_sim_df(sim_objs, sim_type = 'sim-con', offset=0):
@@ -415,10 +448,12 @@ def get_inds(model, t_range=None):
 
 
 def score_model(rww, coh='con'):
-    """ score single model against empirical FC (only considering mean)
-            rww:  instance of model to score
-            coh:    cohort to be scored against ('con' or 'pat')
-        (that is used when optimizing single models, not populations of models)
+    """ Score single model against empirical FC (only considering mean).
+    
+    :param rww: instance of model to score.
+    :param coh: cohort to be scored against ('con' or 'pat').
+    (that is used when optimizing single models, not populations of models)
+    
     """
     # load empirical FC
     with open(os.path.join(proj_dir, 'postprocessing', 'R.pkl'), 'rb') as f:
@@ -438,7 +473,7 @@ def score_model(rww, coh='con'):
 
 def score_population_models(sim_objs, cohort='controls'):
     """ Score a population of simulated model (using a parameter set) against experimental observations.
-        Here, the whole distribution of models outputs is scored against the distributions of observations. """
+    Here, the whole distribution of models outputs is scored against the distributions of observations. """
     # load empirical FC
     with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2023.pkl'), 'rb') as f:
         df_roi_corr = pickle.load(f)
@@ -463,8 +498,10 @@ def score_population_models(sim_objs, cohort='controls'):
 #----------------------#
 def plot_timeseries(model, t_range=None, labels=['OFC', 'PFC', 'NAcc', 'Put']):
     """ visualize time serie generated by model
-            intputs:
-                model: ReducedWangWang object"""
+    
+    :param model: ReducedWangWang object.
+    
+    """
     plt.figure(figsize=[16,4])
     inds = get_inds(model, t_range)
     plt.plot(model.t[inds],model.S_rec[inds,:])
@@ -473,9 +510,11 @@ def plot_timeseries(model, t_range=None, labels=['OFC', 'PFC', 'NAcc', 'Put']):
     plt.show()
 
 def plot_control_params(model, t_range=None, labels=[]):
-    """ visualize time serie of control parameters
-            intputs:
-                model: ReducedWangWang object"""
+    """ Visualize time serie of control parameters.
+                
+    :param model: ReducedWangWang object.
+
+    """
     n_pars = len(list(model.control_params.keys()))
     inds = get_inds(model, t_range)
     plt.figure(figsize=[16,2*n_pars])
@@ -494,9 +533,11 @@ def plot_control_params(model, t_range=None, labels=[]):
     plt.show()
 
 def plot_auxiliary_variables(model, t_range=None, rec_vars=[]):
-    """ visualize time serie generated by model
-            intputs:
-                rww: ReducedWangWang object"""
+    """ Visualize time serie generated by model
+                
+    :param rww: ReducedWangWang object.
+                
+    """
     n = len(rec_vars)
     if n>0:
         plt.figure(figsize=[16,2*n])
@@ -526,9 +567,11 @@ def plot_bold(model, labels=[]):
 
 
 def plot_correlations(rww, t_range=None):
-    """ visualize correlation between timeseries generated by model (S_rec, not BOLD)
-            intputs:
-                rww: ReducedWangWang object"""
+    """ Visualize correlation between timeseries generated by model (S_rec, not BOLD).
+    
+    :param rww: ReducedWangWang object.
+                
+    """
     plt.figure(figsize=[4,4])
     inds = get_inds(rww, t_range)
     corr = np.corrcoef(rww.S_rec[inds,:].T)

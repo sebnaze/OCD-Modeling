@@ -15,16 +15,16 @@ import nibabel as nib
 import numpy as np
 import os
 import pickle
+import platform
 import seaborn as sbn
 from time import time
 
 
 # /!\ OCD_baseline imports are not kosher, was quick and dirty way to get things done, regretfully
-
-import OCD_baseline
-from OCD_baseline.functional.seed_to_voxel_analysis import * 
-
-import OCD_clinical_trial
+if platform.node()=='qimr18844':
+    import OCD_baseline
+    from OCD_baseline.functional.seed_to_voxel_analysis import * 
+    import OCD_clinical_trial
 
 from OCD_modeling.utils import get_working_dir, today, emd
 

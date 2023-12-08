@@ -151,7 +151,7 @@ opts = {'Putamen': {'color': 'limegreen',
 """
 # Option 1: opaque surfaces
 
-opts = {'Putamen': {'color': 'orange',
+opts = {'Putamen': {'color': 'magenta',
                           'show_edges': False,
                           'line_width': 1,
                           'opacity':1},
@@ -163,7 +163,7 @@ opts = {'Putamen': {'color': 'orange',
                                       'show_edges': False,
                                       'line_width': 1,
                                       'opacity':1},
-        'PFCl_2': {   'color': 'lightskyblue',
+        'PFCl_2': {   'color': 'green',
                                       'show_edges': False,
                                       'line_width': 1,
                                       'opacity':1},
@@ -301,9 +301,9 @@ pl.screenshot(filename='/home/sebastin/working/lab_lucac/sebastiN/projects/OCD_m
               return_img=False,
               )
 """
-#pl.camera.azimuth += 180
+pl.camera.azimuth += 180
 pl.renderer.reset_camera_clipping_range()
-pl.screenshot(filename='/home/sebastin/working/lab_lucac/sebastiN/projects/OCD_modeling/img/OFC_PFC_NAcc_dPut_lateral002_20230926.png',
+pl.screenshot(filename='/home/sebastin/working/lab_lucac/sebastiN/projects/OCD_modeling/img/OFC_PFC_NAcc_dPut_medial002_20231129.png',
               transparent_background=True,
               return_img=False,
               )

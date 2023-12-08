@@ -115,9 +115,11 @@ class pw_RWW_2D(SymbolicModel):
 ## Stability analysis
 #
 def find_roots(f,x,itv=None, slope_thr=0.05):
-    """ find zero crossings of function f (numerical roots) 
-            input slope_thr defint the slopes above which the zero crossing is an artifact
-            e.g. in case of hyperbolic function 
+    """ Find zero crossings of function f (numerical roots).
+    
+    :param slope_thr" defines the slopes above which the zero crossing is an artifact
+    e.g. in case of hyperbolic function 
+    
     """
     if itv==None:
         itv = [x.min(), x.max()]
@@ -187,12 +189,13 @@ def get_fixed_point_stability(model, fp, params):
 
 
 def perform_stability_analysis(model, order_params, default_params, out_queue, x=np.linspace(-3,3,599)):
-    """ Analyses the stability of the system of ODEs 
-            inputs:
-                model : sympy model
-                order_params: dictionary of order parameters
-                default_params: dictionary of other default parameters    
-                x: substitution variable values 
+    """ Analyses the stability of the system of ODEs.
+    
+    :param model: sympy model
+    :param order_params: dictionary of order parameters
+    :param default_params: dictionary of other default parameters    
+    :param x: substitution variable values 
+
     """
     for k,v in order_params.items(): 
         default_params[k] = v 
@@ -316,9 +319,11 @@ def get_model(args):
 
 
 def lambdify_model(model, default_params, order_params):
-    """ evaluate model for parameters using sympa lambdify 
-            model: symbolic model (object)
-            params: dictionnary of parameters
+    """ evaluate model for parameters using sympa lambdify.
+    
+    :param model: symbolic model (object)
+    :param params: dictionnary of parameters
+
     """ 
     params = copy.deepcopy(default_params)
     for k,v in order_params.items():
@@ -341,8 +346,11 @@ def evaluate_params(model, default_params, order_params, args):
 
 
 def plot_quiver(f, n1_f, n2_f, o_par, smin=-3, smax=3, n=30, ax=None, scale=8, args=None):
-    """ plot a single quiver 
-            n: number of arrows per line """ 
+    """ plot a single quiver. 
+    
+    :param n: number of arrows per line
+     
+    """ 
     s = np.linspace(smin,smax,n*10)  # number of data point for curves
     s_q = np.linspace(smin,smax,n)   # number of arrow per row/column
     s1,s2 = np.meshgrid(s_q,s_q)
@@ -389,7 +397,7 @@ def plot_quivers_grid(evals, o_pars, order_params, args):
 
 
 
-def parse_args():
+def get_parser():
     """ parsing global argument """
     parser = argparse.ArgumentParser()
     parser.add_argument('--create_model', default=False, action='store_true', help='create symbolic model')
@@ -401,12 +409,11 @@ def parse_args():
     parser.add_argument('--save_outputs', default=False, action='store_true', help='save analysis outputs')
     parser.add_argument('--timeout', type=int, default=30, action='store', help='timeout of the stability analysis (per parameter combination invoked)')
     parser.add_argument('--n_jobs', type=int, default=12, action='store', help='numper of processes used in parallelization')
-    args = parser.parse_args()
-    return args
+    return parser
 
 
 if __name__=='__main__':
-    args = parse_args()
+    args = get_parser().parse_args()
     sym_rww = get_model(args)
     order_params = {'C_12': np.linspace(-0.3,0.3,6), 'C_21': np.linspace(-0.3,0.3,6)}
     if args.run_stability_analysis:

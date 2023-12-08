@@ -9,7 +9,7 @@
 ##########################################################################
 
 #PBS -N OCD_modeling
-#PBS -l select=1:ncpus=20:mem=60gb:gen=13,walltime=06:00:00
+#PBS -l select=1:ncpus=20:mem=60gb:avx2=True,walltime=08:00:00
 #PBS -m abe
 #PBS -M sebastien.naze@qimrberghofer.edu.au
 #PBS -o /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/

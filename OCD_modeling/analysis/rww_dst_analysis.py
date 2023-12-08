@@ -42,7 +42,19 @@ multiprocessing.reduction.dump = dill.dump
 multiprocessing.queues._ForkingPickler = dill.Pickler
 
 def create_model(params, args):
-    """ Create the Dynamical System in PyDSTool """
+    """ Create the Dynamical System in PyDSTool 
+    
+        .. math:: \dot{S_i} = - \cfrac{S_i}{\\tau_S} + (1 - S_i) \gamma H(x_i) + \sigma v_i
+    
+    with
+
+        .. math:: H(x) = \cfrac{ax-b}{1-\exp{(-d(ax-b))}}
+
+    and
+
+        .. math:: x_i = w J_N S_i + G J_N \sum_j{C_{ij} S_j} + I_0 
+            
+    """
     icdict = {'S1': rng.uniform(),
             'S2': rng.uniform()}
     S1eq = '-S1/tau_S + (1-S1)*gam*(a*(w*J_N*S1+G*J_N*C_12*S2+I_0-I_1)-b)/(1-exp(-d*(a*(w*J_N*S1+G*J_N*C_12*S2+I_0-I_1)-b)))'
@@ -65,7 +77,18 @@ def create_model(params, args):
 
 
 def get_fixed_points(model, params, xdomain={'S1':[0,1], 'S2':[0,1]}, args=None):
-    """ Get model's fixed point and nullclines for a given set of parameters """
+    """ Get model's nullclines :math:`\\frac{dS_1}{dt}=0` and :math:`\\frac{dS_2}{dt}=0` 
+    and fixed points :math:`\\frac{dS_1}{dt}=\\frac{dS_2}{dt}=0` for a given set of parameters.
+    
+    :param model: PyDSTool Vode_ODEsystem model
+    :param params: model parameters.
+    :param xdomain: variable and lower/upper bounds.
+    :param args: optional extra arguments.
+
+    :returns model: update model object with givben parameters.
+    :returns fps: fixed points.
+    :returns (nulls_x, nulls_y): tuple containing nullclines.
+    """
     model.set(pars=params, xdomain=xdomain)
     # fixed points (using n starting points along the domain)
     fp_coords = pp.find_fixedpoints(model, n=20, eps=1e-8) 
@@ -78,7 +101,7 @@ def get_fixed_points(model, params, xdomain={'S1':[0,1], 'S2':[0,1]}, args=None)
     return model, fps, (nulls_x, nulls_y)
 
 
-def compute_tajectories(model, n, tdata=[0,500]):
+def compute_trajectories(model, n, tdata=[0,500]):
     """ Compute n trajectories from model, each with different initial conditions, and of time refered in tdata ([start,stop]) """
     points = []
     for i in range(n):
@@ -92,7 +115,14 @@ def compute_tajectories(model, n, tdata=[0,500]):
 
 
 def compute_equilibrium_point_curve(model, fps, pdomain):
-    """ find equilibrium point curve(s) of the system, starting from each fixed point (if exist)""" 
+    """ Find equilibrium point curve(s) of the system, starting from each fixed point (if exist).
+
+    :param model: PyDSTool Vode_ODEsystem object model.
+    :param fps: PyDSTool fixed points.
+    :param pdomain: free variable (or order parameter) to perform the bifurcation analyis from.
+
+    :returns cont: PyDSTool ContClass object, populated with equilibrium point curves.
+    """ 
     model.set(pdomain=pdomain)
     cont = dst.ContClass(model)
     free_params = list(pdomain.keys())
@@ -120,7 +150,18 @@ def compute_equilibrium_point_curve(model, fps, pdomain):
 
 
 def stability_analysis(order_params, default_params, out_queue, args, pdomain={'C_12':[-1, 2]}):
-    """ Create model and analyse dynamics using PyDSTool """
+    """ Create model and analyse dynamics using PyDSTool.
+    
+    :param order_params: a dict of fixed parameters, for which to analyse the system using discretized values, for example ``{'C_21': np.linspace(0.2,0.8,4)}``.
+    :param default_params: default model's parameters.
+    :param out_queue: Queue to put results in (used for parallel computation or each values of order parameter).
+    :param args: Argparse Namespace structure of necessary options. For example, must include ``args.compute_epc = True`` to compute equilibrium point curves.
+    :param pdomain: free variable (or order parameter) to perform the bifurcation analyis from.
+
+    :returns ``None``:  A dict with model, nullclines (ncs), fixed points (fps), trajectories (trajs), 
+    and a pickled (dilled) continuation object (if equilibrium curves are asked in args), is appended to the queue.
+    
+    """
     for k,v in order_params.items(): 
         default_params[k] = v
     
@@ -129,7 +170,7 @@ def stability_analysis(order_params, default_params, out_queue, args, pdomain={'
     # fixed point and nullclines
     model = create_model(default_params, args)
     model, fps, nullclines = get_fixed_points(model, default_params)
-    points = compute_tajectories(model, args.n_trajs)
+    points = compute_trajectories(model, args.n_trajs)
     out['model'], out['fps'], out['ncs'], out['trajs'] = model, fps, nullclines, points
 
     # EP-C
@@ -151,7 +192,8 @@ def stability_analysis(order_params, default_params, out_queue, args, pdomain={'
 
 def launch_stability_analysis(order_params, default_params, out_queue, args):
     """ Ghost process that launches the stability analysis for a set of defined order parameter,
-        creating a child process with a set timeout per child process """
+        creating a child process with a set timeout per child process, such that the stbaility analysis
+        does not hang waiting for the continuation to terminate if it does not converge. """
     proc = multiprocessing.Process(target=stability_analysis, args=(order_params, default_params, out_queue, args))
     proc.start()
     # wait for the process until timeout
@@ -164,7 +206,15 @@ def launch_stability_analysis(order_params, default_params, out_queue, args):
 
 
 def run_stability_analysis(order_params, default_params, args):
-    """ Starts a pool of parallel processes to run the stability analysis """
+    """ Starts a pool of parallel processes to run the stability analysis.
+
+    :param order_params: a dict of fixed parameters, for which to analyse the system using discretized values, for example {'C_21': np.linspace(0.2,0.8,4)}.
+    :param default_params: default model's parameters. 
+    :param args: Argparse Namespace structure of necessary options. For example, must include args.compute_epc = True to compute equilibrium point curves.
+
+    :returns outputs: list of dict with stability analysis of each values (or combination of values) given in order_params.
+    :returns futures: (deprecated) if using futures.concurrent library for parallel process, return the list of Future objects (https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Future).
+    """
     # debug
     #outputs = []
     #for vals in itertools.product(*order_params.values()):
@@ -196,8 +246,15 @@ def run_stability_analysis(order_params, default_params, args):
     return outputs, futures
     
 
-def plot_phasespace(model, fps, nullclines, trajs, n=5, eps=1e-8, ax=None, args=None):
-    """ Plot vector field, nullclines and fixed points of a model previously set with parameters """
+def plot_phasespace(model, fps, nullclines, trajs, ax=None):
+    """ Plot vector field, nullclines and fixed points of a model previously set with parameters.
+    
+    :param model: PyDSTool Vode_ODEsystem object model.
+    :param fps: fixed points.
+    :param nullclines: PyDSTool nullcline objects.
+    :param trajs: simulated trajectories.
+    :param ax: matplotlib axis in which to plot the phasespace
+    """
     plt.sca(ax)
     pp.plot_PP_vf(model, 'S1', 'S2', scale_exp=-2)
     pp.plot_PP_fps(fps, do_evecs=True, markersize=5)
@@ -216,7 +273,13 @@ def get_grid_inds(output, order_params):
     return o_pars, i[0],j[0]
 
 def plot_phasespace_grid(outputs, order_params, args=None):
-    """ Plot a grid of graphs from outputs """
+    """ Plot a grid of phasespaces from stability analysis outputs.
+     
+    :param outputs: list of outputs from stability analysis.
+    :param order_params: a dict of fixed parameters, for which to analyse the system using discretized values, for example {'C_21': np.linspace(0.2,0.8,4)}.
+    :param args: optional extra arguments in argprase Namespace, such as ``args.save_figs=True`` to save figure and ``args.plot_figs=True`` to plot figures.
+      
+    """
     plt.rcParams['svg.fonttype'] = 'none'
     plt.rcParams.update({'font.size':11, 'axes.titlesize':'medium', 'mathtext.default': 'regular'})
     fig = plt.figure(figsize=[16,16])
@@ -503,32 +566,31 @@ def plot_timeseries_phasespace_bif(outputs, rww, args):
 
 
 
-def parse_args():
-    """ parsing global argument """
+def get_parser():
+    """ parsing global script argument """
     parser = argparse.ArgumentParser()
     parser.add_argument('--create_model', default=False, action='store_true', help='create symbolic model')
     parser.add_argument('--compute_nullclines', default=False, action='store_true', help='compute nullclines numerically')
     parser.add_argument('--compute_epc', default=False, action='store_true', help='compute equilibrium point curves numerically')
-    parser.add_argument('--save_model', default=False, action='store_true', help='save symbolic model with its ciomputed attributes')
-    parser.add_argument('--run_stability_analysis', default=False, action='store_true', help='run stability analysis: find fixed point (semi-analytically) and perform linear stability analysis around them')
+    parser.add_argument('--save_model', default=False, action='store_true', help='save symbolic model with its computed attributes')
+    parser.add_argument('--run_stability_analysis', default=False, action='store_true', help='run stability analysis: find fixed points (semi-analytically) and perform linear stability analysis around them')
     parser.add_argument('--load_stability_analysis', default=False, action='store_true', help='load previously completed stability analysis')
     parser.add_argument('--plot_figs', default=False, action='store_true', help='plot figures')
-    parser.add_argument('--plot_phasespace_grid', default=False, action='store_true', help='plot grid of phase spaces using order_params')
-    parser.add_argument('--plot_bifurcation_diagrams', default=False, action='store_true', help='plot grid of phase spaces using order_params')
+    parser.add_argument('--plot_phasespace_grid', default=False, action='store_true', help='plot grid of phase spaces using discretized order parameters')
+    parser.add_argument('--plot_bifurcation_diagrams', default=False, action='store_true', help='plot grid of bifurcation diagrams using discretized order parameters')
     parser.add_argument('--save_figs', default=False, action='store_true', help='save figures')
     parser.add_argument('--save_outputs', default=False, action='store_true', help='save analysis outputs')
     parser.add_argument('--timeout', type=int, default=3000, action='store', help='timeout of the stability analysis (per parameter combination invoked)')
     parser.add_argument('--n_jobs', type=int, default=20, action='store', help='number of processes used in parallelization')
-    parser.add_argument('--n_trajs', type=int, default=10, action='store', help='number of trajectories (traces) to compute for phase space projection')
+    parser.add_argument('--n_trajs', type=int, default=10, action='store', help='number of trajectories (traces) to compute for phase space projections')
     parser.add_argument('--n_op', type=int, default=5, action='store', help='number of values taken for each order parameters')
-    parser.add_argument('--load_sample_rww', default=False, action='store_true', help='load a sample of rww object previously ran for illustration')
-    parser.add_argument('--plot_timeseries_phasespace_bif', default=False, action='store_true', help='plot neat figure of timeseries, phase spce and bifurcations with trajectories')
-    args = parser.parse_args()
-    return args
+    parser.add_argument('--load_sample_rww', default=False, action='store_true', help='load a sample of ReducedWongWang model object previously ran for illustration')
+    parser.add_argument('--plot_timeseries_phasespace_bif', default=False, action='store_true', help='plot neat figure of timeseries, phase space and bifurcations with trajectories (paper quality)')
+    return parser
 
 
 if __name__=='__main__':
-    args = parse_args()
+    args = get_parser().parse_args()
     default_params = {'a':270, 'b': 108, 'd': 0.154, 'C_12': 0.25, 'G':2.5, 'J_N':0.2609, 'I_0':0.3, 'I_1':0.0, 'tau_S':100, 'w':0.9, 'gam':0.000641}
     #order_params = {'C_12': np.linspace(-1,1,args.n_op), 'I_0': np.linspace(0.2,0.5,args.n_op)} #, 'C_21': np.linspace(-1,1,args.n_op)}
     #order_params = {'C_12': np.linspace(-0.5,0.5,args.n_op), 'C_21': np.linspace(-0.5,0.5,args.n_op)}

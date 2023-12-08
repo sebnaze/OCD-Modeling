@@ -7,7 +7,7 @@ from .models import (
 from .analysis import (
     create_model,
     compute_equilibrium_point_curve,
-    compute_tajectories,
+    compute_trajectories,
     stability_analysis
 )
 

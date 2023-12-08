@@ -27,6 +27,7 @@ def run_sim(model_pars, sim_pars, control_pars={}, bold_pars={}):
 
     # analyze traces
     RWW.compute_bold(rww_sim, **bold_pars)
+    RWW.compute_transitions(rww_sim)
 
     return rww_sim
 
@@ -41,6 +42,7 @@ def launch_pool_simulations(args):
     """ Launch N simulations in parallel using a Pool Executor """
     #sim_objs = []
     with ProcessPoolExecutor(max_workers=args.n_jobs, mp_context=multiprocessing.get_context('spawn')) as pool:
+    #with ProcessPoolExecutor(max_workers=args.n_jobs) as pool:
         #print(pool._mp_context)
         #futures = {pool.submit(run_sim, args.model_pars, args.sim_pars, args.control_pars, args.bold_pars) : i for i in range(args.n_sims)}
         #for future in as_completed(futures):

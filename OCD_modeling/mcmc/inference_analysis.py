@@ -25,12 +25,19 @@ from sklearn.model_selection import KFold, RepeatedKFold, ShuffleSplit, LeaveOne
 from sklearn.metrics import make_scorer, r2_score
 from sklearn.inspection import permutation_importance
 import sqlite3 as sl
+import statsmodels
+import statsmodels.stats.weightstats
 
 # import most relevant environment and project variable
 from OCD_modeling.utils.utils import *
 from OCD_modeling.mcmc.history_analysis import import_results, compute_kdes
 from OCD_modeling.mcmc.simulate_inference import batched
 from OCD_modeling.analysis.fc_data_analysis import drop_single_session
+
+# mapping of parameter names from numbered to lettered indices (e.g. C_13 to C_OA)
+param_mapping = {'C_12':'C_OL', 'C_13':'C_OA', 'C_21':'C_LO', 'C_24':'C_LP', 'C_31':'C_AO', 'C_34':'C_AP', 'C_42':'C_PL', 'C_43':'C_PA',
+                 'eta_C_13':'eta_OA', 'eta_C_24':'eta_LP', 'sigma_C_13':'sigma_OA', 'sigma_C_24':'sigma_LP', 'sigma':'sigma', 'G':'G',
+                 'patients':'patients', 'controls':'controls'}
 
 def load_df_sims(args):
     """ Load infered simulations from database """
@@ -633,16 +640,23 @@ def compute_rmse_restore_data(df_data, df_sims, args):
 def compute_distance_restore_sims(df_base, df_sims, args):
     """ Compute distance metric between batches of simulations in controls, patients and 
     continuous restoration from patients to controls """
-    max_len = np.min([len(df_sims), len(df_base)])
+    max_len = np.min([len(df_sims), len(df_base[df_base.base_cohort=='controls'])])
     n_folds = int(np.floor(max_len/ args.n_sims))
     n_pathways = len(args.pathways)
     i_s = np.arange(0,n_folds*args.n_sims, args.n_sims)
     outputs = []
     for i,j in itertools.product(i_s, i_s):
         sim = df_sims.iloc[i:i+args.n_sims]
-        base = df_base.iloc[j:j+args.n_sims]
+        base = df_base[df_base.base_cohort=='controls'].iloc[j:j+args.n_sims]
+        
+        # get FC distance from controls FC
         distance = metric[args.distance_metric](sim[args.pathways], base[args.pathways])
-        output = dict((param, np.mean(sim[param])) for param in args.params)
+
+        # get parameter difference from patients parameters
+        output = dict(('z_'+param, statsmodels.stats.weightstats.ztest(x1=sim[param], 
+                                                                       x2=df_base[df_base.base_cohort=='patients'][param])[0]) 
+                      for param in args.params)
+        
         output['dist'] = distance
         outputs.append(output)
     return outputs
@@ -654,7 +668,7 @@ def compute_distance_restore(df_sims, args):
     df_base = get_df_base(args)
     df_base = fix_df_base(df_base)
     distance_outputs = Parallel(n_jobs=args.n_jobs, verbose=3)(delayed(compute_distance_restore_sims)
-                                        (df_base=df_base[df_base.base_cohort=='controls'], 
+                                        (df_base=df_base, 
                                         df_sims=df_sims[(df_sims.base_cohort=='patients') 
                                                          & (df_sims.test_cohort=='controls') 
                                                          & (df_sims.test_param==test_param)], 
@@ -745,9 +759,11 @@ def get_max_distance_sims(args):
     return distances
 
 
-def plot_restore_intersect(distances):
-    """ Plot KDEs of restoration RMSE between controls and patients to find a correct threshold value """
+def plot_efficacy_transform(args):
+    """ Plot distance and efficacy distrib and KDEs"""
     
+    distances = get_max_distance_sims(args)
+
     def get_KDE(values):
         vmin, vmax = np.min(values), np.max(values)
         bw = (vmax-vmin)/10
@@ -764,23 +780,35 @@ def plot_restore_intersect(distances):
     offset = np.mean(distances['con_pat'])
     scale = np.mean(distances['con_pat'])
 
-    plt.figure(figsize=[12,8])
-    plt.subplot(2,1,1)
-    plt.hist(distances['pat']-np.mean(distances['pat'])+offset, color='orange', alpha=0.5, density=False)
-    plt.hist(distances['con']-np.mean(distances['con']), color='lightblue', alpha=0.5, density=False)
+    plt.figure(figsize=[10,5])
+    ax = plt.subplot(2,1,1)
+    plt.hist(distances['pat']-np.mean(distances['pat'])+offset, color='orange', alpha=0.5, density=False, bins=np.linspace(0,0.3,30))
+    plt.hist(distances['con']-np.mean(distances['con']), bins=np.linspace(0,0.3,30), color='lightblue', alpha=0.5, density=False)
     #plt.xlim([0,1])
-    plt.xlabel('distance to mean healthy FC')
-    plt.ylabel('counts')
-    plt.subplot(2,1,2)
+    plt.xlabel('$d_Z$', fontsize=12)
+    plt.ylabel('counts', fontsize=12)
+    ax.spines.top.set_visible(False)
+    ax.spines.right.set_visible(False)
+    ax = plt.subplot(2,1,2)
     plt.plot(100*(kde_pat['X']-bias)/scale, kde_pat['pdf'], color='orange')
     plt.plot(100*(kde_con['X']-bias+offset)/scale, kde_con['pdf'], color='lightblue')
-    plt.xlabel('efficacy (% restoration towards mean healthy FC)')
-    plt.ylabel('density')
+    plt.xlabel('$E_{ff} \, (\%)$', fontsize=12)
+    plt.ylabel('density', fontsize=12)
+    ax.spines.top.set_visible(False)
+    ax.spines.right.set_visible(False)
+    plt.tight_layout()
+
+    if args.save_figs:
+        fname = 'efficacy_trasnform'+today()+'.svg'
+        plt.savefig(os.path.join(proj_dir, 'img', fname))
+        fname = 'efficacy_trasnform'+today()+'.png'
+        plt.savefig(os.path.join(proj_dir, 'img', fname))
     plt.show()
 
 
 def format_param(param):
     """ return LaTeX formated string of parameter (without dollar signs) """
+    param = param_mapping[param]
     par_ = param.split('_')
 
     # handle greek letters
@@ -790,9 +818,11 @@ def format_param(param):
     # handle C_
     if len(par_)==2:
         par_[1] = r'{'+par_[1]+r'}'
+    
     elif len(par_)==3:
         par_[1] = r'{'+par_[1]
         par_[2] = r'{'+par_[2]+r'}}'
+
     formatted_param = '_'.join(par_)
     return formatted_param
 
@@ -856,9 +886,9 @@ def plot_distance_restore(df_restore, args):
     offset = np.mean([np.mean(distances['pat']), np.mean(distances['con'])])
     scale = np.mean(distances['con_pat'])
     #df_top['restore'] = (1-((df_top['dist']-np.mean(distances['pat']))/np.mean(distances['con_pat'])))*100 # make % of restoration
-    df_top['efficacy'] = (1-((df_top['dist']-offset))/scale)*100 # make % of restoration
+    #df_top['efficacy'] = (1-((df_top['dist']-offset))/scale)*100 # make % of restoration
 
-    # create dfs for base distances
+    # create dfs for base distances (controls and patient with interventions)
     df_pat = pd.DataFrame({'dist': distances['pat']-np.mean(distances['pat']), 'test_param':'patients', 'n_test_params': 0}) # test_param=patients for legend label
     df_pat['efficacy'] = ((df_pat['dist']/np.mean(distances['con_pat'])))*100 # make % of restoration
 
@@ -872,13 +902,14 @@ def plot_distance_restore(df_restore, args):
     # plotting
     #df_top['restore'] = -((df_top['rmse']/get_max_rmse_data(df_data))-1)*100 # make % of restoration
     palette = {0: 'white', 1: 'lightpink', 2: 'plum', 3: 'mediumpurple', 4: 'lightsteelblue', 5:'skyblue', 6:'royalblue'}
-    plt.rcParams.update({'mathtext.default': 'regular', 'font.size':12})
+    plt.rcParams.update({'mathtext.default': 'regular', 'font.size':10})
     plt.rcParams.update({'text.usetex': False})
     lw=1
     if args.sort_style == 'all':
         fig = plt.figure(figsize=[5, int(args.n_restore/3)])
     else:
-        fig = plt.figure(figsize=[5, int(args.n_tops*args.n_test_params/3)])
+        fig = plt.figure(figsize=[7, int(args.n_tops*args.n_test_params/4)])
+        
     sbn.boxplot(data=df_top, x='efficacy', y='test_param', order=top_params[args.sort_style], hue='n_test_params', orient='h', 
                 saturation=3, width=0.5, whis=2, palette=palette, dodge=False, linewidth=lw, fliersize=2)
     #sbn.violinplot(df_top, x='restore', y='test_param', order=top_params, hue='n_test_params', orient='h', saturation=3, width=3)
@@ -918,9 +949,9 @@ def plot_distance_restore(df_restore, args):
     return fig
 
 
-#------------------------#
-# DECISION TREE ANALYSIS #
-#------------------------#
+#-----------------------------#
+# FEATURE IMPORTANCE ANALYSIS #
+#-----------------------------#
 
 def get_X_y(df_restore, params):
     """ 
@@ -1177,11 +1208,13 @@ def compute_simple_feature_scores(df_top, params, args):
 def scale_efficacy_to_kdes(df_row, params, kdes, scaling):
     normalized = dict()
     for param in params:
-        val = (df_row[param] - kdes['patients'][param]['vals'].mean()) / kdes['patients'][param]['vals'].std()
+        #val = (df_row[param] - kdes['patients'][param]['vals'].mean()) / kdes['patients'][param]['vals'].std()
         if scaling=='contribution':
-            normalized[param] = df_row['efficacy']*val
+            #normalized[param] = df_row['efficacy']*val
+            normalized[param] = df_row['efficacy']*df_row['z_'+param]
         else: # sensitivity
-            normalized[param] = df_row['efficacy']/val
+            #normalized[param] = df_row['efficacy']/val
+            normalized[param] = df_row['efficacy']/df_row['z_'+param]
     return normalized
 
 
@@ -1201,6 +1234,19 @@ def compute_scaled_feature_score(df_top, params, kdes, scaling='contribution', a
         lines.append(line)
     df_kdes_scaled_feats = pd.concat(lines, ignore_index=True)
     return df_kdes_scaled_feats
+
+
+def compute_feature_reliability(df_top, params, kdes, args=None):
+    """ Compute reliability of feature using z-score """
+    out = []
+    for n_test_params in np.arange(args.n_test_params)+1:
+        df_ = df_top[df_top.n_test_params==n_test_params]
+        print("Compute param reliability for n_test_params={}".format(n_test_params))
+        for param in params:
+            df_['z_'+param] = (df_[param] - kdes['patients'][param]['vals'].mean()) / kdes['patients'][param]['vals'].std()
+        out.append(df_)
+    df_reliability = pd.concat(out)
+    return df_reliability
 
 
 def plot_contribution_windrose(df_params_contribution, params, args=None):
@@ -1224,13 +1270,13 @@ def plot_contribution_windrose(df_params_contribution, params, args=None):
                 axes[j,k].bar(theta_, r_, facecolor=palette[df_params_contribution.iloc[i].n_test_params], lw=0.75, linestyle='-', width=0.5, edgecolor='black', zorder=3)
         
         axes[j,k].set_xticks(theta[:-1])
-        axes[j,k].set_xticklabels(params)
+        axes[j,k].set_xticklabels(args.params)
         lbls = axes[j,k].get_xticklabels()
         new_lbls = format_labels(lbls)
         axes[j,k].set_xticklabels(new_lbls, fontsize=8)
         
-        r_max = np.max([np.abs(r).max(), 26])
-        axes[j,k].set_yticks(np.arange(0,r_max, 25))
+        r_max = np.max([np.abs(r).max(), 101])
+        axes[j,k].set_yticks(np.arange(0,r_max, 100))
         axes[j,k].set_yticklabels([])
         #axes[j,k].set_rmax(2.2)
         axes[j,k].grid(zorder=0)
@@ -1272,9 +1318,9 @@ def plot_sensitivity_windrose(df_params_sensitivity, params, args=None):
         new_lbls = format_labels(lbls)
         axes[j,k].set_xticklabels(new_lbls)
         
-        axes[j,k].set_yticks([0,1,2,3,4])
+        axes[j,k].set_yticks([0,1,2,3])
         axes[j,k].set_yticklabels([])
-        axes[j,k].set_rmax(4.5)
+        axes[j,k].set_rmax(3.5)
 
         axes[j,k].spines.polar.set_visible(False)
         axes[j,k].xaxis.grid(linewidth=0.5, linestyle='--')
@@ -1471,13 +1517,13 @@ def plot_pre_post_dist_ybocs(df_summary, gs=None, args=None):
 
     rr,pr = scipy.stats.pearsonr(responders['behav']['both'], responders['param']['both'])
 
-    sbn.regplot(data=pd.DataFrame(lines), x='behav_diff', y='param_diff', ax=ax, color='gray', scatter_kws={'s':10})
+    sbn.regplot(data=pd.DataFrame(lines), x='param_diff', y='behav_diff', ax=ax, color='gray', scatter_kws={'s':10})
 
     plt.title("n={}  r={:.2f}  p={:.3f}".format(len(responders['behav']['both']),rr,pr), fontsize=10)
     plt.gca().spines.top.set_visible(False)
     plt.gca().spines.right.set_visible(False)
-    plt.ylabel("$\Delta \, FC$")
-    plt.xlabel("$\Delta \, {}$".format(behav.split('_')[0]))
+    plt.xlabel("$\Delta \, FC$")
+    plt.ylabel("$\Delta \, {}$".format(behav.split('_')[0]))
     
 
     if gs==None:
@@ -1623,10 +1669,16 @@ def plot_improvement_pre_post_params(df_summary, params, args):
         print("{:15}: normality={:1}/{:1}   d={: 1.2}    u={:5}  p={:.4f}    t={: .2f}  p={:.4f}   T={: }  p={:.4f}".format(param, p_pre>0.05, p_post>0.05,d, int(u), p, t, pt,int(T), pT))
         #plt.title("u={}  p={:.3f}".format(int(u),p))
         ttl = ''
-        if p<.05:
-            ttl = ttl+'*'
-        if p*len(params)<0.05:
-            ttl = ttl+'*'
+        if ((p_pre>0.05) and (p_post>0.05)):
+            if p<.05:
+                ttl = ttl+'*'
+            if p*len(params)<0.05:
+                ttl = ttl+'*'
+        else:
+            if pT<.05:
+                ttl = ttl+'$\star$'
+            if pT*len(params)<0.05:
+                ttl = ttl+'$\star$'
         plt.title(ttl, fontsize=14)
         #plt.ylabel("${}$".format(format_param(param)), fontsize=12)
         plt.xticks([0], labels=[])
@@ -1667,8 +1719,13 @@ def plot_improvement_pre_post_params_paper(df_summary, params, gs=None, args=Non
         else:
             ax = plt.subplot(sub_gs[0,i])
         df_sum = df_summary.melt(id_vars=['subj', 'ses'], value_vars=param, var_name='param', ignore_index=True)
-        sbn.swarmplot(data=df_sum, x='param', y='value', hue='ses', hue_order=['ses-pre', 'ses-post'], dodge=True, 
-                      palette={'ses-pre':'orange', 'ses-post':'purple'}, size=3, alpha=0.5, ax=ax)
+        #sbn.swarmplot(data=df_sum, x='param', y='value', hue='ses', hue_order=['ses-pre', 'ses-post'], dodge=True, 
+        #              palette={'ses-pre':'orange', 'ses-post':'purple'}, size=3, alpha=0.5, ax=ax)
+        for subj in df_sum.subj.unique():
+            sbn.pointplot(data=df_sum[df_sum.subj==subj], y='value', x='ses', order=['ses-pre', 'ses-post'], dodge=True, 
+                          color='gray', linewidth=0.5, marker={'size':1}, size=0.5, alpha=0.5, ax=ax)
+        plt.setp(ax.collections, sizes=[6], linewidth=[0.1])
+        plt.setp(ax.lines, linewidth=0.3)
         plt.legend().set_visible(False)
         plt.gca().spines.top.set_visible(False)
         plt.gca().spines.right.set_visible(False)
@@ -1688,7 +1745,7 @@ def plot_improvement_pre_post_params_paper(df_summary, params, gs=None, args=Non
         x,y = ttl.get_position()
         ttl.set_position([x,y-0.2])
         #plt.ylabel("${}$".format(format_param(param)), fontsize=12)
-        plt.xticks([0], labels=[])
+        plt.xticks([0,1], labels=['pre', 'post'])
         plt.xlabel("${}$".format(format_param(param)), fontsize=12)
         plt.ylabel('')
 
@@ -1762,6 +1819,7 @@ def parse_arguments():
     parser.add_argument('--plot_param_behav', default=False, action='store_true', help='plot param-behavioral relationship')
     parser.add_argument('--verbose', default=False, action='store_true', help='print extra processing info')
     parser.add_argument('--session', default=None, action='store', help='which session (ses-pre or ses-post) for behavioral scores (default:None => both are used')
+    parser.add_argument('--plot_efficacy_transform', default=False, action='store_true', help='plot the transformation from distance from controls to efficacy')
     
     parser.add_argument('--multivariate_analysis', default=False, action='store_true', help='perform multivariate analysis on simulations parameters')
     parser.add_argument('--multivar_fc', default=False, action='store_true', help='perform multivariate analysis on FC variables')
@@ -1783,11 +1841,13 @@ def parse_arguments():
     parser.add_argument('--restore_analysis', default=False, action='store_true', help='perform retoration analys of test parameters to move from patient to controls FC')
     parser.add_argument('--n_restore', type=int, default=10, action='store', help="number of best restorations for plotting")
     parser.add_argument('--n_tops', type=int, default=5, action='store', help="number of best restorations for each n_test_param for plotting")
-    parser.add_argument('--n_test_params', type=int, default=4, action='store', help="max number of parameter combinations for plotting restoration outputs")
+    parser.add_argument('--n_test_params', type=int, default=6, action='store', help="max number of parameter combinations for plotting restoration outputs")
     parser.add_argument('--distance_metric', type=str, default='rmse', help="distance used in restoration metric (rmse or emd)")
-    parser.add_argument('--sort_style', type=str, default='all', help="how to sort distances for visualization: 'by_n' or 'all' (default)")
+    parser.add_argument('--sort_style', type=str, default='by_n', help="how to sort distances for visualization: 'by_n' or 'all' (default)")
     parser.add_argument('--max_depth', type=int, default=3, action='store', help="max depth of the decision tree")
     parser.add_argument('--plot_distance_restore', default=False, action='store_true', help='plot efficacy horizontal box plots')
+    
+    parser.add_argument('--contribution_sensitivity_analysis', default=False, action='store_true', help='run ontribution and sensitivity analysis')
     parser.add_argument('--load_param_contribution', default=False, action='store_true', help='load parameter contributions from previously computed restoration analysis')
     parser.add_argument('--load_param_sensitivity', default=False, action='store_true', help='load parameter sensitivity from previously computed restoration analysis')
     parser.add_argument('--plot_params_contribution_sensitivity', default=False, action='store_true', help='plot contribution and sensitivity of parameters in restoration analysis')
@@ -1911,40 +1971,50 @@ if __name__=='__main__':
         print("Restoration analysis...")
         args.pathways = pathways
         args.params = params
-        #df_restore = compute_rmse_restore(df_data, df_sims, args)
-        df_restore = compute_distance_restore(df_sims, args)
-        df_restore = compute_efficacy(df_restore, args)
+
+        if args.plot_efficacy_transform:
+            plot_efficacy_transform(args)
+
+        df_restore = compute_distance_restore(df_sims[df_sims.test_param!='None'], args)
+        df_restore = compute_efficacy(df_restore, args=args)
         df_top, top_params = get_df_top(df_restore, args)
         if args.plot_distance_restore:
-            plot_distance_restore(df_restore, df_data, args=args)
+            plot_distance_restore(df_restore, args=args)
 
         #df_feature_importance, decision_trees, feat_imps = decision_tree(df_restore, params, args)
         #df_custom_feat_imps = compute_custom_feature_scores(decision_trees, params, args)
         #df_simple_feat_imps = compute_simple_feature_scores(df_top, params, args)
 
-        # Parameters contribution
-        if args.load_param_contribution:
-            with open(os.path.join(proj_dir, 'postprocessing', 'df_param_contribution.pkl'), 'rb') as f:
-                df_params_contribution = pickle.load(f)
-        else:
-            df_params_contribution = compute_scaled_feature_score(df_restore[df_restore.efficacy>0], params, kdes, scaling='contribution', args=args)
-            if args.save_outputs:
-                with open(os.path.join(proj_dir, 'postprocessing', 'df_param_contribution.pkl'), 'wb') as f:
-                    pickle.dump(df_params_contribution, f)        
-        if args.plot_params_contribution_sensitivity:
-            plot_contribution_windrose(df_params_contribution, params, args=args)
+        #df_reliability = compute_feature_reliability(df_top, params, kdes, args)
+        #plot_contribution_windrose(df_reliability, params=['z_'+param for param in params], args=args)
 
-        # Parameters sensitivity
-        if args.load_param_sensitivity:
-            with open(os.path.join(proj_dir, 'postprocessing', 'df_param_sensitivity.pkl'), 'rb') as f:
-                df_param_sensitivity = pickle.load(f)
-        else:
-            df_param_sensitivity = compute_scaled_feature_score(df_restore[df_restore.efficacy>0], params, kdes, scaling='sensitivity', args=args)
-            if args.save_outputs:
-                with open(os.path.join(proj_dir, 'postprocessing', 'df_param_sensitivity.pkl'), 'wb') as f:
-                    pickle.dump(df_param_sensitivity, f)        
-        if args.plot_params_contribution_sensitivity:
-            plot_sensitivity_windrose(df_param_sensitivity, params, args=args)
+        df_scaled_efficacy = compute_scaled_feature_score(df_restore[df_restore.efficacy>0], params, kdes, scaling='contribution', args=args)
+        plot_contribution_windrose(df_scaled_efficacy, params, args=args)
+
+        # Parameters contribution
+        if args.contribution_sensitivity_analysis:
+            if args.load_param_contribution:
+                with open(os.path.join(proj_dir, 'postprocessing', 'df_param_contribution.pkl'), 'rb') as f:
+                    df_params_contribution = pickle.load(f)
+            else:
+                df_params_contribution = compute_scaled_feature_score(df_restore[df_restore.efficacy>0], params, kdes, scaling='contribution', args=args)
+                if args.save_outputs:
+                    with open(os.path.join(proj_dir, 'postprocessing', 'df_param_contribution.pkl'), 'wb') as f:
+                        pickle.dump(df_params_contribution, f)        
+            if args.plot_params_contribution_sensitivity:
+                plot_contribution_windrose(df_params_contribution, params, args=args)
+
+            # Parameters sensitivity
+            if args.load_param_sensitivity:
+                with open(os.path.join(proj_dir, 'postprocessing', 'df_param_sensitivity.pkl'), 'rb') as f:
+                    df_param_sensitivity = pickle.load(f)
+            else:
+                df_param_sensitivity = compute_scaled_feature_score(df_restore[df_restore.efficacy>0], params, kdes, scaling='sensitivity', args=args)
+                if args.save_outputs:
+                    with open(os.path.join(proj_dir, 'postprocessing', 'df_param_sensitivity.pkl'), 'wb') as f:
+                        pickle.dump(df_param_sensitivity, f)        
+            if args.plot_params_contribution_sensitivity:
+                plot_sensitivity_windrose(df_param_sensitivity, params, args=args)
         
 
         
@@ -1981,7 +2051,9 @@ if __name__=='__main__':
 
 
         # pre-post analysis summary
-        df_pre = pd.merge(df_fc_pre_post[df_fc_pre_post.ses=='ses-pre'], df_sim_pre, on=['subj', 'ses', 'group'], how='outer', suffixes=[None, '_sim'])
+        df_pre = pd.merge(df_fc_pre_post[df_fc_pre_post.ses=='ses-pre'], 
+                          df_sim_pre, 
+                          on=['subj', 'ses', 'group'], how='outer', suffixes=[None, '_sim'])
         if args.save_summary:
             with open(os.path.join(proj_dir, 'postprocessing', 'df_pre'+today()+".pkl"), 'wb') as f:
                 pickle.dump(df_pre, f)

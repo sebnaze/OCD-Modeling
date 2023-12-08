@@ -108,6 +108,8 @@ def unpack_params(in_params):
     # unpack model's params
     for k,v in in_params.items():
         if k in default_model_params.keys():
+            if type(v) is np.ndarray:
+                v = v.squeeze() # otherwise matrix multiplication can be a problem at inference
             model_params[k] = v
         elif ('C_' in k):
             var, inds = k.rsplit('_', maxsplit=1)
@@ -148,7 +150,7 @@ def simulate_population_rww(params):
     #sim_objs = parallel_launcher.launch_simulations(args)
     sim_objs = parallel_launcher.launch_pool_simulations(args)
     
-    RMSE = RWW.score_population_models(sim_objs, cohort='controls')
+    RMSE = RWW.score_population_models(sim_objs, cohort='patients')
     return {'RMSE': RMSE}
 
 
@@ -219,4 +221,4 @@ if __name__ == '__main__':
         )
     else:
         abc.load("sqlite:///" + os.path.join(proj_dir, 'traces', args.resume_opt+".db"), abc_id=1)
-    history = abc.run(max_nr_populations=10, minimum_epsilon=0.01)
+    history = abc.run(max_nr_populations=11, minimum_epsilon=0.01)

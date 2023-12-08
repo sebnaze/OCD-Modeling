@@ -44,35 +44,56 @@ def load_empirical_FC(args):
     return df_data       
 
 
-def plot_epsilons(histories, fig=None, args=None):
+def get_ax_inds(nrows, ncols, row_offset=2, col_offset=2):
+    """ create list of axes to iterate from when plotting """
+    for row_ind, col_ind in itertools.product(np.arange(nrows), np.arange(ncols)):
+        if ((col_ind<col_offset) & (row_ind<row_offset)):
+            continue
+        else:
+            yield (row_ind, col_ind)
+
+
+def plot_epsilons(histories, ax=None, args=None):
     """ Plot evolution of epsilons across generations """ 
     n_hist = len(histories)
-    if fig==None:
+    if ax==None:
         fig = plt.figure(figsize=[5, 5])
         ax = plt.subplot(1,1,1)
-    
-    # include epsilons to KDE plot
-    else:
-        ax = fig.add_subplot(3,5,1)
 
     for i,(name,history) in enumerate(histories.items()):
-        pyabc.visualization.plot_epsilons([history], ax=ax)
+        if name=='controls':
+            pyabc.visualization.plot_epsilons([history], ax=ax)
         plt.legend(list(histories.keys()))
 
-def plot_weights(histories, args):
+
+def plot_weights(histories, gs=None, nrows=None, ncols=None, row_offset=None, col_offset=None, args=None):
     """ Plot evolution of weights across generations """ 
     n_hist = len(histories)
     n_gen = np.max([h.max_t for h in histories.values()])
-    fig = plt.figure(figsize=[20, 5])
+    
+    if gs==None:
+        fig = plt.figure(figsize=[20, 5])
+        gs = plt.GridSpec(nrows=nrows, ncols=ncols)
+        nrows,ncols = 0,0
+    
     for i,(name,history) in enumerate(histories.items()):
-        for j in range(history.max_t+1):
+        ax_inds = get_ax_inds(nrows, ncols, row_offset=row_offset, col_offset=col_offset)
+        #for j in np.arange(history.max_t+1):
+        for j in np.arange(1,10):
+            x,y = next(ax_inds)
+            ax = plt.subplot(gs[x,y])
             df,w  = history.get_distribution(t=j)
-            plt.subplot(2,6,j+1)
-            plt.scatter(np.arange(len(w)), w, s=10, alpha=0.5)
-            plt.title(f"t={j}")
-            plt.xlabel('particle')
-            plt.ylabel('weight')
+            
+            plt.scatter(np.arange(len(w)), w, s=10, alpha=0.2)
+            plt.title(f"t={j}", fontsize=10)
+            plt.yscale('log')
+            #if x==nrows-1:
+            plt.xlabel('particle', fontsize=10)
+            if (((y==col_offset) and (x<row_offset)) or (y==0)):
+                plt.ylabel('$\omega$', fontsize=12)
             #plt.legend(args.history_names)
+            ax.spines.top.set_visible(False)
+            ax.spines.right.set_visible(False)
     plt.tight_layout()
 
 
@@ -107,7 +128,12 @@ def plot_kde_matrix(histories, args):
 def compute_stats(histories, args=None):
     """ Computes the statistics of the optimization outcome, i.e. tests the posterior distributions (parameters) 
     between controls and patients.
-            returns: df_stats: pandas DataFrame of statistics  """
+
+    :param histories: list of controls and patient pyABC history objects. 
+
+    :returns df_stats: pandas DataFrame of statistics.  
+
+    """
     df_post_con,w_con = histories['controls'].get_distribution(t=9)
     df_post_pat,w_pat = histories['patients'].get_distribution(t=9)
     cols = df_post_con.columns
@@ -147,15 +173,12 @@ def compute_kdes(histories, n_pts = 100, args=None):
     """ 
     Computes Kernel Density Estimates (KDEs) of the posterior distributions of parameters.
     
-        Inputs:
-        -------
-            histories (dict): nested dictionnary of SQL alchemy history objects
-            n_pts (int): number of points used to estimate the probability density functions (PDFs)
+    :param histories: (dict) nested dictionnary of SQL alchemy history objects.
+    :param n_pts: (int) number of points used to estimate the probability density functions (PDFs).
 
-        Outputs:
-        --------
-            kdes (dict): nested dictiorany of KDEs and associated PDFs
-            cols (list): list of parameters for which the KDEs were estimated 
+    :returns kdes: (dict) nested dictiorany of KDEs and associated PDFs.
+    :returns cols: (list) list of parameters for which the KDEs were estimated.
+    
     """
 
     kdes = dict()
@@ -183,33 +206,24 @@ def compute_kdes(histories, n_pts = 100, args=None):
 
 def custom_plot_epsilons(histories, ax, n_gens=11):
     colors = ['lightblue', 'orange']
-    labels = list(histories.keys())
+    labels = ['healthy', 'OCD']#list(histories.keys())
     for i,(name,history) in enumerate(histories.items()):
         # extract epsilons
         # note: first entry is from calibration and thus translates to inf,
         # thus must be discarded
-        eps = np.array(history.get_all_populations()['epsilon'][1:n_gens])
+        eps = np.array(history.get_all_populations()['epsilon'][:n_gens])
 
         # plot
         ax.plot(eps, 'x--', label=labels[i], color=colors[i], alpha=1)
         
-    plt.xticks(np.arange(1,10,2), labels=np.arange(1,10,2)+1)
+    plt.xticks(np.arange(0,n_gens,2), labels=np.arange(0,n_gens,2))
+    plt.yscale('log')
     plt.ylabel('$\epsilon$', fontsize=12)
     plt.xlabel('$t$', fontsize=12)
     ax.spines.top.set_visible(False)
     ax.spines.right.set_visible(False)
-    plt.legend(list(histories.keys()))
+    plt.legend(labels)
 
-
-
-
-def get_kde_ax_inds(nrows, ncols, row_offset=2, col_offset=2):
-    """ create list of axes to iterate from when plotting """
-    for row_ind, col_ind in itertools.product(np.arange(nrows), np.arange(ncols)):
-        if ((col_ind<col_offset) & (row_ind<row_offset)):
-            continue
-        else:
-            yield (row_ind, col_ind)
 
 
 def plot_fc_sim_vs_data(axes=None, args=None):
@@ -219,7 +233,7 @@ def plot_fc_sim_vs_data(axes=None, args=None):
     
     palette = {'controls': 'lightblue', 'patients': 'orange'}
     pathways = ['Acc_OFC', 'Acc_PFC', 'Acc_dPut', 'OFC_PFC', 'dPut_OFC', 'dPut_PFC']
-    pathway_names = ['NAcc-OFC', 'NAcc-lPFC', 'NAcc-dPut', 'OFC-lPFC', 'dPut-OFC', 'dPut-lPFC']
+    pathway_names = ['NAcc-OFC', 'NAcc-LPFC', 'NAcc-dPut', 'OFC-LPFC', 'dPut-OFC', 'dPut-LPFC']
     df_tmp = df_base.iloc[:384].melt(id_vars=['subj', 'base_cohort'], value_vars=pathways, var_name='pathway', value_name='corr')
 
     if axes==None:
@@ -300,13 +314,15 @@ def plot_kdes(kdes, cols, df_stats, histories, args=None):
     #custom_plot_epsilons(histories, ax=ax)
     
     # KDES
-    ax_inds = get_kde_ax_inds(nrows, ncols, row_offset, col_offset)
+    ax_inds = get_ax_inds(nrows, ncols, row_offset, col_offset)
     for _,col in enumerate(cols):
         #ax = plt.subplot(3,5,i+2)
         i,j = next(ax_inds)
         ax = fig.add_subplot(gs[i,j])
-        plt.hist(kdes['controls'][col]['vals'], color='lightblue', bins=10, alpha=0.2, density=True, log=False)
-        plt.hist(kdes['patients'][col]['vals'], color='orange', bins=10, alpha=0.2, density=True, log=False)
+        vals = np.concatenate([kdes['controls'][col]['vals'], kdes['patients'][col]['vals']])
+        bins = np.linspace(vals.min(), vals.max(), 13)
+        plt.hist(kdes['controls'][col]['vals'], color='lightblue', bins=bins, alpha=0.2, density=True, log=False, lw=0.3, ec='gray')
+        plt.hist(kdes['patients'][col]['vals'], color='orange', bins=bins, alpha=0.2, density=True, log=False, lw=0.3, ec='gray')
         plt.plot(kdes['controls'][col]['X'], np.exp(kdes['controls'][col]['pdf']), 'lightblue', lw=1)
         plt.plot(kdes['patients'][col]['X'], np.exp(kdes['patients'][col]['pdf']), 'orange', lw=1)
         xlabl = OCD_modeling.mcmc.inference_analysis.format_labels([matplotlib.text.Text(text=col)])[0]
@@ -376,6 +392,27 @@ def simulate_posterior_modes(peaks, args):
         sim_outputs[cohort] = sim_objs
     return sim_outputs
 
+
+def plot_epsilons_weights(histories, args):
+    """ Combine the epsilons tolerances and the optimization weights """
+    fig = plt.figure(figsize=[15,5])
+    nrows, ncols = 2,5
+    row_offset, col_offset = 1,1
+    gs = plt.GridSpec(nrows=nrows, ncols=ncols)
+    ax = fig.add_subplot(gs[:row_offset,:col_offset])
+    custom_plot_epsilons(histories, ax=ax, n_gens=11)
+    plot_weights(histories, gs=gs, nrows=nrows, ncols=ncols, row_offset=row_offset, col_offset=col_offset, args=args)
+    
+    if args.save_figs:
+        fname = os.path.join(proj_dir, 'img', 'epsilons_weights_log'+today()+'.svg')
+        plt.savefig(fname)
+        fname = os.path.join(proj_dir, 'img', 'epsilons_weights_log'+today()+'.png')
+        plt.savefig(fname)
+        fname = os.path.join(proj_dir, 'img', 'epsilons_weights_log'+today()+'.pdf')
+        plt.savefig(fname)
+    plt.show()
+
+
 def parse_arguments():
     " Script arguments when ran as main " 
     parser = argparse.ArgumentParser()
@@ -395,6 +432,7 @@ def parse_arguments():
     parser.add_argument('--plot_figs', default=False, action='store_true', help='plot figures')
     parser.add_argument('--plot_epsilons', default=False, action='store_true', help='plot optimization errors')
     parser.add_argument('--plot_weights', default=False, action='store_true', help='plot optimization weights for each gen')
+    parser.add_argument('--plot_epsilons_weights', default=False, action='store_true', help='plot optimization errors')
     parser.add_argument('--plot_param_distrib', default=False, action='store_true', help='plot parameter distribution for each gen')
     parser.add_argument('--plot_kde_matrix', default=False, action='store_true', help='plot KDE matrix of optimization')
     parser.add_argument('--plot_stats', default=False, action='store_true', help='show statisics')
@@ -414,6 +452,8 @@ if __name__=='__main__':
         plot_epsilons(histories, args)
     if args.plot_weights:
         plot_weights(histories, args)
+    if args.plot_epsilons_weights:
+        plot_epsilons_weights(histories, args)
     if args.plot_param_distrib:
         plot_param_distrib(histories, args)
     if args.plot_kde_matrix:

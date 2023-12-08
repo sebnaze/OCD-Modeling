@@ -132,7 +132,7 @@ def get_test_params(args):
         # Note: if args.test_params=None, then it is propagated purposefully as it is handled as a special case
         test_params = cols if args.test_params==[] else args.test_params
     else:
-        with open(os.path.join(proj_dir, 'postprocessing', 'params_combinations.pkl'), 'rb') as f:
+        with open(os.path.join(proj_dir, 'postprocessing', 'nan_params.pkl'), 'rb') as f:
             combinations = pickle.load(f)
             test_params = list(combinations[args.test_params_index])
     return test_params
