@@ -25,7 +25,7 @@ import OCD_modeling
 # import most relevant environment and project variable
 from OCD_modeling.utils.utils import *
 from OCD_modeling.mcmc.history_analysis import import_results, compute_kdes
-from OCD_modeling.mcmc.abc_hpc import default_bold_params, default_model_params, default_sim_params, unpack_params
+from OCD_modeling.mcmc.abc_hpc import get_default_params, unpack_params
 from OCD_modeling.models.ReducedWongWang import create_sim_df
 
 def batched(iterable, n):
@@ -105,8 +105,25 @@ def write_outputs_to_db(params, cols, test_params, outputs, args):
     print("took {:.3f}s".format(time()-t))
 
 
-def launch_sims_parallel(kdes, cols, test_params, args):
-    """ Start simulations from posterior inference in parallel """
+def launch_sims_parallel(kdes, cols, test_params=[], args=None):
+    """ Run batched simulations from posterior inference in parallel:
+    
+    Parameters
+    ----------
+        kdes: dict
+            Kernel Density Estimates from optimization (structured as kdes[cohort][param])
+        cols: list
+            Parameters (columns) which draw samples from KDEs (otherwise default values are used)
+        test_params: list
+            Parameters for which the posterior is permuted for the virtual interventions.
+        args: argparse.Namespace
+            Extra arguments with options.
+
+    Returns
+    -------
+        None. Output of the simulations are written into the local SQLite database.
+
+    """
     model_params, sim_params, control_params, bold_params, params = create_params(kdes, cols, test_params, args)
     tot_batches = int(np.ceil(args.n_sims/args.n_batch))
     batch_number = 1

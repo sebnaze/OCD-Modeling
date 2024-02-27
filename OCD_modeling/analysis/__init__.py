@@ -9,7 +9,8 @@ from .rww_dst_analysis import (
     get_parser,
     plot_phasespace,
     plot_phasespace_grid,
-    plot_bifurcation_grid
+    plot_bifurcation_grid,
+    plot_timeseries_phasespace_bif
 )
 
 from .rww_symbolic_analysis import (

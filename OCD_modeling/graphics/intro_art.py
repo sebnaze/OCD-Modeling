@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 import nilearn
 import numpy as np
 import os
+import pickle
 import pyvista as pv
 import pymeshfix as mf
 import sys
@@ -266,7 +267,12 @@ for region in subcortex:
 mshs = Parallel(n_jobs=32)(delayed(create_region_mesh)(region) for region in atlazer.node_names[58:108]) # use :400 for bilateral
 for region,mesh in zip(atlazer.node_names[58:108], mshs):
     meshes[region] = mesh
-    
+
+# save mesh
+fname = '/home/sebastin/working/lab_lucac/sebastiN/projects/OCD_modeling/postprocessing/mesh_20240222.pkl'
+with open(fname, 'wb') as f:
+    pickle.dump(meshes, f)
+
 # plot
 for region,mesh in meshes.items():
     roi = [key for key in opts.keys() if key in region]

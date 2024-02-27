@@ -274,7 +274,7 @@ def compute_distances(df_rois_corr):
 
 
 def plot_pointplot_pre_post(df):
-    """ Point plot of individuals pre vs post distacne to controls FC based on euclidean distance"""
+    """ Point plot of individuals pre vs post distance to controls FC based on euclidean distance"""
     plt.figure(figsize=[12,4])
 
     plt.subplot(1,3,1)

@@ -23,6 +23,26 @@ def emd(u,v):
     return np.sum(d)
 
 
+def rmse(u,v):
+    """ compute the root mean squared error of correlation accross pathways P between u and v as 
+    :math:`d = \sqrt{ \sum_{p \in P} (\mu_u^p - \mu_v^p)^2 + (\sigma_u_p - \sigma_v^p)^2}` 
+    
+    Parameters:
+    -----------
+    u,v
+        pandas DataFrames with only pathway columns
+
+    Returns:
+    --------
+    d
+        Root Mean Squared Error 
+    """
+    u_ = u.apply([np.mean, np.std])
+    v_ = v.apply([np.mean, np.std])
+    mse = u_.combine(v_, np.subtract).apply('square').apply('sum').sum()
+    return np.sqrt(mse)
+
+
 def today():
     return datetime.now().strftime('_%Y%m%d')
 

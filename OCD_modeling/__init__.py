@@ -22,4 +22,4 @@ from .mcmc import (
     simulate_population_rww
 )
 
-from .utils import get_working_dir, cohen_d, emd
+from .utils import get_working_dir, cohen_d, emd, rmse

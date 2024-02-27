@@ -53,6 +53,19 @@ def create_model(params, args):
     and
 
         .. math:: x_i = w J_N S_i + G J_N \sum_j{C_{ij} S_j} + I_0 
+
+        
+    Parameters
+    ----------
+        params: dict
+            Parameters of the model
+        args: Argparse.Namespace
+            Optional arguments 
+
+    Returns
+    -------
+        rww: PyDSTool.Vode_ODEsystem
+            PyDSTool object containing the dynamical system 
             
     """
     icdict = {'S1': rng.uniform(),
@@ -80,14 +93,25 @@ def get_fixed_points(model, params, xdomain={'S1':[0,1], 'S2':[0,1]}, args=None)
     """ Get model's nullclines :math:`\\frac{dS_1}{dt}=0` and :math:`\\frac{dS_2}{dt}=0` 
     and fixed points :math:`\\frac{dS_1}{dt}=\\frac{dS_2}{dt}=0` for a given set of parameters.
     
-    :param model: PyDSTool Vode_ODEsystem model
-    :param params: model parameters.
-    :param xdomain: variable and lower/upper bounds.
-    :param args: optional extra arguments.
+    Parameters
+    ----------
+        model: PyDSTool.Vode_ODEsystem
+            Model object in PyDSTool.
+        params: dict
+            Model parameters.
+        xdomain: dict
+            Variable and lower/upper bounds.
+        args: Argparse.Namespace
+            Optional extra arguments.
 
-    :returns model: update model object with givben parameters.
-    :returns fps: fixed points.
-    :returns (nulls_x, nulls_y): tuple containing nullclines.
+    Returns
+    -------
+        model: PyDSTool.Vode_ODEsystem
+            Updated model object with given parameters.
+        fps: PyDSTool.Toolbox.phaseplane.fixedpoint_2D 
+            Fixed points of the system.
+        (nulls_x, nulls_y): tuple 
+            Tuple containing nullclines (arrays of paired xs and ys).
     """
     model.set(pars=params, xdomain=xdomain)
     # fixed points (using n starting points along the domain)
@@ -101,8 +125,18 @@ def get_fixed_points(model, params, xdomain={'S1':[0,1], 'S2':[0,1]}, args=None)
     return model, fps, (nulls_x, nulls_y)
 
 
-def compute_trajectories(model, n, tdata=[0,500]):
-    """ Compute n trajectories from model, each with different initial conditions, and of time refered in tdata ([start,stop]) """
+def compute_trajectories(model, n, tdata=[0,1000]):
+    """ Compute n trajectories from model, each with different initial conditions.
+    
+    Parameters
+    ----------
+        model: PyDSTool.Vode_ODEsystem
+            PyDSTool model object.
+        n: int
+            Number of trajectories to compute.
+        tdata: list
+            Time interval of the saved trajectories.
+    """
     points = []
     for i in range(n):
         model.set(ics={'S1':rng.uniform(), 'S2':rng.uniform()},
@@ -117,11 +151,19 @@ def compute_trajectories(model, n, tdata=[0,500]):
 def compute_equilibrium_point_curve(model, fps, pdomain):
     """ Find equilibrium point curve(s) of the system, starting from each fixed point (if exist).
 
-    :param model: PyDSTool Vode_ODEsystem object model.
-    :param fps: PyDSTool fixed points.
-    :param pdomain: free variable (or order parameter) to perform the bifurcation analyis from.
+    Parameters
+    ----------
+        model: PyDSTool.Vode_ODEsystem
+            Model object in PyDSTool.
+        fps: PyDSTool.Toolbox.phaseplane.fixedpoint_2D
+            Fixed points of the system.
+        pdomain: dict
+            Free variable (or order parameter) to perform the bifurcation analyis from.
 
-    :returns cont: PyDSTool ContClass object, populated with equilibrium point curves.
+    Returns
+    -------
+        cont: PyDSTool.ContClass
+            PyDSTool Continuation Class object populated with equilibrium point curves.
     """ 
     model.set(pdomain=pdomain)
     cont = dst.ContClass(model)
@@ -152,14 +194,24 @@ def compute_equilibrium_point_curve(model, fps, pdomain):
 def stability_analysis(order_params, default_params, out_queue, args, pdomain={'C_12':[-1, 2]}):
     """ Create model and analyse dynamics using PyDSTool.
     
-    :param order_params: a dict of fixed parameters, for which to analyse the system using discretized values, for example ``{'C_21': np.linspace(0.2,0.8,4)}``.
-    :param default_params: default model's parameters.
-    :param out_queue: Queue to put results in (used for parallel computation or each values of order parameter).
-    :param args: Argparse Namespace structure of necessary options. For example, must include ``args.compute_epc = True`` to compute equilibrium point curves.
-    :param pdomain: free variable (or order parameter) to perform the bifurcation analyis from.
+    Parameters
+    ----------
+        order_params: dict
+            Fixed parameters, for which to analyse the system using discretized values, for example ``{'C_21': np.linspace(0.2,0.8,4)}``.
+        default_params: dict
+            Default model's parameters.
+        out_queue: Queue
+            Queue to put results in (used for parallel computation) for each values of order parameter.
+        args: Argparse.Namespace 
+            Structure of necessary options. For example, must include ``args.compute_epc = True`` to compute equilibrium point curves.
+        pdomain: dict
+            Free variable (or order parameter) to perform the bifurcation analyis from.
 
-    :returns ``None``:  A dict with model, nullclines (ncs), fixed points (fps), trajectories (trajs), 
-    and a pickled (dilled) continuation object (if equilibrium curves are asked in args), is appended to the queue.
+    Returns
+    -------
+        None
+            A dict with model, nullclines (ncs), fixed points (fps), trajectories (trajs), 
+            and a pickled (dilled) continuation object (if equilibrium curves are asked in args), is appended to the queue.
     
     """
     for k,v in order_params.items(): 
@@ -193,7 +245,19 @@ def stability_analysis(order_params, default_params, out_queue, args, pdomain={'
 def launch_stability_analysis(order_params, default_params, out_queue, args):
     """ Ghost process that launches the stability analysis for a set of defined order parameter,
         creating a child process with a set timeout per child process, such that the stbaility analysis
-        does not hang waiting for the continuation to terminate if it does not converge. """
+        does not hang waiting for the continuation to terminate if it does not converge. 
+        
+    Parameters
+    ----------
+        order_params: dict 
+            Fixed parameters, for which to analyse the system using discretized values, for example ``{'C_21': np.linspace(0.2,0.8,4)}``.
+        default_params: dict
+            Default model's parameters. 
+        out_queue: Queue
+            Output queue on which to append the results.
+        args: Argparse.Namespace
+            Structure of necessary options. For example, must include ``args.compute_epc = True`` to compute equilibrium point curves.
+    """
     proc = multiprocessing.Process(target=stability_analysis, args=(order_params, default_params, out_queue, args))
     proc.start()
     # wait for the process until timeout
@@ -208,12 +272,21 @@ def launch_stability_analysis(order_params, default_params, out_queue, args):
 def run_stability_analysis(order_params, default_params, args):
     """ Starts a pool of parallel processes to run the stability analysis.
 
-    :param order_params: a dict of fixed parameters, for which to analyse the system using discretized values, for example {'C_21': np.linspace(0.2,0.8,4)}.
-    :param default_params: default model's parameters. 
-    :param args: Argparse Namespace structure of necessary options. For example, must include args.compute_epc = True to compute equilibrium point curves.
+    Parameters
+    ----------
+        order_params: dict 
+            Fixed parameters, for which to analyse the system using discretized values, for example ``{'C_21': np.linspace(0.2,0.8,4)}``.
+        default_params: dict
+            Default model's parameters. 
+        args: Argparse.Namespace
+            Structure of necessary options. For example, must include ``args.compute_epc = True`` to compute equilibrium point curves.
 
-    :returns outputs: list of dict with stability analysis of each values (or combination of values) given in order_params.
-    :returns futures: (deprecated) if using futures.concurrent library for parallel process, return the list of Future objects (https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Future).
+    Returns
+    -------
+        outputs: list of dict
+            Stability analysis of each values (or combination of values) given in order_params.
+        futures: list of concurrent.futures.Future
+            (deprecated) if using futures.concurrent library for parallel process, return the list of Future objects (https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Future).
     """
     # debug
     #outputs = []
@@ -246,20 +319,27 @@ def run_stability_analysis(order_params, default_params, args):
     return outputs, futures
     
 
-def plot_phasespace(model, fps, nullclines, trajs, ax=None):
+def plot_phasespace(model, fps, nullclines, trajs, ax=None, args=None):
     """ Plot vector field, nullclines and fixed points of a model previously set with parameters.
     
-    :param model: PyDSTool Vode_ODEsystem object model.
-    :param fps: fixed points.
-    :param nullclines: PyDSTool nullcline objects.
-    :param trajs: simulated trajectories.
-    :param ax: matplotlib axis in which to plot the phasespace
+    Parameters
+    ----------
+        model: PyDSTool.Vode_ODEsystem 
+            PyDSTool model object.
+        fps: PyDSTool.Toolbox.phaseplane.fixedpoint_2D
+            Fixed points of he system
+        nullclines: list
+            list of PyDSTool nullcline objects, containing arrays of xs and ys of nullclines.
+        trajs: list of dict
+            Simulated trajectories.
+        ax: matplotlib.Axis 
+            Axis in which to plot the phasespace.
     """
     plt.sca(ax)
     pp.plot_PP_vf(model, 'S1', 'S2', scale_exp=-2)
-    pp.plot_PP_fps(fps, do_evecs=True, markersize=5)
-    plt.plot(nullclines[0][:,0], nullclines[0][:,1], 'b', lw=2)
-    plt.plot(nullclines[1][:,0], nullclines[1][:,1], 'g', lw=2)
+    pp.plot_PP_fps(fps, do_evecs=True, markersize=6)
+    plt.plot(nullclines[0][:,0], nullclines[0][:,1], 'b', lw=3)
+    plt.plot(nullclines[1][:,0], nullclines[1][:,1], 'g', lw=3)
     for traj in trajs:
         plt.plot(traj['S1'], traj['S2'], linewidth=1)
     #plt.show(block=False)
@@ -274,10 +354,15 @@ def get_grid_inds(output, order_params):
 
 def plot_phasespace_grid(outputs, order_params, args=None):
     """ Plot a grid of phasespaces from stability analysis outputs.
-     
-    :param outputs: list of outputs from stability analysis.
-    :param order_params: a dict of fixed parameters, for which to analyse the system using discretized values, for example {'C_21': np.linspace(0.2,0.8,4)}.
-    :param args: optional extra arguments in argprase Namespace, such as ``args.save_figs=True`` to save figure and ``args.plot_figs=True`` to plot figures.
+    
+    Parameters
+    ----------
+        outputs: list 
+            Outputs from stability analysis.
+        order_params: dict 
+            Fixed parameters, for which to analyse the system using discretized values, for example ``{'C_21': np.linspace(0.2,0.8,4)}``.
+        args: Argparse.Namespace
+            Optional extra arguments in argprase Namespace, such as ``args.save_figs=True`` to save figure and ``args.plot_figs=True`` to plot figures.
       
     """
     plt.rcParams['svg.fonttype'] = 'none'
@@ -295,13 +380,13 @@ def plot_phasespace_grid(outputs, order_params, args=None):
 
         plt.axis('tight')
         #plt.title("{}={:.3f}  {}={:.3f}".format(o_pars[0], p1s[i], o_pars[1], p2s[j]))
-        ttl = "$C_{1 \leftarrow 2}$=%s        $C_{2 \leftarrow 1}$=%s" %("{:.2f}".format(p1s[i]),"{:.2f}".format(p2s[j]))
-        plt.title(ttl, fontdict={'fontsize': 11} )#.format(p1s[i], p2s[j]))
+        ttl = "$C_{12}$=%s        $C_{21}$=%s" %("{:.2f}".format(p1s[i]),"{:.2f}".format(p2s[j]))
+        plt.title(ttl, fontdict={'fontsize': 13} )#.format(p1s[i], p2s[j]))
         
         if i==len(p1s)-1:
-            plt.xlabel('$S_1$')
+            plt.xlabel('$S_1$', fontsize=13)
         if j==0:
-            plt.ylabel('$S_2$')
+            plt.ylabel('$S_2$', fontsize=13)
         plt.tight_layout()
 
         # makes quiver a bit more transparent and arrows a bit larger
@@ -311,8 +396,7 @@ def plot_phasespace_grid(outputs, order_params, args=None):
 
     #pdb.set_trace()
     if args.save_figs:
-        today = datetime.datetime.now().strftime("%Y%m%d")
-        plt.savefig(os.path.join(proj_dir, 'img', 'phase_space'+today+'.svg'), format='svg', transparent=True)
+        plt.savefig(os.path.join(proj_dir, 'img', 'phase_space'+today()+'.svg'), format='svg', transparent=True)
     if args.plot_figs:
         plt.show()
     
@@ -465,8 +549,18 @@ def plot_bifurcation_row(outputs, order_params, rww=None, t_range=None, args=Non
 
 
 def plot_timeseries_phasespace_bif(outputs, rww, args):
-    """ Neat figure for paper with S1, S2, C_12 timeseries, 
-    S1-S2 phase space with trajectories and C_12 S1/S2 phase space with bifurcation diagram """
+    """ Show S1, S2, C_12 timeseries, S1-S2 phase space with trajectories and C_12 S1/S2 phase space 
+    with bifurcation diagram.
+    
+    Parameters
+    ----------
+        outputs: list 
+            Outputs from stability analysis.
+        rww: OCD_modeling.models.ReducedWongWangOU
+            Model instance that ran. 
+        args: Argparse.Namespace
+            Extra options.        
+    """
     t_range = [2800,6000]
 
     ticks = [0 ,0.3, 0.6, 0.9]
@@ -593,8 +687,8 @@ if __name__=='__main__':
     args = get_parser().parse_args()
     default_params = {'a':270, 'b': 108, 'd': 0.154, 'C_12': 0.25, 'G':2.5, 'J_N':0.2609, 'I_0':0.3, 'I_1':0.0, 'tau_S':100, 'w':0.9, 'gam':0.000641}
     #order_params = {'C_12': np.linspace(-1,1,args.n_op), 'I_0': np.linspace(0.2,0.5,args.n_op)} #, 'C_21': np.linspace(-1,1,args.n_op)}
-    #order_params = {'C_12': np.linspace(-0.5,0.5,args.n_op), 'C_21': np.linspace(-0.5,0.5,args.n_op)}
-    order_params = {'C_21': np.linspace(0.2,0.8,args.n_op)}
+    order_params = {'C_12': np.linspace(-0.5,0.5,args.n_op), 'C_21': np.linspace(-0.5,0.5,args.n_op)}
+    #order_params = {'C_21': np.linspace(0.2,0.8,args.n_op)}
     
     if args.load_stability_analysis:
         #fname = os.path.join(proj_dir, 'postprocessing', 'outputs_dst__20230925_op_C_12_fix025_C21_var023.pkl')
@@ -605,7 +699,7 @@ if __name__=='__main__':
     elif args.run_stability_analysis:
         outputs, futures = run_stability_analysis(order_params, default_params, args)
         if args.save_outputs:
-            fname = 'outputs_dst_'+today()+'_op_C_12_fix025_C21_var02_08_4.pkl'
+            fname = 'outputs_dst_'+today()+'_phasespace_grid.pkl'
             with open(os.path.join(proj_dir, 'postprocessing', fname), 'wb') as f:
                 pickle.dump(outputs, f)
         if args.plot_bifurcation_diagrams:

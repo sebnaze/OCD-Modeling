@@ -47,34 +47,36 @@ class ReducedWongWang:
         self.v_i = v_i         # gaussian noise (n/a); default=0
 
     def H(self, x):
-        """ Average synaptic gating
-            -----------------------
-                a: slope (n/C); default=270
-                b: offset (Hz); default=108
-                d: decay (s);   default=0.154
+        """ Average synaptic gating.
+    
+        a: slope (n/C); default=270
+        b: offset (Hz); default=108
+        d: decay (s);   default=0.154
+        
         """
-
         return (self.a * x - self.b) / (1. - np.exp(-self.d * (self.a * x - self.b)))
 
     def S_i(self, x, S_j=0):
-        """ Firing rate
-            -----------
-                I_0: external input (nA); default=0.3
-                J_N: synaptic coupling (nA); default=0.2609
-                w: local exc recurrence (n/a); default=0.9
-                G: global scaling factor (n/a); default=1
-                C: connectivity matrix (n/a); default=0
-                S_j: coupled population firing rates (Hz); default=0
-        """
+        """ Firing rate.
+    
+        I_0: external input (nA); default=0.3
+        J_N: synaptic coupling (nA); default=0.2609
+        w: local exc recurrence (n/a); default=0.9
+        G: global scaling factor (n/a); default=1
+        C: connectivity matrix (n/a); default=0
+        S_j: coupled population firing rates (Hz); default=0
+    
+            """
         return (x - self.I_0 - self.G * self.J_N * self.C * S_j) / (self.w * self.J_N)
 
     def dS_i(self, x, v_i=0):
-        """ ODE of firing rate
-            ------------------
-                tau_S: kinetic parameter of local population (ms); default=100
-                gamma: kinetic parameter of coupled population (ms); default=0.000641
-                sigma: noise amplitude (nA); default=0.001
-                v_i: gaussian noise (n/a); default=0
+        """ ODE of firing rate.
+        
+        tau_S: kinetic parameter of local population (ms); default=100
+        gamma: kinetic parameter of coupled population (ms); default=0.000641
+        sigma: noise amplitude (nA); default=0.001
+        v_i: gaussian noise (n/a); default=0
+        
         """
         return (-S_i(x)/self.tau_S + (1 - S_i(x)) * self.gamma * H(x) + self.sigma*v_i)
 
@@ -130,7 +132,7 @@ class ReducedWongWangND:
         self.control_params = {}  # initialize empty control parameters, they will be set after the model is instanciated
 
     def H(self, x):
-        """ Average synaptic gating
+        """ Average synaptic gating.
 
         a: slope (n/C); default=270
         b: offset (Hz); default=108
@@ -141,11 +143,11 @@ class ReducedWongWangND:
         return (self.a * x - self.b) / (1. - np.exp(-self.d * (self.a * x - self.b)))
 
     def v(self):
-        """ implementing the wiener process """
+        """ Implementing the Gaussian white noise process. """
         return np.random.randn(self.N,)
 
     def dS(self):
-        """ ODE of firing rate
+        """ ODE of firing rate.
         
         tau_S: kinetic parameter of local population (ms); default=100
         gamma: kinetic parameter of coupled population (ms); default=0.000641
@@ -167,10 +169,16 @@ class ReducedWongWangND:
     def run(self, t_tot=1000, sf=100, t_rec=None, rec_vars=[]):
         """ Runs the model.
 
-        :param t_tot: total simu;ation time (s).
-        :param sf: sampling frequency of the reccording (Hz).
-        :param t_rec: interval of recording (s).
-        :param rec_vars: variables to records (note that S is always recorded).
+        Parameters
+        ----------
+            t_tot: int
+                Total simulation time (s).
+            sf: int
+                Sampling frequency of the reccording (Hz).
+            t_rec: list
+                Interval of recording (s) in the form ``[start, stop]``.
+            rec_vars: list
+                Variables to records (note that S is always recorded).
 
         """
         n_ts = int(t_tot/self.dt)
@@ -216,9 +224,12 @@ class ReducedWongWangND:
     def set_control_params(self, params:dict):
         """ Set the parameters to be updated during the simulation (e.g. a slow control parameter).
         
-        :param params: dictionary of parameters to be udpated, keys of this dict must match parameters names of the model.
-        values of the dictionary are list of tuple indicating times and values of the parameter to be updated, i.e.:
-        ``params = {I_0: [ (t0,v0), (t1,v1), (t2,v2), ... ]}``
+        Parameters
+        ----------
+            params: dict
+                Parameters to be udpated, keys of this dict must match parameters names of the model.
+                values of the dictionary are list of tuple indicating times and values of the parameter to be updated, i.e.:
+                ``params = {I_0: [ (t0,v0), (t1,v1), (t2,v2), ... ]}``
 
         Note that the update is linear monotonic between referenced points, and the update frequency used is 
         the sampling frequency (SF). Control parameter can only be changed during recording period.
@@ -360,9 +371,14 @@ class ReducedWongWangOU(ReducedWongWangND):
 def compute_bold(model, t_range=None, transient=30):
     """ BOLD timeseries and functional connectivity between regions.
 
-    :param model: instance if reduced wong wang model.
-    :param t_range: times of interest (in sec). default: all recorded time.
-    :param transient: time discarded at the beginning of t_range due to BOLD transient (in sec). default: 30s.
+    Parameters
+    ----------
+        model: OCD_modeling.models.ReducedWongWang.
+            Model object.
+        t_range: list
+            Times of interest (in sec), in the form ``[start, stop]``. Default: all recorded time.
+        transient: int
+            Time discarded at the beginning of t_range due to BOLD transient (in sec). Default: 30s.
 
     """
     inds = get_inds(model, t_range)

@@ -11,6 +11,7 @@ import numpy as np
 import os 
 import pandas as pd
 import pickle
+import pingouin as pg
 import pyabc
 import scipy
 import seaborn as sbn
@@ -54,7 +55,18 @@ def get_ax_inds(nrows, ncols, row_offset=2, col_offset=2):
 
 
 def plot_epsilons(histories, ax=None, args=None):
-    """ Plot evolution of epsilons across generations """ 
+    """ Plot evolution of epsilons across generations 
+    
+    Parameters
+    ----------
+        histories: list
+            Optimization pyABC history objects (e.g. controls and patients)
+        ax: matplotlib.Axes
+            (optional) Axis to draw the figure.
+        args: argparse.Namespace
+            (optional) Extra arguments (for saving, etc).
+
+    """ 
     n_hist = len(histories)
     if ax==None:
         fig = plt.figure(figsize=[5, 5])
@@ -67,14 +79,30 @@ def plot_epsilons(histories, ax=None, args=None):
 
 
 def plot_weights(histories, gs=None, nrows=None, ncols=None, row_offset=None, col_offset=None, args=None):
-    """ Plot evolution of weights across generations """ 
+    """ Plot evolution of weights across generations
+    
+    Parameters
+    ----------
+        histories: list
+            Optimization pyABC history objects (e.g. controls and patients)
+        gs: matplotlib.GridSpec
+            (optional) GridSpec object to draw the figure into.
+        nrows, ncols: int
+            number of rows/columns to make the grid.
+        row_offset, col_offset: int
+            offsets to account for when some (top left) entries of the grid should be left empty.
+        args: argparse.Namespace
+            (optional) Extra arguments (e.g. for saving, etc).
+
+    """ 
     n_hist = len(histories)
     n_gen = np.max([h.max_t for h in histories.values()])
     
     if gs==None:
         fig = plt.figure(figsize=[20, 5])
+        nrows,ncols, row_offset, col_offset = 0,0,0,0
         gs = plt.GridSpec(nrows=nrows, ncols=ncols)
-        nrows,ncols = 0,0
+        
     
     for i,(name,history) in enumerate(histories.items()):
         ax_inds = get_ax_inds(nrows, ncols, row_offset=row_offset, col_offset=col_offset)
@@ -129,9 +157,15 @@ def compute_stats(histories, args=None):
     """ Computes the statistics of the optimization outcome, i.e. tests the posterior distributions (parameters) 
     between controls and patients.
 
-    :param histories: list of controls and patient pyABC history objects. 
+    Parameters
+    ---------
+        histories: list
+            Controls and patient pyABC history objects. 
 
-    :returns df_stats: pandas DataFrame of statistics.  
+    Returns
+    -------
+        df_stats: pandas DataFrame 
+            Statistics.  
 
     """
     df_post_con,w_con = histories['controls'].get_distribution(t=9)
@@ -157,8 +191,8 @@ def compute_stats(histories, args=None):
         
         line = "{:15}    t={:8.2f}    p={:.4f}    p_bf={:.4f}    normality(con/pat)={}/{}    \
                 U={:8d}    p={:.4f}    p_bf={:.4f}    H={:8.3f}    p={:.4f}    p_bf={:.4f}    \
-                d={:.4f}    ks={:.2f}    p_ks={:.4f}".format(
-            col,t,p_t,p_t*mc,p_norm_con>0.05,p_norm_pat>0.05,int(u),p_u, p_u*mc,h,p_h,p_h*mc,d,ks_res.statistic, ks_res.pvalue)
+                d={:.4f}    ks={:.2f}    p_ks={:.4f}    p_bf={:.4f}".format(
+            col,t,p_t,p_t*mc,p_norm_con>0.05,p_norm_pat>0.05,int(u),p_u, p_u*mc,h,p_h,p_h*mc,d,ks_res.statistic, ks_res.pvalue, ks_res.pvalue*mc)
         print(line)
         
         df_line = {'param':col, 't':t, 'p_t':p_t, 'p_t_bf':p_t/len(cols), 'normality':(p_norm_con>0.05)&(p_norm_pat>0.05), \
@@ -225,17 +259,89 @@ def custom_plot_epsilons(histories, ax, n_gens=11):
     plt.legend(labels)
 
 
+# -------------------------------------
+# Observed vs simulated stats and plots
+# -------------------------------------
 
-def plot_fc_sim_vs_data(axes=None, args=None):
-    df_base = OCD_modeling.mcmc.get_df_base(args)
-    df_base = OCD_modeling.mcmc.fix_df_base(df_base)
-    df_data = OCD_modeling.mcmc.load_df_data(args)
+def stats_obs_vs_sim(df_data, df_base):
+    """ T-tests within and across cohorts, observed and simulated traces  """ 
+    # prep sim dataframe
+    df_sim = df_base.melt(id_vars=['subj', 'base_cohort'], value_vars=['Acc_OFC', 'Acc_PFC', 'Acc_dPut', 'OFC_PFC', 'dPut_OFC', 'dPut_PFC'], var_name='pathway', value_name='corr')
+    df_sim = df_sim.rename(columns={'base_cohort':'cohort'})
+
+    df_data['type'] = 'observed'
+    df_sim['type'] = 'simulated'
+    df_fc = pd.concat([df_data, df_sim], join='inner', ignore_index=True)
+
+    pathways = ['Acc_OFC', 'Acc_PFC', 'Acc_dPut', 'OFC_PFC', 'dPut_OFC', 'dPut_PFC']
+    stats = dict((pathway,dict()) for pathway in pathways)
+    print("================")
+    print("TWO-FACTOR ANOVA")
+    print("================")
+    for pathway in df_fc.pathway.unique():
+        print(pathway)
+        aov = pg.anova(data=df_fc[df_fc.pathway==pathway], between=['cohort', 'type'], dv='corr')
+        pg.print_table(aov)
+        stats[pathway]['aov'] = aov
+
+    print("=============")
+    print("WELCH T-TESTS")
+    print("=============")
+    for pathway in pathways:
+        print(pathway)
+        df_tmp = df_fc[df_fc.pathway==pathway]
+        cc = pg.ttest(df_tmp[(df_tmp.cohort=='controls') & (df_tmp.type=='observed')]['corr'], df_tmp[(df_tmp.cohort=='controls') & (df_tmp.type=='simulated')]['corr'])
+        print("con-con -- obs-sim   T={:.2f}   p={:.4f}   d={:.2f}".format(cc['T'][0], cc['p-val'][0], cc['cohen-d'][0]))
+        pp = pg.ttest(df_tmp[(df_tmp.cohort=='patients') & (df_tmp.type=='observed')]['corr'], df_tmp[(df_tmp.cohort=='patients') & (df_tmp.type=='simulated')]['corr'])
+        print("pat-pat -- obs-sim   T={:.2f}   p={:.4f}   d={:.2f}".format(pp['T'][0], pp['p-val'][0], pp['cohen-d'][0]))
+        cpo = pg.ttest(df_tmp[(df_tmp.cohort=='controls') & (df_tmp.type=='observed')]['corr'], df_tmp[(df_tmp.cohort=='patients') & (df_tmp.type=='observed')]['corr'])
+        print("con-pat -- obs-obs   T={:.2f}   p={:.4f}   d={:.2f}".format(cpo['T'][0], cpo['p-val'][0], cpo['cohen-d'][0]))
+        cps = pg.ttest(df_tmp[(df_tmp.cohort=='controls') & (df_tmp.type=='simulated')]['corr'], df_tmp[(df_tmp.cohort=='patients') & (df_tmp.type=='simulated')]['corr'])
+        print("con-pat -- sim-sim   T={:.2f}   p={:.4f}   d={:.2f}".format(cps['T'][0], cps['p-val'][0], cps['cohen-d'][0]))
+        os = pg.ttest(df_tmp[(df_tmp.type=='observed')]['corr'], df_tmp[(df_tmp.type=='simulated')]['corr'])
+        print("obs-sim   T={:.2f}   p={:.4f}   d={:.2f}".format(cps['T'][0], cps['p-val'][0], cps['cohen-d'][0]))
+        print("\n")
+
+        stats[pathway]['cc'], stats[pathway]['pp'], stats[pathway]['cpo'], stats[pathway]['cps'], stats[pathway]['os'] = cc, pp, cpo, cps, os
+
+    return stats
+
+def plot_fc_sim_vs_data(df_data, df_base, stats, axes=None, args=None):
+    """ Plot functional connectivity (Pearson correlation) across the frontostriatal regions of interests 
+    in empirical and simulated data. 
+    
+    Parameters
+    ----------
+        df_data: pandas.DataFrame
+            Empirical data extracted from fMRI in OCD subjects and healthy controls.
+        df_base: pandas.DataFrame
+            Simulated data using parameters infered from posterior distributions (either only OCD parameters  
+            or only controls, no permutation to model virtual intervention).
+        stats: dict
+            (deprecated) Statistics within and between cohorts for both empirical and simulated data (deprecated 
+            since now stats are directly computed within plotting function).
+        axes: list of matplotlib.Axes
+            (optional) List of axes to plot data (if embedded in other figure, otherwise create new figure).
+        args: argparse.Namespace
+            (optional) Extra arguments (e.g. for saving, etc).
+    
+    """ 
     
     palette = {'controls': 'lightblue', 'patients': 'orange'}
     pathways = ['Acc_OFC', 'Acc_PFC', 'Acc_dPut', 'OFC_PFC', 'dPut_OFC', 'dPut_PFC']
     pathway_names = ['NAcc-OFC', 'NAcc-LPFC', 'NAcc-dPut', 'OFC-LPFC', 'dPut-OFC', 'dPut-LPFC']
     df_tmp = df_base.iloc[:384].melt(id_vars=['subj', 'base_cohort'], value_vars=pathways, var_name='pathway', value_name='corr')
+    df_tmp = df_tmp.rename(columns={'base_cohort':'cohort'})
 
+    # select n random simulations for each cohort
+    n = 50 
+    cons = df_tmp[df_tmp.cohort=='controls'].subj.unique()
+    cons = cons[np.random.permutation(len(cons))][:n]
+    pats = df_tmp[df_tmp.cohort=='patients'].subj.unique()
+    pats = pats[np.random.permutation(len(pats))][:n]
+    subjs = np.concatenate([cons, pats])
+    df_tmp = df_tmp[df_tmp.subj.isin(subjs)]
+    
     if axes==None:
         plt.figure(figsize=[10,3])
         ax_data = plt.subplot(1,2,1)
@@ -245,6 +351,15 @@ def plot_fc_sim_vs_data(axes=None, args=None):
     else:
         ax_data = axes['data']
         ax_sim = axes['sim']
+
+
+    def plot_stats_stars(df, ax, y_level=0.5):
+        """ Add stars on top of plots for stats significance """ 
+        for i,pathway in enumerate(pathways):
+            ttest = scipy.stats.ttest_ind(np.array(df[(df.pathway==pathway) & (df.cohort=='controls')]['corr']), 
+                                np.array(df[(df.pathway==pathway) & (df.cohort=='patients')]['corr']))
+            if ttest.pvalue<(0.05/len(pathways)):
+                ax.plot(i,y_level, '*', color='black')
 
     # DATA
     # ----
@@ -260,6 +375,7 @@ def plot_fc_sim_vs_data(axes=None, args=None):
     ax_data.legend().set_visible(False)
     ax_data.spines.top.set_visible(False)
     ax_data.spines.right.set_visible(False)
+    plot_stats_stars(df_data, ax=ax_data, y_level=0.45)
     ax_data.set_title('Observed')
     ax_data.set_ylim([-0.35, 0.5])
     ax_data.set_ylabel('R', fontsize=12)
@@ -269,8 +385,10 @@ def plot_fc_sim_vs_data(axes=None, args=None):
 
     # SIMULATION
     # ----------
-    sbn.swarmplot(data=df_tmp, x='pathway', y='corr', hue='base_cohort', 
-                           ax=ax_sim, size=1.5, dodge=True, palette=palette, hue_order=['controls', 'patients'])
+    #sbn.swarmplot(data=df_tmp, x='pathway', y='corr', hue='base_cohort', 
+    #                       ax=ax_sim, size=1.5, dodge=True, palette=palette, hue_order=['controls', 'patients'])
+    sbn.swarmplot(data=df_tmp, x='pathway', y='corr', hue='cohort', 
+                           ax=ax_sim, size=2.8, dodge=True, palette=palette, hue_order=['controls', 'patients'])
     #plt.xticks(rotation=30, ha='right', rotation_mode='anchor')
     for label in ax_sim.get_xticklabels():
         label.set_rotation(30)
@@ -282,6 +400,7 @@ def plot_fc_sim_vs_data(axes=None, args=None):
     ax_sim.spines.right.set_visible(False)
     ax_sim.spines.left.set_visible(False)
     ax_sim.set_yticks([])
+    plot_stats_stars(df_tmp, ax=ax_sim, y_level=0.45)
     ax_sim.set_title('Simulated')
     ax_sim.set_ylim([-0.35, 0.5])
     ax_sim.set_ylabel('')
@@ -413,7 +532,7 @@ def plot_epsilons_weights(histories, args):
     plt.show()
 
 
-def parse_arguments():
+def get_history_parser():
     " Script arguments when ran as main " 
     parser = argparse.ArgumentParser()
     
@@ -439,12 +558,12 @@ def parse_arguments():
     parser.add_argument('--plot_kdes', default=False, action='store_true', help='plot KDEs of optimzed params')
     parser.add_argument('--plot_fc_sim_vs_data', default=False, action='store_true', help='plot FC of inference from optimization vs real data')
     parser.add_argument('--simulate_posterior_modes', default=False, action='store_true', help='run simulations with at posterior distributions modes ')
-    args = parser.parse_args()
-    return args
+    
+    return parser
 
 
 if __name__=='__main__':
-    args = parse_arguments()
+    args = get_history_parser().parse_args()
     
     histories = import_results(args)
     
@@ -460,6 +579,7 @@ if __name__=='__main__':
         plot_kde_matrix(histories, args)
 
     if args.plot_stats:
+        # posterior distributions stats
         df_stats = compute_stats(histories, args)
     
     if args.compute_kdes:
@@ -468,7 +588,15 @@ if __name__=='__main__':
         plot_kdes(kdes, cols, df_stats, histories=histories, args=args)
 
     if args.plot_fc_sim_vs_data:
-        plot_fc_sim_vs_data(args=args)
+        # load simulated and observed data
+        df_base = OCD_modeling.mcmc.get_df_base(args)
+        df_base = OCD_modeling.mcmc.fix_df_base(df_base)
+        df_data = OCD_modeling.mcmc.load_df_data(args)
+    
+        # observed vs simulated stats
+        stats = stats_obs_vs_sim(df_data, df_base)
+
+        plot_fc_sim_vs_data(df_data, df_base, stats, args=args)
 
     if args.simulate_posterior_modes:
         kde_peaks = get_kde_peaks(kdes)

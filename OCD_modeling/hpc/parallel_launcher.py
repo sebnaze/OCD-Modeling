@@ -19,7 +19,24 @@ from OCD_modeling.models import ReducedWongWang as RWW
 from OCD_modeling.utils.utils import *
 
 def run_sim(model_pars, sim_pars, control_pars={}, bold_pars={}):
-    """ Run a single simulation """
+    """ Run a single simulation.
+    
+    Parameters
+    ----------
+        model_pars: dict
+            Model parameters (e.g. couplings, noise, external inputs, etc.)
+        sim_pars: dict
+            Simulation parameters (e.g. simulation time, reccording intervals, sampling frequency, etc.)
+        control_pars: dict
+            Control parameters. In case parameters needs to be manually updated throughout the simulation,
+            provide the parameters' timeseries here.
+        bold_pars: dict
+
+    Returns
+    -------
+        rww_sim: OCD_modeling.models.ReducedWongWangOU
+            Simulation object, containing raw and processed data (BOLD timeseries, functional connectivity, transitions).
+    """
     # run simulation 
     rww_sim = RWW.ReducedWongWangOU(**model_pars)
     rww_sim.set_control_params(control_pars)
@@ -39,7 +56,19 @@ def launch_simulations(args):
 
 
 def launch_pool_simulations(args):
-    """ Launch N simulations in parallel using a Pool Executor """
+    """ Launch N simulations in parallel using a Pool Executor. 
+    
+    Parameters
+    ----------
+        args: Argparse.Namespace
+            Structure containing the information of the siumulation to be performed: 
+            model, simulation, control and BOLD parameters.
+
+    Returns
+    -------
+        sim_objs: list of OCD_modeling.models.ReducedWongWangOU
+            Simulation objects after processing.
+    """
     #sim_objs = []
     with ProcessPoolExecutor(max_workers=args.n_jobs, mp_context=multiprocessing.get_context('spawn')) as pool:
     #with ProcessPoolExecutor(max_workers=args.n_jobs) as pool:
