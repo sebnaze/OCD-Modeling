@@ -8,6 +8,6 @@ setup(name='OCD_modeling',
       ventro-dorsal dynamics in obsessive-compulsive disorder.',
       author='Sebastien Naze',
       author_email='sebastien.naze@gmail.com',
-      url='www.github.com',
+      url='https://github.com/sebnaze/OCD-Modeling',
       packages=find_packages(),
      )
