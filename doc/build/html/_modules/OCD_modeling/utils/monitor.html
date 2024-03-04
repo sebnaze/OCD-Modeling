@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OCD_modeling.utils.monitor &mdash; OCD modeling  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            OCD modeling
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dynamical_analysis.html">Dynamical system analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../optimization.html">Simulation-based inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../restoration.html">Restoration analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../validation.html">Digital twins validation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">OCD modeling</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">OCD_modeling.utils.monitor</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for OCD_modeling.utils.monitor</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Monitor optimization resource usage</span>
+<span class="c1">#</span>
+<span class="c1"># OCD Modeling project</span>
+<span class="c1">#</span>
+<span class="c1"># Sebastien Naze</span>
+<span class="c1"># QIMR 2023</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">psutil</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sbn</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+
+<span class="kn">import</span> <span class="nn">OCD_modeling</span>
+<span class="kn">from</span> <span class="nn">OCD_modeling.utils.utils</span> <span class="kn">import</span> <span class="o">*</span>
+
+<div class="viewcode-block" id="monitor">
+<a class="viewcode-back" href="../../../api/OCD_modeling.utils.html#OCD_modeling.utils.monitor">[docs]</a>
+<span class="k">def</span> <span class="nf">monitor</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Performs the monitoring &quot;&quot;&quot;</span> 
+    <span class="n">logs</span> <span class="o">=</span> <span class="p">[]</span> 
+    <span class="n">t0</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;traces&#39;</span><span class="p">,</span> <span class="s2">&quot;.logmonitor</span><span class="si">{}</span><span class="s2">.json&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">t0</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;_%Y%m</span><span class="si">%d</span><span class="s1">_%H%M&#39;</span><span class="p">)))</span>
+    <span class="k">while</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="c1"># exit if reached end time</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">time</span><span class="o">!=</span><span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">now</span><span class="o">-</span><span class="n">t0</span><span class="p">)</span><span class="o">.</span><span class="n">seconds</span> <span class="o">&gt;</span> <span class="n">args</span><span class="o">.</span><span class="n">time</span><span class="p">:</span>
+                <span class="k">break</span>
+        
+        <span class="n">infos</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">proc</span> <span class="ow">in</span> <span class="n">psutil</span><span class="o">.</span><span class="n">process_iter</span><span class="p">([</span><span class="s1">&#39;pid&#39;</span><span class="p">,</span> <span class="s1">&#39;username&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;cpu_percent&#39;</span><span class="p">,</span> <span class="s1">&#39;cpu_times&#39;</span><span class="p">,</span> <span class="s1">&#39;memory_info&#39;</span><span class="p">]):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;abc&#39;</span> <span class="ow">in</span> <span class="n">proc</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span> <span class="ow">and</span> <span class="p">(</span><span class="s1">&#39;seb&#39;</span> <span class="ow">in</span> <span class="n">proc</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;username&#39;</span><span class="p">]):</span>
+                <span class="n">infos</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">proc</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
+
+        <span class="n">ncpus</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;cpu_percent&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">infos</span><span class="p">])</span><span class="o">/</span><span class="mi">100</span>
+        <span class="n">rss</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;memory_info&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">rss</span> <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">infos</span><span class="p">)</span><span class="o">/</span><span class="mi">1000000000</span>
+        <span class="n">rss_not_shared</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">((</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;memory_info&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">rss</span> <span class="o">-</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;memory_info&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shared</span><span class="p">)</span> <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">infos</span><span class="p">)</span><span class="o">/</span><span class="mi">1000000000</span>
+
+        <span class="n">line</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">now</span><span class="p">),</span> <span class="s1">&#39;ncpus&#39;</span><span class="p">:</span><span class="n">ncpus</span><span class="p">,</span> <span class="s1">&#39;mem&#39;</span><span class="p">:</span><span class="n">rss</span><span class="p">,</span> <span class="s1">&#39;mem_not_shared&#39;</span><span class="p">:</span><span class="n">rss_not_shared</span><span class="p">}</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="s1">&#39;a+&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">, ncpu=</span><span class="si">{:.2f}</span><span class="s2">, mem=</span><span class="si">{:.2f}</span><span class="s2">Gb, mem(excl. shared)=</span><span class="si">{:.2f}</span><span class="s2">Gb&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">now</span><span class="p">,</span> <span class="n">ncpus</span><span class="p">,</span> <span class="n">rss</span><span class="p">,</span> <span class="n">rss_not_shared</span><span class="p">))</span>
+        
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">interval</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="plot_monitoring">
+<a class="viewcode-back" href="../../../api/OCD_modeling.utils.html#OCD_modeling.utils.plot_monitoring">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_monitoring</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; display traces of monitored activity &quot;&quot;&quot;</span>
+    <span class="n">args</span>
+    <span class="n">logs</span><span class="o">=</span><span class="p">[]</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;traces/.logmonitor_</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">log_id</span><span class="si">}</span><span class="s1">.json&#39;</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">():</span>
+            <span class="n">log</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+            <span class="n">log</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">log</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">],</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S.</span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">log</span><span class="p">)</span>
+    
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">16</span><span class="p">,</span><span class="mi">4</span><span class="p">])</span>
+    <span class="n">logs_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">logs</span><span class="p">)</span>
+    <span class="n">sbn</span><span class="o">.</span><span class="n">lineplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">logs_df</span><span class="p">,</span> <span class="n">id_vars</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">],</span> <span class="n">value_vars</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;ncpus&#39;</span><span class="p">,</span> <span class="s1">&#39;mem&#39;</span><span class="p">,</span> <span class="s1">&#39;mem_not_shared&#39;</span><span class="p">]),</span> <span class="n">x</span><span class="o">=</span><span class="s1">&#39;time&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="s1">&#39;variable&#39;</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span><span class="o">==</span><span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--time&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;time to monitor (in sec). default: until process is stopped&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--interval&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;sampling period (in seconds). default: every second&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--verbose&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;show monitor in stdout&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--log_id&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;used to read saved log (format YYYYMMDD_hhmm)&#39;</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">log_id</span><span class="o">!=</span><span class="kc">None</span><span class="p">:</span>
+        <span class="n">plot_monitoring</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">monitor</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Sebastien Naze.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

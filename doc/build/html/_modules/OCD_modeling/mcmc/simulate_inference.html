@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OCD_modeling.mcmc.simulate_inference &mdash; OCD modeling  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            OCD modeling
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dynamical_analysis.html">Dynamical system analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../optimization.html">Simulation-based inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../restoration.html">Restoration analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../validation.html">Digital twins validation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">OCD modeling</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">OCD_modeling.mcmc.simulate_inference</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for OCD_modeling.mcmc.simulate_inference</h1><div class="highlight"><pre>
+<span></span><span class="c1">### Create new simulations from inference of posterior distributions</span>
+<span class="c1">##  Author: Sebastien Naze</span>
+<span class="c1">#   QIMR 2023</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ProcessPoolExecutor</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span> 
+<span class="c1">#import duckdb</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">os</span> 
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">pdb</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">pyabc</span>
+<span class="kn">import</span> <span class="nn">scipy</span>
+<span class="kn">import</span> <span class="nn">sklearn</span>
+<span class="kn">import</span> <span class="nn">sqlite3</span>
+<span class="c1">#import sqlalchemy as sl</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">time</span>
+
+<span class="kn">import</span> <span class="nn">OCD_modeling</span>
+<span class="c1"># import most relevant environment and project variable</span>
+<span class="kn">from</span> <span class="nn">OCD_modeling.utils.utils</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">OCD_modeling.mcmc.history_analysis</span> <span class="kn">import</span> <span class="n">import_results</span><span class="p">,</span> <span class="n">compute_kdes</span>
+<span class="kn">from</span> <span class="nn">OCD_modeling.mcmc.abc_hpc</span> <span class="kn">import</span> <span class="n">get_default_params</span><span class="p">,</span> <span class="n">unpack_params</span>
+<span class="kn">from</span> <span class="nn">OCD_modeling.models.ReducedWongWang</span> <span class="kn">import</span> <span class="n">create_sim_df</span>
+
+<span class="k">def</span> <span class="nf">batched</span><span class="p">(</span><span class="n">iterable</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+    <span class="s2">&quot;Batch data into lists of length n. The last batch may be shorter.&quot;</span>
+    <span class="c1"># batched(&#39;ABCDEFG&#39;, 3) --&gt; ABC DEF G</span>
+    <span class="n">it</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">iterable</span><span class="p">)</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">batch</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">islice</span><span class="p">(</span><span class="n">it</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">batch</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">yield</span> <span class="n">batch</span>
+
+<div class="viewcode-block" id="create_params">
+<a class="viewcode-back" href="../../../api/OCD_modeling.mcmc.html#OCD_modeling.create_params">[docs]</a>
+<span class="k">def</span> <span class="nf">create_params</span><span class="p">(</span><span class="n">kdes</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">test_params</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; creates n_sims new parameters from posetrior distribution of base cohort &quot;&quot;&quot;</span>
+    <span class="n">model_params</span><span class="p">,</span> <span class="n">sim_params</span><span class="p">,</span> <span class="n">control_params</span><span class="p">,</span> <span class="n">bold_params</span> <span class="o">=</span> <span class="p">[],[],[],[]</span> <span class="c1"># not most elegant but fine for now</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># to keep formatted parameters easier to convert to DataFrame</span>
+    <span class="c1"># create a new dict of params to unpack</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">n_sims</span><span class="p">):</span>
+        <span class="n">param</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">cols</span><span class="p">:</span>
+            <span class="n">param</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">kdes</span><span class="p">[</span><span class="n">args</span><span class="o">.</span><span class="n">base_cohort</span><span class="p">][</span><span class="n">col</span><span class="p">][</span><span class="s1">&#39;kde&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">test_params</span><span class="p">:</span>
+                <span class="n">param</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">kdes</span><span class="p">[</span><span class="n">args</span><span class="o">.</span><span class="n">test_cohort</span><span class="p">][</span><span class="n">col</span><span class="p">][</span><span class="s1">&#39;kde&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+        <span class="n">model_pars</span><span class="p">,</span> <span class="n">sim_pars</span><span class="p">,</span> <span class="n">ctl_pars</span><span class="p">,</span> <span class="n">bold_pars</span> <span class="o">=</span> <span class="n">unpack_params</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+        
+        <span class="c1"># put those params in format digestable by pool.map</span>
+        <span class="n">model_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model_pars</span><span class="p">)</span>
+        <span class="n">sim_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sim_pars</span><span class="p">)</span>
+        <span class="n">control_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ctl_pars</span><span class="p">)</span>
+        <span class="n">bold_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bold_pars</span><span class="p">)</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">model_params</span><span class="p">,</span> <span class="n">sim_params</span><span class="p">,</span> <span class="n">control_params</span><span class="p">,</span> <span class="n">bold_params</span><span class="p">,</span> <span class="n">params</span> </div>
+
+
+
+<div class="viewcode-block" id="write_outputs_to_db">
+<a class="viewcode-back" href="../../../api/OCD_modeling.mcmc.html#OCD_modeling.write_outputs_to_db">[docs]</a>
+<span class="k">def</span> <span class="nf">write_outputs_to_db</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">test_params</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Write output of simulation inference into SQLite database &quot;&quot;&quot;</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+    <span class="n">dbpath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;postprocessing&#39;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">db_name</span><span class="o">+</span><span class="s1">&#39;.db&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">dbpath</span><span class="p">,</span> <span class="n">isolation_level</span><span class="o">=</span><span class="s1">&#39;EXCLUSIVE&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">timeout</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+    <span class="c1">#engine = sl.create_engine(&quot;duckdb:///&quot;+dbpath)</span>
+    <span class="c1">#sl.MetaData().create_all(engine)</span>
+    <span class="c1">#with engine.connect() as conn:</span>
+        <span class="c1"># may need this to acquire exclusive lock from beginning</span>
+        <span class="c1">#conn.execute(&quot;BEGIN IMMEDIATE&quot;)</span>
+        <span class="c1"># if table not exitsing in db, it will create it at he end of the function</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT count(*) FROM sqlite_master WHERE type=&#39;table&#39; AND name=&#39;SIMTEST&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+            <span class="n">cnt</span><span class="o">=</span><span class="mi">0</span>
+            <span class="n">idx</span><span class="o">=</span><span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># get how many simulations in db</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT COUNT(*) FROM SIMTEST WHERE base_cohort=&#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">base_cohort</span><span class="p">))</span>
+            <span class="n">cnt</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot; SELECT COUNT(*) FROM SIMTEST &quot;</span><span class="p">)</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># get FC from simulations</span>
+        <span class="n">df_sims</span> <span class="o">=</span> <span class="n">create_sim_df</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">sim_type</span><span class="o">=</span><span class="s1">&#39;sim-&#39;</span><span class="o">+</span><span class="n">args</span><span class="o">.</span><span class="n">base_cohort</span><span class="p">[:</span><span class="mi">3</span><span class="p">],</span> <span class="n">offset</span><span class="o">=</span><span class="n">cnt</span><span class="p">)</span>
+        <span class="n">df_sims</span> <span class="o">=</span> <span class="n">df_sims</span><span class="o">.</span><span class="n">pivot</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;subj&#39;</span><span class="p">,</span> <span class="s1">&#39;cohort&#39;</span><span class="p">],</span> <span class="n">columns</span><span class="o">=</span><span class="s1">&#39;pathway&#39;</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="s1">&#39;corr&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+        <span class="n">df_sims</span><span class="p">[</span><span class="s1">&#39;base_cohort&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">base_cohort</span>
+        <span class="n">df_sims</span><span class="p">[</span><span class="s1">&#39;test_cohort&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">test_cohort</span>
+        <span class="n">df_sims</span><span class="p">[</span><span class="s1">&#39;test_param&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_params</span><span class="p">)</span>
+
+        <span class="c1"># get associated parameters</span>
+        <span class="n">df_params</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">df_sims</span> <span class="o">=</span> <span class="n">df_sims</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">df_params</span><span class="p">)</span>
+        <span class="c1">#pars = dict((col,[]) for col in cols)</span>
+        <span class="c1">#for param in params:</span>
+        <span class="c1">#    for par,val in param.items():</span>
+        <span class="c1">#        pars[par].append(val)</span>
+        <span class="c1">#for col,vals in pars.items():</span>
+        <span class="c1">#    df_sims[col] = np.repeat(vals,6) # create_sim_df return a dataframe with 6 rows per simulation</span>
+
+        <span class="c1"># save in DB</span>
+        <span class="n">df_sims</span><span class="o">.</span><span class="n">to_sql</span><span class="p">(</span><span class="s1">&#39;SIMTEST&#39;</span><span class="p">,</span> <span class="n">conn</span><span class="p">,</span> <span class="n">if_exists</span><span class="o">=</span><span class="s1">&#39;append&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;multi&#39;</span><span class="p">)</span>
+    <span class="n">conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;took </span><span class="si">{:.3f}</span><span class="s2">s&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">t</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="launch_sims_parallel">
+<a class="viewcode-back" href="../../../restoration.html#OCD_modeling.launch_sims_parallel">[docs]</a>
+<span class="k">def</span> <span class="nf">launch_sims_parallel</span><span class="p">(</span><span class="n">kdes</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">test_params</span><span class="o">=</span><span class="p">[],</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Run batched simulations from posterior inference in parallel:</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        kdes: dict</span>
+<span class="sd">            Kernel Density Estimates from optimization (structured as kdes[cohort][param])</span>
+<span class="sd">        cols: list</span>
+<span class="sd">            Parameters (columns) which draw samples from KDEs (otherwise default values are used)</span>
+<span class="sd">        test_params: list</span>
+<span class="sd">            Parameters for which the posterior is permuted for the virtual interventions.</span>
+<span class="sd">        args: argparse.Namespace</span>
+<span class="sd">            Extra arguments with options.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">        None. Output of the simulations are written into the local SQLite database.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">model_params</span><span class="p">,</span> <span class="n">sim_params</span><span class="p">,</span> <span class="n">control_params</span><span class="p">,</span> <span class="n">bold_params</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">create_params</span><span class="p">(</span><span class="n">kdes</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">test_params</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+    <span class="n">tot_batches</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">n_sims</span><span class="o">/</span><span class="n">args</span><span class="o">.</span><span class="n">n_batch</span><span class="p">))</span>
+    <span class="n">batch_number</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starting a pool of </span><span class="si">{}</span><span class="s2"> workers to run </span><span class="si">{}</span><span class="s2"> simulation(s) by batches of </span><span class="si">{}</span><span class="s2"> with test parameters </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">n_jobs</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">n_sims</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">n_batch</span><span class="p">,</span> <span class="n">test_params</span><span class="p">))</span>
+    <span class="k">with</span> <span class="n">ProcessPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">n_jobs</span><span class="p">,</span> <span class="n">mp_context</span><span class="o">=</span><span class="n">multiprocessing</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;spawn&#39;</span><span class="p">))</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span> 
+        <span class="k">for</span> <span class="n">model_pars</span><span class="p">,</span> <span class="n">sim_pars</span><span class="p">,</span><span class="n">control_pars</span><span class="p">,</span> <span class="n">bold_pars</span><span class="p">,</span> <span class="n">pars</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">batched</span><span class="p">(</span><span class="n">model_params</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">n_batch</span><span class="p">),</span> 
+                                                                        <span class="n">batched</span><span class="p">(</span><span class="n">sim_params</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">n_batch</span><span class="p">),</span> 
+                                                                        <span class="n">batched</span><span class="p">(</span><span class="n">control_params</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">n_batch</span><span class="p">),</span> 
+                                                                        <span class="n">batched</span><span class="p">(</span><span class="n">bold_params</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">n_batch</span><span class="p">),</span> 
+                                                                        <span class="n">batched</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">n_batch</span><span class="p">)):</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+            <span class="n">sim_objs</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">OCD_modeling</span><span class="o">.</span><span class="n">hpc</span><span class="o">.</span><span class="n">parallel_launcher</span><span class="o">.</span><span class="n">run_sim</span><span class="p">,</span> 
+                                <span class="n">model_pars</span><span class="p">,</span> <span class="n">sim_pars</span><span class="p">,</span> <span class="n">control_pars</span><span class="p">,</span> <span class="n">bold_pars</span><span class="p">)</span>
+            <span class="n">outputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sim_objs</span><span class="p">)</span>
+            <span class="n">write_outputs_to_db</span><span class="p">(</span><span class="n">pars</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">test_params</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;    Batch </span><span class="si">{}</span><span class="s2">/</span><span class="si">{}</span><span class="s2"> done for test_params </span><span class="si">{}</span><span class="s2"> in </span><span class="si">{:.2f}</span><span class="s2">s.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">batch_number</span><span class="p">,</span> <span class="n">tot_batches</span><span class="p">,</span> <span class="n">test_params</span><span class="p">,</span> <span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">t</span><span class="p">))</span>
+            <span class="n">batch_number</span> <span class="o">+=</span> <span class="mi">1</span></div>
+
+    
+        
+<span class="k">def</span> <span class="nf">get_test_params</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; either get test params from command line arguments or from file &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">test_params_index</span><span class="o">==</span><span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Note: if args.test_params=None, then it is propagated purposefully as it is handled as a special case</span>
+        <span class="n">test_params</span> <span class="o">=</span> <span class="n">cols</span> <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">test_params</span><span class="o">==</span><span class="p">[]</span> <span class="k">else</span> <span class="n">args</span><span class="o">.</span><span class="n">test_params</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;postprocessing&#39;</span><span class="p">,</span> <span class="s1">&#39;nan_params.pkl&#39;</span><span class="p">),</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">combinations</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="n">test_params</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">combinations</span><span class="p">[</span><span class="n">args</span><span class="o">.</span><span class="n">test_params_index</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">test_params</span>
+
+
+<span class="k">def</span> <span class="nf">parse_arguments</span><span class="p">():</span>
+    <span class="s2">&quot; Script arguments when ran as main &quot;</span> 
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--save_figs&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;save figures&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--save_outputs&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;save outputs&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--n_jobs&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;number of parallel processes launched&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--n_sims&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;number of simulations ran with the same parameters (e.g. to get distribution that can be campared to clinical observations)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--n_batch&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;number of simulations ran with the same parameters (e.g. to get distribution that can be campared to clinical observations)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--gens&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">list</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="p">[],</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;generation of the optimization (list, must be same length as histories)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--plot_figs&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;plot figures&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--histories&#39;</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="s1">&#39;+&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;optimizations to analyse and compare&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--history_names&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">list</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;controls&#39;</span><span class="p">,</span> <span class="s1">&#39;patients&#39;</span><span class="p">],</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;names given to each otpimization loaded&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--save_kdes&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;save KDEs&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--db_name&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;identifier of the sqlite3 database&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--base_cohort&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;controls&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Cohort from which to infer posterior as default&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--test_cohort&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;patients&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Cohort from which to infer posterior of individual params&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--test_params&#39;</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="s1">&#39;+&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="p">[],</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;posterior parameter to swap between base and test cohort, if empty list then all params are tested&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--test_params_index&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;if using a external file for test parameters, use line index &#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--timeout&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">1800</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;timeout for DB writting in parallel&quot;</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">args</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span><span class="o">==</span><span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parse_arguments</span><span class="p">()</span>
+    <span class="c1"># load histories and KDEs</span>
+    <span class="n">histories</span> <span class="o">=</span> <span class="n">import_results</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">kdes</span><span class="p">,</span><span class="n">cols</span> <span class="o">=</span> <span class="n">compute_kdes</span><span class="p">(</span><span class="n">histories</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="n">test_params</span> <span class="o">=</span> <span class="n">get_test_params</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    
+    <span class="n">launch_sims_parallel</span><span class="p">(</span><span class="n">kdes</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">test_params</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Sebastien Naze.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

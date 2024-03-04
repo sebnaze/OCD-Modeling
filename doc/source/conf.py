@@ -12,7 +12,7 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../'))
+sys.path.insert(0, os.path.abspath('../../code'))
 
 
 # -- Project information -----------------------------------------------------
@@ -53,6 +53,8 @@ extensions = [
     'sphinxcontrib.jquery',
     # generate autodoc for argument parsing in scripts
     'sphinxarg.ext',
+    # video/movie
+    'sphinxcontrib.video',
 ]
 
 # default autodoc options
@@ -93,6 +95,7 @@ exclude_patterns = []
 #
 # html_theme = 'alabaster'
 html_theme = 'sphinx_rtd_theme'
+#html_theme = 'furo'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

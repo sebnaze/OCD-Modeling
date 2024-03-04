@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulation-based inference &mdash; OCD modeling  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Restoration analysis" href="restoration.html" />
+    <link rel="prev" title="Dynamical system analysis" href="dynamical_analysis.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            OCD modeling
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dynamical_analysis.html">Dynamical system analysis</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Simulation-based inference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#parameter-optimization">Parameter optimization</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.simulate_population_rww"><code class="docutils literal notranslate"><span class="pre">simulate_population_rww()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.hpc.launch_pool_simulations"><code class="docutils literal notranslate"><span class="pre">launch_pool_simulations()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.hpc.run_sim"><code class="docutils literal notranslate"><span class="pre">run_sim()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#history-analysis">History analysis</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.compute_kdes"><code class="docutils literal notranslate"><span class="pre">compute_kdes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.plot_kdes"><code class="docutils literal notranslate"><span class="pre">plot_kdes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.compute_stats"><code class="docutils literal notranslate"><span class="pre">compute_stats()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.plot_weights"><code class="docutils literal notranslate"><span class="pre">plot_weights()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.plot_epsilons"><code class="docutils literal notranslate"><span class="pre">plot_epsilons()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#synthetic-dataset">Synthetic dataset</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.launch_sims_parallel"><code class="docutils literal notranslate"><span class="pre">launch_sims_parallel()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.plot_fc_sim_vs_data"><code class="docutils literal notranslate"><span class="pre">plot_fc_sim_vs_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#named-arguments">Named Arguments</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="restoration.html">Restoration analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Digital twins validation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">OCD modeling</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Simulation-based inference</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/optimization.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="simulation-based-inference">
+<h1>Simulation-based inference<a class="headerlink" href="#simulation-based-inference" title="Link to this heading"></a></h1>
+<section id="parameter-optimization">
+<h2>Parameter optimization<a class="headerlink" href="#parameter-optimization" title="Link to this heading"></a></h2>
+<p>We perform parameter optimization using Approximate Bayesian Computation with a Sequential Monte-Carlo algorithm (ABC-SMC) implemented in the <a class="reference external" href="https://pyabc.readthedocs.io/">pyABC</a> toolbox (Klinger et al., 2022).</p>
+<p>We exploited the computational power offered by our high-performance computing infrastructure by instanciating a REDIS server, which handled the I/O and provided a lightweight database accessible by the worker nodes.
+For more information, visit <a class="reference external" href="https://pyabc.readthedocs.io/en/latest/api/pyabc.sampler.html#pyabc.sampler.RedisEvalParallelSampler">https://pyabc.readthedocs.io/en/latest/api/pyabc.sampler.html#pyabc.sampler.RedisEvalParallelSampler</a>.</p>
+<p>Once the server is set up, we instanciate and run the ABC-SMC, which is the core class of the toolbox:
+<a class="reference external" href="https://pyabc.readthedocs.io/en/latest/api/pyabc.inference.html">https://pyabc.readthedocs.io/en/latest/api/pyabc.inference.html</a></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">run_abc</span><span class="p">(</span><span class="n">prior</span><span class="p">,</span> <span class="n">cfg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Setup and run the Approximate Bayesian Computation.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        prior: pyABC.Distribution</span>
+<span class="sd">            Prior distributions of parameters.</span>
+<span class="sd">        cfg: Argparse.Namespace</span>
+<span class="sd">            Server configuration information.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">        history: pyABC.History</span>
+<span class="sd">            Output of the optimization, i.e. population parameters of accepted particles and summary statistics. </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">trace_name</span> <span class="o">=</span> <span class="s1">&#39;rww4D_OU_HPC_&#39;</span><span class="o">+</span><span class="n">today</span><span class="p">()</span>
+    <span class="c1">#sampler = pyabc.sampler.MulticoreEvalParallelSampler(n_procs=1)  # used for calibrating on local machine before portage to HPC</span>
+    <span class="n">sampler</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">sampler</span><span class="o">.</span><span class="n">RedisEvalParallelSampler</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="n">cfg</span><span class="p">[</span><span class="s1">&#39;redis_ip&#39;</span><span class="p">],</span> <span class="n">port</span><span class="o">=</span><span class="mi">6379</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="n">cfg</span><span class="p">[</span><span class="s1">&#39;pssr&#39;</span><span class="p">])</span>
+    <span class="n">sampler</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">abc</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">ABCSMC</span><span class="p">(</span><span class="n">simulate_population_rww</span><span class="p">,</span> <span class="n">prior</span><span class="p">,</span> <span class="n">RWW</span><span class="o">.</span><span class="n">distance</span><span class="p">,</span> <span class="n">sampler</span><span class="o">=</span><span class="n">sampler</span><span class="p">,</span> <span class="n">population_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">max_nr_recorded_particles</span><span class="o">=</span><span class="mi">20000</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">resume_opt</span><span class="o">==</span><span class="kc">None</span><span class="p">:</span>
+        <span class="n">abc_id</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">new</span><span class="p">(</span>
+            <span class="s2">&quot;sqlite:///&quot;</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;traces&#39;</span><span class="p">,</span> <span class="n">trace_name</span><span class="o">+</span><span class="s2">&quot;.db&quot;</span><span class="p">),</span>
+            <span class="p">{</span><span class="s2">&quot;RMSE&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>  <span class="c1"># observation # note: here is dummy, the distance function does not use it.</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">abc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;sqlite:///&quot;</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;traces&#39;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">resume_opt</span><span class="o">+</span><span class="s2">&quot;.db&quot;</span><span class="p">),</span> <span class="n">abc_id</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">history</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">max_nr_populations</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span> <span class="n">minimum_epsilon</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">history</span>
+</pre></div>
+</div>
+<p>Each worker node is running simulations (Parent Processes) using parameters generated (by the Master process) and stored in the (REDIS) server.</p>
+<figure class="align-center" id="redis">
+<a class="reference internal image-reference" href="_images/REDIS_diagram.jpg"><img alt="_images/REDIS_diagram.jpg" src="_images/REDIS_diagram.jpg" style="width: 800px;" /></a>
+<figcaption>
+<p><span class="caption-text">Architecture of the parallel optimization.</span><a class="headerlink" href="#redis" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.simulate_population_rww">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">simulate_population_rww</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/abc_hpc.html#simulate_population_rww"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.simulate_population_rww" title="Link to this definition"></a></dt>
+<dd><p>Run a pool of simulations and score their outputs.</p>
+<p>As a design choice, the number of simulations per pool and the number of processes used in parallel are hard coded here
+in a <cite>Argparse.Namespace</cite> object which is propagated to the launcher.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>params</strong> (<em>dict</em>) – Set of parameters are used to instanciate model.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>RMSE</strong> – Root Mean Square Error between the simulated pool (i.e. a “population cohort”)
+and the real data (either “controls” or “patients”).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p>The simulations are further parallelized across processes (Child Processes) within a single worker.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.hpc.launch_pool_simulations">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.hpc.</span></span><span class="sig-name descname"><span class="pre">launch_pool_simulations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/hpc/parallel_launcher.html#launch_pool_simulations"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.hpc.launch_pool_simulations" title="Link to this definition"></a></dt>
+<dd><p>Launch N simulations in parallel using a Pool Executor.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Structure containing the information of the siumulation to be performed:
+model, simulation, control and BOLD parameters.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>sim_objs</strong> – Simulation objects after processing.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of <a class="reference internal" href="api/OCD_modeling.models.html#OCD_modeling.models.ReducedWongWangOU" title="OCD_modeling.models.ReducedWongWangOU">OCD_modeling.models.ReducedWongWangOU</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.hpc.run_sim">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.hpc.</span></span><span class="sig-name descname"><span class="pre">run_sim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_pars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sim_pars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">control_pars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bold_pars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/hpc/parallel_launcher.html#run_sim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.hpc.run_sim" title="Link to this definition"></a></dt>
+<dd><p>Run a single simulation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_pars</strong> (<em>dict</em>) – Model parameters (e.g. couplings, noise, external inputs, etc.)</p></li>
+<li><p><strong>sim_pars</strong> (<em>dict</em>) – Simulation parameters (e.g. simulation time, reccording intervals, sampling frequency, etc.)</p></li>
+<li><p><strong>control_pars</strong> (<em>dict</em>) – Control parameters. In case parameters needs to be manually updated throughout the simulation,
+provide the parameters’ timeseries here.</p></li>
+<li><p><strong>bold_pars</strong> (<em>dict</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>rww_sim</strong> – Simulation object, containing raw and processed data (BOLD timeseries, functional connectivity, transitions).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="api/OCD_modeling.models.html#OCD_modeling.models.ReducedWongWangOU" title="OCD_modeling.models.ReducedWongWangOU">OCD_modeling.models.ReducedWongWangOU</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="history-analysis">
+<h2>History analysis<a class="headerlink" href="#history-analysis" title="Link to this heading"></a></h2>
+<p>Once parameters have been optimized to fit empirical data, we can visualize the posterior distributions of model’s parameters.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.compute_kdes">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">compute_kdes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">histories</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_pts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/history_analysis.html#compute_kdes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.compute_kdes" title="Link to this definition"></a></dt>
+<dd><p>Computes Kernel Density Estimates (KDEs) of the posterior distributions of parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>histories</strong> – (dict) nested dictionnary of SQL alchemy history objects.</p></li>
+<li><p><strong>n_pts</strong> – (int) number of points used to estimate the probability density functions (PDFs).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns kdes<span class="colon">:</span></dt>
+<dd class="field-even"><p>(dict) nested dictiorany of KDEs and associated PDFs.</p>
+</dd>
+<dt class="field-odd">Returns cols<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(list) list of parameters for which the KDEs were estimated.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_kdes">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_kdes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_stats</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">histories</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/history_analysis.html#plot_kdes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_kdes" title="Link to this definition"></a></dt>
+<dd><p>Plot Kernel Density Estimates of posteriors</p>
+</dd></dl>
+
+<figure class="align-center" id="kdes">
+<a class="reference internal image-reference" href="_images/kdes.png"><img alt="_images/kdes.png" src="_images/kdes.png" style="width: 400px;" /></a>
+<figcaption>
+<p><span class="caption-text">Plotting Kernel Density Estimates (KDEs)</span><a class="headerlink" href="#kdes" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>We perform statistical test on those posterior distribution to extract parameters differentiating OCD subjects from healthy controls.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.compute_stats">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">compute_stats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">histories</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/history_analysis.html#compute_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.compute_stats" title="Link to this definition"></a></dt>
+<dd><p>Computes the statistics of the optimization outcome, i.e. tests the posterior distributions (parameters)
+between controls and patients.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>histories</strong> (<em>list</em>) – Controls and patient pyABC history objects.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>df_stats</strong> – Statistics.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p>We can also verify the meta parameters of the optimizer. Weights distributions indicate whether the sampling at the different
+generations is using a large number of particles or only a few individuals of a population (indicative of degeneracy).
+Visualizing the error rate <span class="math notranslate nohighlight">\(\epsilon\)</span> indicates how far is the optimization from the target value and whether
+the optimization is still progressing or plateauing.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_weights">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_weights</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">histories</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nrows</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ncols</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">row_offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">col_offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/history_analysis.html#plot_weights"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_weights" title="Link to this definition"></a></dt>
+<dd><p>Plot evolution of weights across generations</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>histories</strong> (<em>list</em>) – Optimization pyABC history objects (e.g. controls and patients)</p></li>
+<li><p><strong>gs</strong> (<em>matplotlib.GridSpec</em>) – (optional) GridSpec object to draw the figure into.</p></li>
+<li><p><strong>nrows</strong> (<em>int</em>) – number of rows/columns to make the grid.</p></li>
+<li><p><strong>ncols</strong> (<em>int</em>) – number of rows/columns to make the grid.</p></li>
+<li><p><strong>row_offset</strong> (<em>int</em>) – offsets to account for when some (top left) entries of the grid should be left empty.</p></li>
+<li><p><strong>col_offset</strong> (<em>int</em>) – offsets to account for when some (top left) entries of the grid should be left empty.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – (optional) Extra arguments (e.g. for saving, etc).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_epsilons">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_epsilons</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">histories</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/history_analysis.html#plot_epsilons"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_epsilons" title="Link to this definition"></a></dt>
+<dd><p>Plot evolution of epsilons across generations</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>histories</strong> (<em>list</em>) – Optimization pyABC history objects (e.g. controls and patients)</p></li>
+<li><p><strong>ax</strong> (<em>matplotlib.Axes</em>) – (optional) Axis to draw the figure.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – (optional) Extra arguments (for saving, etc).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<figure class="align-center" id="weights">
+<a class="reference internal image-reference" href="_images/weights_epsilons_20231020.png"><img alt="_images/weights_epsilons_20231020.png" src="_images/weights_epsilons_20231020.png" style="width: 800px;" /></a>
+<figcaption>
+<p><span class="caption-text">[A] Error rates (<span class="math notranslate nohighlight">\(\epsilon\)</span>) and [B] Weights of the optimization (blue: contols; orange:OCD).</span><a class="headerlink" href="#weights" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="synthetic-dataset">
+<h2>Synthetic dataset<a class="headerlink" href="#synthetic-dataset" title="Link to this heading"></a></h2>
+<p>We then generate new synthetic data using posterior distributions of parameters infered by the ABC-SMC algorithm.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.launch_sims_parallel">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">launch_sims_parallel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/simulate_inference.html#launch_sims_parallel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.launch_sims_parallel" title="Link to this definition"></a></dt>
+<dd><p>Run batched simulations from posterior inference in parallel:</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>kdes</strong> (<em>dict</em>) – Kernel Density Estimates from optimization (structured as kdes[cohort][param])</p></li>
+<li><p><strong>cols</strong> (<em>list</em>) – Parameters (columns) which draw samples from KDEs (otherwise default values are used)</p></li>
+<li><p><strong>test_params</strong> (<em>list</em>) – Parameters for which the posterior is permuted for the virtual interventions.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None. Output of the simulations are written into the local SQLite database.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p>The distribution of functional connectivities across the frontostriatal system can be visualized and compared between
+empirical (observed) and simulated data.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_fc_sim_vs_data">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_fc_sim_vs_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_base</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stats</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/history_analysis.html#plot_fc_sim_vs_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_fc_sim_vs_data" title="Link to this definition"></a></dt>
+<dd><p>Plot functional connectivity (Pearson correlation) across the frontostriatal regions of interests
+in empirical and simulated data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_data</strong> (<em>pandas.DataFrame</em>) – Empirical data extracted from fMRI in OCD subjects and healthy controls.</p></li>
+<li><p><strong>df_base</strong> (<em>pandas.DataFrame</em>) – Simulated data using parameters infered from posterior distributions (either only OCD parameters
+or only controls, no permutation to model virtual intervention).</p></li>
+<li><p><strong>stats</strong> (<em>dict</em>) – (deprecated) Statistics within and between cohorts for both empirical and simulated data (deprecated
+since now stats are directly computed within plotting function).</p></li>
+<li><p><strong>axes</strong> (<em>list</em><em> of </em><em>matplotlib.Axes</em>) – (optional) List of axes to plot data (if embedded in other figure, otherwise create new figure).</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – (optional) Extra arguments (e.g. for saving, etc).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<figure class="align-center" id="fc-sim-vs-data">
+<a class="reference internal image-reference" href="_images/FC_observed_vs_simulated.png"><img alt="_images/FC_observed_vs_simulated.png" src="_images/FC_observed_vs_simulated.png" style="width: 800px;" /></a>
+<figcaption>
+<p><span class="caption-text">Functional connectivity patterns across the frontostriatal system in OCD subjects vs healthy controls,
+from empirical (observed) and simulated data.</span><a class="headerlink" href="#fc-sim-vs-data" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">python</span> <span class="n">history_analysis</span><span class="o">.</span><span class="n">py</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">n_jobs</span> <span class="n">N_JOBS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">n_sims</span> <span class="n">N_SIMS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">gens</span> <span class="n">GENS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">histories</span> <span class="n">HISTORIES</span> <span class="p">[</span><span class="n">HISTORIES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">--</span><span class="n">history_names</span> <span class="n">HISTORY_NAMES</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">compute_kdes</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">save_kdes</span><span class="p">]</span>
+                                  <span class="p">[</span><span class="o">--</span><span class="n">save_kdes_suffix</span> <span class="n">SAVE_KDES_SUFFIX</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">save_figs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">save_outputs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_figs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_epsilons</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_weights</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_epsilons_weights</span><span class="p">]</span>
+                                  <span class="p">[</span><span class="o">--</span><span class="n">plot_param_distrib</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_kde_matrix</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_stats</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_kdes</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_fc_sim_vs_data</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">simulate_posterior_modes</span><span class="p">]</span>
+</pre></div>
+</div>
+<section id="named-arguments">
+<h3>Named Arguments<a class="headerlink" href="#named-arguments" title="Link to this heading"></a></h3>
+<dl class="option-list">
+<dt><kbd>--n_jobs</kbd></dt>
+<dd><p>number of parallel processes launched</p>
+<p>Default: 10</p>
+</dd>
+<dt><kbd>--n_sims</kbd></dt>
+<dd><p>number of simulations ran with the same parameters (e.g. to get distribution that can be campared to clinical observations)</p>
+<p>Default: 50</p>
+</dd>
+<dt><kbd>--gens</kbd></dt>
+<dd><p>generation of the optimization (list, must be same length as histories)</p>
+<p>Default: []</p>
+</dd>
+<dt><kbd>--histories</kbd></dt>
+<dd><p>optimizations to analyse and compare</p>
+</dd>
+<dt><kbd>--history_names</kbd></dt>
+<dd><p>names given to each otpimization loaded</p>
+<p>Default: [‘controls’, ‘patients’]</p>
+</dd>
+<dt><kbd>--compute_kdes</kbd></dt>
+<dd><p>compute KDEs of parameter estimations</p>
+</dd>
+<dt><kbd>--save_kdes</kbd></dt>
+<dd><p>save KDEs</p>
+</dd>
+<dt><kbd>--save_kdes_suffix</kbd></dt>
+<dd><p>identifier of the KDE in the saving folder</p>
+<p>Default: “_20240223”</p>
+</dd>
+<dt><kbd>--save_figs</kbd></dt>
+<dd><p>save figures</p>
+</dd>
+<dt><kbd>--save_outputs</kbd></dt>
+<dd><p>save outputs</p>
+</dd>
+<dt><kbd>--plot_figs</kbd></dt>
+<dd><p>plot figures</p>
+</dd>
+<dt><kbd>--plot_epsilons</kbd></dt>
+<dd><p>plot optimization errors</p>
+</dd>
+<dt><kbd>--plot_weights</kbd></dt>
+<dd><p>plot optimization weights for each gen</p>
+</dd>
+<dt><kbd>--plot_epsilons_weights</kbd></dt>
+<dd><p>plot optimization errors</p>
+</dd>
+<dt><kbd>--plot_param_distrib</kbd></dt>
+<dd><p>plot parameter distribution for each gen</p>
+</dd>
+<dt><kbd>--plot_kde_matrix</kbd></dt>
+<dd><p>plot KDE matrix of optimization</p>
+</dd>
+<dt><kbd>--plot_stats</kbd></dt>
+<dd><p>show statisics</p>
+</dd>
+<dt><kbd>--plot_kdes</kbd></dt>
+<dd><p>plot KDEs of optimzed params</p>
+</dd>
+<dt><kbd>--plot_fc_sim_vs_data</kbd></dt>
+<dd><p>plot FC of inference from optimization vs real data</p>
+</dd>
+<dt><kbd>--simulate_posterior_modes</kbd></dt>
+<dd><p>run simulations with at posterior distributions modes</p>
+</dd>
+</dl>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="dynamical_analysis.html" class="btn btn-neutral float-left" title="Dynamical system analysis" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="restoration.html" class="btn btn-neutral float-right" title="Restoration analysis" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Sebastien Naze.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

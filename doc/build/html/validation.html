@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Digital twins validation &mdash; OCD modeling  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API Reference" href="api.html" />
+    <link rel="prev" title="Restoration analysis" href="restoration.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            OCD modeling
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dynamical_analysis.html">Dynamical system analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="optimization.html">Simulation-based inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="restoration.html">Restoration analysis</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Digital twins validation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#behavioral-relationship-to-healthy-functional-connectivity-in-empirical-data">Behavioral relationship to healthy functional connectivity in empirical data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.plot_pre_post_dist_ybocs"><code class="docutils literal notranslate"><span class="pre">plot_pre_post_dist_ybocs()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#digital-pairing">Digital pairing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.compute_distances"><code class="docutils literal notranslate"><span class="pre">compute_distances()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#improvement-analysis">Improvement analysis</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.score_improvement"><code class="docutils literal notranslate"><span class="pre">score_improvement()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.plot_improvement_windrose"><code class="docutils literal notranslate"><span class="pre">plot_improvement_windrose()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.plot_improvement_pre_post_params_paper"><code class="docutils literal notranslate"><span class="pre">plot_improvement_pre_post_params_paper()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">OCD modeling</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Digital twins validation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/validation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="digital-twins-validation">
+<h1>Digital twins validation<a class="headerlink" href="#digital-twins-validation" title="Link to this heading"></a></h1>
+<p>Our restoration analysis predicted which intervention targets (i.e. model parameters) contribute
+the most to restore healthy frontostriatal functional dynamics, through an efficacy measure derived from
+frontostriatal functional connectivity.</p>
+<section id="behavioral-relationship-to-healthy-functional-connectivity-in-empirical-data">
+<h2>Behavioral relationship to healthy functional connectivity in empirical data<a class="headerlink" href="#behavioral-relationship-to-healthy-functional-connectivity-in-empirical-data" title="Link to this heading"></a></h2>
+<p>First, we test this efficacy measure on our empirical dataset of OCD subjects to see if symptoms improvement over time
+correlate to the restoration of frontostriatal functional connectivity closer to healthy controls.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_pre_post_dist_ybocs">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_pre_post_dist_ybocs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_summary</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#plot_pre_post_dist_ybocs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_pre_post_dist_ybocs" title="Link to this definition"></a></dt>
+<dd><p>Plot behavioral measure of symptoms severity (Y-BOCS) of subjects by their distance to healthy
+functional connectivity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_summary</strong> (<em>pandas.DataFrame</em>) – Summary measures of empirical analysis, inluding subject’s functional connectivity across frontostriatal circuits,
+behavioral measures (e.g. Y-BOCS score, IQ, etc.), digital pairing and values of the digital twin parameters.</p></li>
+<li><p><strong>gs</strong> (<em>matplotlib.Gridspec</em>) – (optional) A GridSpec object that can be used to embbed axes when this figure is a subplot
+of a larger figure.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<figure class="align-center" id="plot-pre-post-dist-ybocs">
+<a class="reference internal image-reference" href="_images/fc_ybocs-01.svg"><img alt="_images/fc_ybocs-01.svg" src="_images/fc_ybocs-01.svg" width="250" /></a>
+<figcaption>
+<p><span class="caption-text">Relation between functional connectivity distance to healthy controls and symptom severity (Y-BOCS score) in empirical data.</span><a class="headerlink" href="#plot-pre-post-dist-ybocs" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="digital-pairing">
+<h2>Digital pairing<a class="headerlink" href="#digital-pairing" title="Link to this heading"></a></h2>
+<p>Then, we paired the initial and follow-up functional connectivity patterns of OCD subjects to the closest baseline and post-intervention
+simulations. The pairing was based on the Euclidian distance between the empirical functional connectivity value of OCD subjects
+and their closest simulated connectivity value (i.e. <strong>digital twins</strong>).</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.compute_distances">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">compute_distances</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_sims</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ses</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#compute_distances"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.compute_distances" title="Link to this definition"></a></dt>
+<dd><p>Compute Euclidian distances between single empirical functional connectivity (FC) and simulated FC.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_data</strong> (<em>pandas.DataFrame</em>) – Empirical FC.</p></li>
+<li><p><strong>df_sims</strong> (<em>pandas.DataFrame</em>) – Simulated FC.</p></li>
+<li><p><strong>ses</strong> (<em>string</em>) – Session (i.e. point in time): initial (“ses-pre”) or follow-up (“ses-post”) appointment.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>assoc</strong> – Unique pairing between individual OCD subjects and simulated subjects (digital twins).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="improvement-analysis">
+<h2>Improvement analysis<a class="headerlink" href="#improvement-analysis" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.score_improvement">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">score_improvement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#score_improvement"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.score_improvement" title="Link to this definition"></a></dt>
+<dd><p>Score parameters based on improvement they induce in functional connectivity (FC) space across virtual interventions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df</strong> (<em>pandas.DataFrame</em>) – Summary data (empirical data paired with digital twins)</p></li>
+<li><p><strong>params</strong> (<em>list</em>) – Individual intervention targets (i.e. model parameters).</p></li>
+<li><p><strong>kdes</strong> (<em>dict</em>) – Kernel Density Estimates of posterior distributions of OCD subjects and healthy controls.</p></li>
+</ul>
+</dd>
+</dl>
+<section id="results">
+<h3>Results<a class="headerlink" href="#results" title="Link to this heading"></a></h3>
+<blockquote>
+<div><dl class="simple">
+<dt>df_improvement: pandas.DataFrame</dt><dd><p>Z-score normalized differences between initial (pre) and follow-up (post) parameters of digital twins
+for number of targets in virtual interventions.</p>
+</dd>
+</dl>
+</div></blockquote>
+</section>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_improvement_windrose">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_improvement_windrose</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_improvement</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#plot_improvement_windrose"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_improvement_windrose" title="Link to this definition"></a></dt>
+<dd><p>Make windrose vizualisation of mean improvement in parameter space.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_improvement</strong> (<em>pandas.DataFrame</em>) – Z-score normalized differences between initial (pre) and follow-up (post) parameters of digital twins
+for number of targets in virtual interventions.</p></li>
+<li><p><strong>params</strong> (<em>list</em>) – Individual intervention targets (i.e. model parameters).</p></li>
+<li><p><strong>gs</strong> (<em>matplotlib.Gridspec</em>) – (optional) A GridSpec object that can be used to embbed axes when this figure is a subplot
+of a larger figure.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<figure class="align-center" id="id1">
+<a class="reference internal image-reference" href="_images/improvement_windrose-01.svg"><img alt="_images/improvement_windrose-01.svg" src="_images/improvement_windrose-01.svg" width="250" /></a>
+<figcaption>
+<p><span class="caption-text">Mean change of parameters between initial (pre) and follow-up (post) in digital twins of OCD subjects.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_improvement_pre_post_params_paper">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_improvement_pre_post_params_paper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_summary</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#plot_improvement_pre_post_params_paper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_improvement_pre_post_params_paper" title="Link to this definition"></a></dt>
+<dd><p>Plot initial (pre) and follow-up (post) distributions of parameters from digital twin analysis
+(only significant ones are shown for manuscript).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_summary</strong> (<em>pandas.DataFrame</em>) – Summary measures of empirical analysis, inluding subject’s functional connectivity across frontostriatal circuits,
+behavioral measures (e.g. Y-BOCS score, IQ, etc.), digital pairing and values of the digital twin parameters.</p></li>
+<li><p><strong>params</strong> (<em>list</em>) – Individual intervention targets (i.e. model parameters).</p></li>
+<li><p><strong>gs</strong> (<em>matplotlib.Gridspec</em>) – (optional) A GridSpec object that can be used to embbed axes when this figure is a subplot
+of a larger figure.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<figure class="align-center" id="id2">
+<a class="reference internal image-reference" href="_images/improvement_pointplots-01.svg"><img alt="_images/improvement_pointplots-01.svg" src="_images/improvement_pointplots-01.svg" width="500" /></a>
+<figcaption>
+<p><span class="caption-text">Distributions of parameter evolutions between initial (pre) and follow-up (post) in digital twins of OCD subjects.</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="restoration.html" class="btn btn-neutral float-left" title="Restoration analysis" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="api.html" class="btn btn-neutral float-right" title="API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Sebastien Naze.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

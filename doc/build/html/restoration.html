@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Restoration analysis &mdash; OCD modeling  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Digital twins validation" href="validation.html" />
+    <link rel="prev" title="Simulation-based inference" href="optimization.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            OCD modeling
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dynamical_analysis.html">Dynamical system analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="optimization.html">Simulation-based inference</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Restoration analysis</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#combinatorial-permutations">Combinatorial permutations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.launch_sims_parallel"><code class="docutils literal notranslate"><span class="pre">launch_sims_parallel()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#efficacy-measure">Efficacy measure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.compute_efficacy"><code class="docutils literal notranslate"><span class="pre">compute_efficacy()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.compute_distance_restore"><code class="docutils literal notranslate"><span class="pre">compute_distance_restore()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.compute_distance_restore_sims"><code class="docutils literal notranslate"><span class="pre">compute_distance_restore_sims()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.plot_distance_restore"><code class="docutils literal notranslate"><span class="pre">plot_distance_restore()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.plot_efficacy_by_number_of_target"><code class="docutils literal notranslate"><span class="pre">plot_efficacy_by_number_of_target()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#contribution-measure">Contribution measure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.compute_scaled_feature_score"><code class="docutils literal notranslate"><span class="pre">compute_scaled_feature_score()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.plot_parameters_contribution"><code class="docutils literal notranslate"><span class="pre">plot_parameters_contribution()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Digital twins validation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">OCD modeling</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Restoration analysis</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/restoration.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="restoration-analysis">
+<h1>Restoration analysis<a class="headerlink" href="#restoration-analysis" title="Link to this heading"></a></h1>
+<p>The restoration analysis uses a combinatorial approach to permute all possible sets of up to six parameters at a time.
+Such combination of permuted parameters is called a <strong>virtual intervention</strong>.
+Default parameters are sampled from the OCD posteriors. Permuted parameters are sampled from the controls’ posteriors.
+1000 simulations are run in parallel, each with a new draw from posterior distributions, for each virtual intervention.</p>
+<p>Then, simulations are grouped by sets of 50 to get 20 independent cohorts for each virtual intervention.
+The distance between the the virtual intervention and the reference healthy controls’ simulations is evaluated
+as the sum of Waserstein distances across pathways in frontostriatal functional connectivity space.</p>
+<p>An efficacy measure of the virtual intervention is derived from this distance through a linear transformation.
+Next, we quantify the contribution of each parameter to the overall efficacy across all virtual interventions (sorted by
+number of intervention targets). This informs about how reliably a parameter influence the restoration of healthy
+functional dynamics from OCD.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Subscript notation may differ from the publication, original code uses numbered subscripts rather than letters.
+The mapping is :</p>
+<div class="line-block">
+<div class="line">1: O –&gt; orbito-frontal cortex (OFC)</div>
+<div class="line">2: L –&gt; lateral prefrontal cortex (LPFC)</div>
+<div class="line">3: N –&gt; nucleus accumbens (NAcc)</div>
+<div class="line">4: P –&gt; dorsal putamen (dPut)</div>
+</div>
+<p><span class="math notranslate nohighlight">\(\theta_{ij}\)</span> refers to parameter <span class="math notranslate nohighlight">\(\theta\)</span> to population <span class="math notranslate nohighlight">\(i\)</span> from population <span class="math notranslate nohighlight">\(j\)</span>.</p>
+</div>
+<section id="combinatorial-permutations">
+<h2>Combinatorial permutations<a class="headerlink" href="#combinatorial-permutations" title="Link to this heading"></a></h2>
+<p>We save the combinations of permuted parameters on the distributed filesystem such that all workers can access it.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">params</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;C_12&#39;</span><span class="p">,</span> <span class="s1">&#39;C_13&#39;</span><span class="p">,</span> <span class="s1">&#39;C_24&#39;</span><span class="p">,</span> <span class="s1">&#39;C_31&#39;</span><span class="p">,</span> <span class="s1">&#39;C_34&#39;</span><span class="p">,</span> <span class="s1">&#39;C_42&#39;</span><span class="p">,</span> <span class="s1">&#39;eta_C_13&#39;</span><span class="p">,</span> <span class="s1">&#39;eta_C_24&#39;</span><span class="p">,</span> <span class="s1">&#39;sigma&#39;</span><span class="p">,</span> <span class="s1">&#39;sigma_C_13&#39;</span><span class="p">,</span> <span class="s1">&#39;sigma_C_24&#39;</span><span class="p">]</span>
+<span class="n">combinations</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">6</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">combinations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;number of parameter combinations: &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">combinations</span><span class="p">)))</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;postprocessing&#39;</span><span class="p">,</span> <span class="s1">&#39;params_combinations.pkl&#39;</span><span class="p">),</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">combinations</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">number</span> <span class="n">of</span> <span class="n">parameter</span> <span class="n">combinations</span><span class="p">:</span> <span class="mi">1485</span>
+</pre></div>
+</div>
+<p>Then we generate new synthetic data using the adequate posteriors from either OCD or healthy controls.
+We run 1000 simulations (20 cohorts of 50 virtual subjects) for each vitual intervention (i.e. combinations of permutations).</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.launch_sims_parallel">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">launch_sims_parallel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/simulate_inference.html#launch_sims_parallel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.launch_sims_parallel" title="Link to this definition"></a></dt>
+<dd><p>Run batched simulations from posterior inference in parallel:</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>kdes</strong> (<em>dict</em>) – Kernel Density Estimates from optimization (structured as kdes[cohort][param])</p></li>
+<li><p><strong>cols</strong> (<em>list</em>) – Parameters (columns) which draw samples from KDEs (otherwise default values are used)</p></li>
+<li><p><strong>test_params</strong> (<em>list</em>) – Parameters for which the posterior is permuted for the virtual interventions.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None. Output of the simulations are written into the local SQLite database.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="efficacy-measure">
+<h2>Efficacy measure<a class="headerlink" href="#efficacy-measure" title="Link to this heading"></a></h2>
+<p>An efficacy measure <span class="math notranslate nohighlight">\(E_{ff}\)</span> of virtual interventions was derived from the Waserstein distance <span class="math notranslate nohighlight">\(d_Z\)</span>, in functional connectivity space,
+between the simulated interventions and the simulated controls.</p>
+<div class="math notranslate nohighlight">
+\[E_{ff} = \left( 1 - \left(  \frac{d_Z - \widehat{\mu_d}}{\mu_{d_{XY}}} \right) \right) \times 100\]</div>
+<p>with <span class="math notranslate nohighlight">\(\widehat{\mu_d} = \frac{ \mu_{d_{XX}} + \mu_{d_{YY} } }{2}\)</span> where <span class="math notranslate nohighlight">\(\mu_{d_{XX}}\)</span> is the average of distances
+<span class="math notranslate nohighlight">\(d_{XX}\)</span> in functional connectivity space within simulated controls, <span class="math notranslate nohighlight">\(\mu_{d_{YY}}\)</span> is the average of distances
+<span class="math notranslate nohighlight">\(d_{YY}\)</span> within simulated OCD, and <span class="math notranslate nohighlight">\(\mu_{d_{XY}}\)</span> is the average distance <span class="math notranslate nohighlight">\(d_{XY}\)</span> between OCD and controls.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.compute_efficacy">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">compute_efficacy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_restore</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sims'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#compute_efficacy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.compute_efficacy" title="Link to this definition"></a></dt>
+<dd><p>Add new column to input DataFrame with treatment efficacy based on distance to healthy controls
+in functional connectivity space.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Simulation metric is the Wassertein distance and the data metric is the Euclidiean distance.
+Comparision in FC space is automatically performed using the correct metric (default: Wassertein).</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_restore</strong> (<em>pandas.DataFrame</em>) – Virtual intervention simulation outputs with distance precomputed.</p></li>
+<li><p><strong>base</strong> (<em>string</em>) – Whether to use simulated or empirical data as reference. Note that because there is only 50ish subjects in
+empirical data, the metric is computed differently and is statisticallt less robust.
+(default: ‘sims’, anyother value would compute using empirical data).</p></li>
+<li><p><strong>args</strong> (<em>(</em><em>argparse.Namespace</em><em>)</em>) – Extra arguments with options.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>df_restore</strong> – Input DataFrame with new column ‘efficacy’.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.compute_distance_restore">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">compute_distance_restore</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_sims</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#compute_distance_restore"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.compute_distance_restore" title="Link to this definition"></a></dt>
+<dd><p>Compare base simulations (from OCD subjects and healthy controls) to simulated interventions by
+calculating distances in parallel.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_sims</strong> (<em>pandas.DataFrame</em>) – Simulation outputs loaded from the database.</p></li>
+<li><p><strong>args</strong> (<em>(</em><em>argparse.Namespace</em><em>)</em>) – Extra arguments with options.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>df_restore</strong> – Copy of df_sims with efficacy measures (including cohorts first level statistics).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.compute_distance_restore_sims">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">compute_distance_restore_sims</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_base</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_sims</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#compute_distance_restore_sims"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.compute_distance_restore_sims" title="Link to this definition"></a></dt>
+<dd><p>Compute distance metric between batches of simulations in controls, patients and
+continuous restoration from patients to controls.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_base</strong> (<em>pandas.DataFrame</em>) – Simulated data from virtual OCD subjects (patients) and healthy controls.
+No virtual interventions were performed. Corresponds to simulation using OCD and healthy posteriors.</p></li>
+<li><p><strong>df_sims</strong> (<em>pandas.DataFrame</em>) – Simulation outputs loaded from the virtual interventions database.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>outputs</strong> – Distances between simulated interventions and healthy controls cohorts,
+with normalized parameters values w.r.t original OCD parameter posterior distribution.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of dictionanries</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p>We plot the efficacy of each virtual intervention (x-axis), showing the targeted parameters on the y-axis,
+according to their number of targets (colorcode):</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_distance_restore">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_distance_restore</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_restore</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#plot_distance_restore"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_distance_restore" title="Link to this definition"></a></dt>
+<dd><p>Plot horizontal box plot of best virtual interventions outcomes, sorted by number of target points.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_restore</strong> (<em>pandas.DataFrame</em>) – Virtual intervention simulation outputs with distance and efficacy precomputed.</p></li>
+<li><p><strong>args</strong> (<em>(</em><em>argparse.Namespace</em><em>)</em>) – Extra arguments with options. An important options here is args.n_tops which defines how many of the best
+interventions to display by number of target points.</p></li>
+<li><p><strong>gs</strong> (<em>matplotlib.GridSpec</em>) – (optional) A GridSpec object that can be used to embbed axes when this figure is a subplot
+of a larger figure.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<figure class="align-center" id="plot-distance-restore">
+<a class="reference internal image-reference" href="_images/plot_distance_restore-01.png"><img alt="_images/plot_distance_restore-01.png" src="_images/plot_distance_restore-01.png" style="width: 400px;" /></a>
+<figcaption>
+<p><span class="caption-text">Efficacy measures for each virtual interventions (via <cite>plot_distance_restore</cite> function).</span><a class="headerlink" href="#plot-distance-restore" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>We further show that the efficacy scales logarithmically with the number of targets.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_efficacy_by_number_of_target">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_efficacy_by_number_of_target</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_top</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#plot_efficacy_by_number_of_target"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_efficacy_by_number_of_target" title="Link to this definition"></a></dt>
+<dd><p>Swarm plots of efficacy score (y-axis) by number of targets (x-axis), with means projected in log-linear sacle.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_top</strong> (<em>pandas.DataFrame</em>) – Subset of df_restore with only virtual intervention resulting in positive outcomes.</p></li>
+<li><p><strong>gs</strong> (<em>matplotlib.GridSpec</em>) – (optional) A GridSpec object that can be used to embbed axes when this figure is a subplot
+of a larger figure.</p></li>
+<li><p><strong>args</strong> (<em>(</em><em>argparse.Namespace</em><em>)</em>) – Extra arguments with options.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<figure class="align-center" id="plot-efficacy-by-n-targets">
+<a class="reference internal image-reference" href="_images/avg_efficacy_by_n_targets_20240130.svg"><img alt="_images/avg_efficacy_by_n_targets_20240130.svg" src="_images/avg_efficacy_by_n_targets_20240130.svg" width="400" /></a>
+<figcaption>
+<p><span class="caption-text">Mean efficacy measures bu number of targets.</span><a class="headerlink" href="#plot-efficacy-by-n-targets" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="contribution-measure">
+<h2>Contribution measure<a class="headerlink" href="#contribution-measure" title="Link to this heading"></a></h2>
+<p>To relate the contribution of changes in each parameter <span class="math notranslate nohighlight">\(\theta\)</span> to the overall efficacy value (using only positive
+outcome <span class="math notranslate nohighlight">\(E_{ff}^+=E_{ff}\ \ iif\ E_{ff}&gt;0)\)</span>, we scaled <span class="math notranslate nohighlight">\(E_{ff}^+\)</span> by the normalized parameter change in patients:</p>
+<div class="math notranslate nohighlight">
+\[\theta_{E_{ff}}=\frac{1}{N}\sum_{N}{\frac{\theta-\mu_{\theta_Y}}{s_{\theta_Y}}E_{ff}^+}\]</div>
+<p>where <span class="math notranslate nohighlight">\(N\)</span> is the number of cohorts in a virtual intervention, <span class="math notranslate nohighlight">\(\mu_{\theta_Y}\)</span> is the mean of the parameter
+values in simulated individuals with OCD, and <span class="math notranslate nohighlight">\(s_{\theta_Y}\)</span> represents the related standard deviation.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.compute_scaled_feature_score">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">compute_scaled_feature_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_top</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scaling</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'contribution'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#compute_scaled_feature_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.compute_scaled_feature_score" title="Link to this definition"></a></dt>
+<dd><p>Compute feature scores scaled by their location on the KDEs distribution using z-statistic.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_top</strong> (<em>pandas.DataFrame</em>) – Subset of df_restore with only virtual intervention resulting in positive outcomes.</p></li>
+<li><p><strong>params</strong> (<em>list</em>) – Individual intervention targets (i.e. model parameters).</p></li>
+<li><p><strong>kdes</strong> (<em>dict</em>) – Kernel Density Estimates of posterior distributions of OCD subjects and healthy controls.</p></li>
+<li><p><strong>scaling</strong> (<em>string</em>) – How to scale the efficacy of the virtual intervention by the z-score normalized parameter.
+“contribution” (default) multiplies the normalized parameter by the efficacy. Any other value
+divides the normalized parameter by the efficacy (giving a sense of “sensitivity”).</p></li>
+<li><p><strong>args</strong> (<em>(</em><em>argparse.Namespace</em><em>)</em>) – (optional) Extra arguments with options.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_parameters_contribution">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_parameters_contribution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_params_contribution</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#plot_parameters_contribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_parameters_contribution" title="Link to this definition"></a></dt>
+<dd><p>Polar plots of parameters contribution across virtual interventions, colorcoded by number of intervention targets ::math::<cite>n_t</cite>.
+Each polar plot corresponds to a number of target ::math::<cite>n_t</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_params_contribution</strong> (<em>pandas.DataFrame</em>) – Contribution of parameters (z-score normalized parameters times efficacies of virtual interventions).</p></li>
+<li><p><strong>params</strong> (<em>list</em>) – Individual intervention targets (i.e. model parameters).</p></li>
+<li><p><strong>gs</strong> (<em>matplotlib.GridSpec</em>) – (optional) A GridSpec object that can be used to embbed axes when this figure is a subplot of a larger figure.</p></li>
+<li><p><strong>args</strong> (<em>(</em><em>argparse.Namespace</em><em>)</em>) – (optional) Extra arguments with options.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<figure class="align-center" id="plot-contributions">
+<a class="reference internal image-reference" href="_images/plot_contributions-01.png"><img alt="_images/plot_contributions-01.png" src="_images/plot_contributions-01.png" style="width: 400px;" /></a>
+<figcaption>
+<p><span class="caption-text">Contribution measures for each target colorcoded by number of targets.</span><a class="headerlink" href="#plot-contributions" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="optimization.html" class="btn btn-neutral float-left" title="Simulation-based inference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="validation.html" class="btn btn-neutral float-right" title="Digital twins validation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Sebastien Naze.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

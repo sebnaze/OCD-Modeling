@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OCD_modeling.analysis.rww_dst_analysis &mdash; OCD modeling  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            OCD modeling
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dynamical_analysis.html">Dynamical system analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../optimization.html">Simulation-based inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../restoration.html">Restoration analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../validation.html">Digital twins validation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">OCD modeling</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">OCD_modeling.analysis.rww_dst_analysis</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for OCD_modeling.analysis.rww_dst_analysis</h1><div class="highlight"><pre>
+<span></span><span class="c1">####    OCD Modeling: Reduced Wong-Wang Model Analysis using Dynamical Systems Toolbox</span>
+<span class="c1">###      </span>
+<span class="c1">##      Author: Sebastien Naze</span>
+<span class="c1">#       QIMR 2023</span>
+
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ProcessPoolExecutor</span><span class="p">,</span> <span class="n">ThreadPoolExecutor</span><span class="p">,</span> <span class="n">wait</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">dill</span>
+<span class="kn">import</span> <span class="nn">importlib</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">joblib</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">cm</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="kn">import</span> <span class="nn">mpmath</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">pathos.multiprocessing</span> <span class="kn">import</span> <span class="n">ProcessingPool</span>
+<span class="kn">import</span> <span class="nn">pdb</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">PyDSTool</span> <span class="k">as</span> <span class="nn">dst</span>
+<span class="kn">from</span> <span class="nn">PyDSTool.Toolbox</span> <span class="kn">import</span> <span class="n">phaseplane</span> <span class="k">as</span> <span class="n">pp</span>
+<span class="kn">import</span> <span class="nn">scipy</span>
+<span class="kn">import</span> <span class="nn">sympy</span> <span class="k">as</span> <span class="nn">sp</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+
+<span class="kn">from</span> <span class="nn">OCD_modeling.utils.utils</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">OCD_modeling.models</span> <span class="kn">import</span> <span class="n">ReducedWongWang</span> <span class="k">as</span> <span class="n">RWW</span>
+
+
+
+<span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">()</span>
+
+<span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">,</span> <span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span><span class="o">.</span><span class="n">loads</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">dumps</span><span class="p">,</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span>
+<span class="n">multiprocessing</span><span class="o">.</span><span class="n">reduction</span><span class="o">.</span><span class="n">ForkingPickler</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span>
+<span class="n">multiprocessing</span><span class="o">.</span><span class="n">reduction</span><span class="o">.</span><span class="n">dump</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">dump</span>
+<span class="n">multiprocessing</span><span class="o">.</span><span class="n">queues</span><span class="o">.</span><span class="n">_ForkingPickler</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span>
+
+<div class="viewcode-block" id="create_model">
+<a class="viewcode-back" href="../../../dynamical_analysis.html#OCD_modeling.create_model">[docs]</a>
+<span class="k">def</span> <span class="nf">create_model</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Create the Dynamical System in PyDSTool </span>
+<span class="sd">    </span>
+<span class="sd">        .. math:: \dot{S_i} = - \cfrac{S_i}{\\tau_S} + (1 - S_i) \gamma H(x_i) + \sigma v_i</span>
+<span class="sd">    </span>
+<span class="sd">    with</span>
+
+<span class="sd">        .. math:: H(x) = \cfrac{ax-b}{1-\exp{(-d(ax-b))}}</span>
+
+<span class="sd">    and</span>
+
+<span class="sd">        .. math:: x_i = w J_N S_i + G J_N \sum_j{C_{ij} S_j} + I_0 </span>
+
+<span class="sd">        </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        params: dict</span>
+<span class="sd">            Parameters of the model</span>
+<span class="sd">        args: Argparse.Namespace</span>
+<span class="sd">            Optional arguments </span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">        rww: PyDSTool.Vode_ODEsystem</span>
+<span class="sd">            PyDSTool object containing the dynamical system </span>
+<span class="sd">            </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">icdict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;S1&#39;</span><span class="p">:</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(),</span>
+            <span class="s1">&#39;S2&#39;</span><span class="p">:</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">()}</span>
+    <span class="n">S1eq</span> <span class="o">=</span> <span class="s1">&#39;-S1/tau_S + (1-S1)*gam*(a*(w*J_N*S1+G*J_N*C_12*S2+I_0-I_1)-b)/(1-exp(-d*(a*(w*J_N*S1+G*J_N*C_12*S2+I_0-I_1)-b)))&#39;</span>
+    <span class="n">S2eq</span> <span class="o">=</span> <span class="s1">&#39;-S2/tau_S + (1-S2)*gam*(a*(w*J_N*S2+G*J_N*C_21*S1+I_0+I_1)-b)/(1-exp(-d*(a*(w*J_N*S2+G*J_N*C_21*S1+I_0+I_1)-b)))&#39;</span>
+
+    <span class="n">DSargs</span> <span class="o">=</span> <span class="n">dst</span><span class="o">.</span><span class="n">args</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;rww&#39;</span><span class="p">)</span>  <span class="c1"># struct-like data</span>
+    <span class="n">DSargs</span><span class="o">.</span><span class="n">pars</span> <span class="o">=</span> <span class="n">params</span>
+    <span class="n">DSargs</span><span class="o">.</span><span class="n">tdata</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">]</span>
+    <span class="n">DSargs</span><span class="o">.</span><span class="n">algparams</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;max_pts&#39;</span><span class="p">:</span> <span class="mi">100000</span><span class="p">,</span> <span class="s1">&#39;init_step&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s1">&#39;stiff&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+    <span class="n">DSargs</span><span class="o">.</span><span class="n">varspecs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;S1&#39;</span><span class="p">:</span> <span class="n">S1eq</span><span class="p">,</span> <span class="s1">&#39;S2&#39;</span><span class="p">:</span> <span class="n">S2eq</span><span class="p">}</span>
+    <span class="n">DSargs</span><span class="o">.</span><span class="n">xdomain</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;S1&#39;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;S2&#39;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]}</span>
+    
+    <span class="n">DSargs</span><span class="o">.</span><span class="n">fnspecs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Jacobian&#39;</span><span class="p">:</span> <span class="p">([</span><span class="s1">&#39;t&#39;</span><span class="p">,</span><span class="s1">&#39;S1&#39;</span><span class="p">,</span><span class="s1">&#39;S2&#39;</span><span class="p">],</span>
+<span class="w">                                    </span><span class="sd">&quot;&quot;&quot;[[-J_N*a*d*gam*w*(1 - S1)*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b)*exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b))/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b)))**2 + J_N*a*gam*w*(1 - S1)/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b))) - gam*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b)/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b))) - 1/tau_S, -C_12*G*J_N*a*d*gam*(1 - S1)*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b)*exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b))/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b)))**2 + C_12*G*J_N*a*gam*(1 - S1)/(1 - exp(-d*(a*(C_12*G*J_N*S2 + I_0 - I_1 + J_N*S1*w) - b)))],</span>
+<span class="sd">                                        [-C_21*G*J_N*a*d*gam*(1 - S2)*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b)*exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b))/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b)))**2 + C_21*G*J_N*a*gam*(1 - S2)/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b))), -J_N*a*d*gam*w*(1 - S2)*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b)*exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b))/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b)))**2 + J_N*a*gam*w*(1 - S2)/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b))) - gam*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b)/(1 - exp(-d*(a*(C_21*G*J_N*S1 + I_0 + I_1 + J_N*S2*w) - b))) - 1/tau_S]]&quot;&quot;&quot;</span><span class="p">)}</span>
+
+    <span class="n">DSargs</span><span class="o">.</span><span class="n">ics</span> <span class="o">=</span> <span class="n">icdict</span>
+    <span class="n">rww</span> <span class="o">=</span> <span class="n">dst</span><span class="o">.</span><span class="n">Vode_ODEsystem</span><span class="p">(</span><span class="n">DSargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">rww</span></div>
+
+
+
+<div class="viewcode-block" id="get_fixed_points">
+<a class="viewcode-back" href="../../../dynamical_analysis.html#OCD_modeling.get_fixed_points">[docs]</a>
+<span class="k">def</span> <span class="nf">get_fixed_points</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">xdomain</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;S1&#39;</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;S2&#39;</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]},</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Get model&#39;s nullclines :math:`\\frac{dS_1}{dt}=0` and :math:`\\frac{dS_2}{dt}=0` </span>
+<span class="sd">    and fixed points :math:`\\frac{dS_1}{dt}=\\frac{dS_2}{dt}=0` for a given set of parameters.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        model: PyDSTool.Vode_ODEsystem</span>
+<span class="sd">            Model object in PyDSTool.</span>
+<span class="sd">        params: dict</span>
+<span class="sd">            Model parameters.</span>
+<span class="sd">        xdomain: dict</span>
+<span class="sd">            Variable and lower/upper bounds.</span>
+<span class="sd">        args: Argparse.Namespace</span>
+<span class="sd">            Optional extra arguments.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">        model: PyDSTool.Vode_ODEsystem</span>
+<span class="sd">            Updated model object with given parameters.</span>
+<span class="sd">        fps: PyDSTool.Toolbox.phaseplane.fixedpoint_2D </span>
+<span class="sd">            Fixed points of the system.</span>
+<span class="sd">        (nulls_x, nulls_y): tuple </span>
+<span class="sd">            Tuple containing nullclines (arrays of paired xs and ys).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">pars</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">xdomain</span><span class="o">=</span><span class="n">xdomain</span><span class="p">)</span>
+    <span class="c1"># fixed points (using n starting points along the domain)</span>
+    <span class="n">fp_coords</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">find_fixedpoints</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span> 
+    <span class="n">fps</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">fp_coord</span> <span class="ow">in</span> <span class="n">fp_coords</span><span class="p">:</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">fixedpoint_2D</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">dst</span><span class="o">.</span><span class="n">Point</span><span class="p">(</span><span class="n">fp_coord</span><span class="p">),</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span>
+        <span class="n">fps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
+    <span class="c1"># nullclines (using n starting points along the domain)</span>
+    <span class="n">nulls_x</span><span class="p">,</span> <span class="n">nulls_y</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">find_nullclines</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;S1&#39;</span><span class="p">,</span> <span class="s1">&#39;S2&#39;</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">,</span> <span class="n">max_step</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="n">fp_coords</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="n">fps</span><span class="p">,</span> <span class="p">(</span><span class="n">nulls_x</span><span class="p">,</span> <span class="n">nulls_y</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="compute_trajectories">
+<a class="viewcode-back" href="../../../dynamical_analysis.html#OCD_modeling.compute_trajectories">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_trajectories</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">tdata</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1000</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Compute n trajectories from model, each with different initial conditions.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        model: PyDSTool.Vode_ODEsystem</span>
+<span class="sd">            PyDSTool model object.</span>
+<span class="sd">        n: int</span>
+<span class="sd">            Number of trajectories to compute.</span>
+<span class="sd">        tdata: list</span>
+<span class="sd">            Time interval of the saved trajectories.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">ics</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;S1&#39;</span><span class="p">:</span><span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(),</span> <span class="s1">&#39;S2&#39;</span><span class="p">:</span><span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">()},</span>
+                  <span class="n">tdata</span><span class="o">=</span><span class="n">tdata</span><span class="p">)</span>
+        <span class="n">traj</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;traj </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">pts</span> <span class="o">=</span> <span class="n">traj</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span>
+        <span class="n">points</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pts</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">points</span></div>
+
+
+
+
+<div class="viewcode-block" id="compute_equilibrium_point_curve">
+<a class="viewcode-back" href="../../../dynamical_analysis.html#OCD_modeling.compute_equilibrium_point_curve">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_equilibrium_point_curve</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">fps</span><span class="p">,</span> <span class="n">pdomain</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Find equilibrium point curve(s) of the system, starting from each fixed point (if exist).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        model: PyDSTool.Vode_ODEsystem</span>
+<span class="sd">            Model object in PyDSTool.</span>
+<span class="sd">        fps: PyDSTool.Toolbox.phaseplane.fixedpoint_2D</span>
+<span class="sd">            Fixed points of the system.</span>
+<span class="sd">        pdomain: dict</span>
+<span class="sd">            Free variable (or order parameter) to perform the bifurcation analyis from.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">        cont: PyDSTool.ContClass</span>
+<span class="sd">            PyDSTool Continuation Class object populated with equilibrium point curves.</span>
+<span class="sd">    &quot;&quot;&quot;</span> 
+    <span class="n">model</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">pdomain</span><span class="o">=</span><span class="n">pdomain</span><span class="p">)</span>
+    <span class="n">cont</span> <span class="o">=</span> <span class="n">dst</span><span class="o">.</span><span class="n">ContClass</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+    <span class="n">free_params</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">pdomain</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">fp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">fps</span><span class="p">):</span>
+        <span class="n">epc</span> <span class="o">=</span> <span class="s1">&#39;EQ&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="n">PCargs</span> <span class="o">=</span> <span class="n">dst</span><span class="o">.</span><span class="n">args</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">epc</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s1">&#39;EP-C&#39;</span><span class="p">)</span>
+        <span class="n">PCargs</span><span class="o">.</span><span class="n">initpoint</span> <span class="o">=</span> <span class="n">fp</span><span class="o">.</span><span class="n">point</span>
+        <span class="n">PCargs</span><span class="o">.</span><span class="n">freepars</span> <span class="o">=</span> <span class="n">free_params</span>
+        <span class="n">PCargs</span><span class="o">.</span><span class="n">StepSize</span> <span class="o">=</span> <span class="mf">1e-5</span>
+        <span class="n">PCargs</span><span class="o">.</span><span class="n">MaxNumPoints</span> <span class="o">=</span> <span class="mi">1000000</span>
+        <span class="n">PCargs</span><span class="o">.</span><span class="n">MaxStepSize</span> <span class="o">=</span> <span class="mf">1e-4</span>
+        <span class="n">PCargs</span><span class="o">.</span><span class="n">LocBifPoints</span> <span class="o">=</span> <span class="s1">&#39;all&#39;</span>
+        <span class="n">PCargs</span><span class="o">.</span><span class="n">StopAtPoints</span> <span class="o">=</span> <span class="s1">&#39;B&#39;</span>
+        <span class="n">PCargs</span><span class="o">.</span><span class="n">SaveEigen</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">PCargs</span><span class="o">.</span><span class="n">verbosity</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">cont</span><span class="o">.</span><span class="n">newCurve</span><span class="p">(</span><span class="n">PCargs</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Computing curve...&#39;</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">dst</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">cont</span><span class="p">[</span><span class="n">epc</span><span class="p">]</span><span class="o">.</span><span class="n">forward</span><span class="p">()</span>
+        <span class="n">cont</span><span class="p">[</span><span class="n">epc</span><span class="p">]</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;done in </span><span class="si">%.3f</span><span class="s1"> seconds!&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">dst</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span><span class="o">-</span><span class="n">start</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">cont</span></div>
+
+
+
+
+<div class="viewcode-block" id="stability_analysis">
+<a class="viewcode-back" href="../../../dynamical_analysis.html#OCD_modeling.stability_analysis">[docs]</a>
+<span class="k">def</span> <span class="nf">stability_analysis</span><span class="p">(</span><span class="n">order_params</span><span class="p">,</span> <span class="n">default_params</span><span class="p">,</span> <span class="n">out_queue</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">pdomain</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;C_12&#39;</span><span class="p">:[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]}):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Create model and analyse dynamics using PyDSTool.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        order_params: dict</span>
+<span class="sd">            Fixed parameters, for which to analyse the system using discretized values, for example ``{&#39;C_21&#39;: np.linspace(0.2,0.8,4)}``.</span>
+<span class="sd">        default_params: dict</span>
+<span class="sd">            Default model&#39;s parameters.</span>
+<span class="sd">        out_queue: Queue</span>
+<span class="sd">            Queue to put results in (used for parallel computation) for each values of order parameter.</span>
+<span class="sd">        args: Argparse.Namespace </span>
+<span class="sd">            Structure of necessary options. For example, must include ``args.compute_epc = True`` to compute equilibrium point curves.</span>
+<span class="sd">        pdomain: dict</span>
+<span class="sd">            Free variable (or order parameter) to perform the bifurcation analyis from.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">        None</span>
+<span class="sd">            A dict with model, nullclines (ncs), fixed points (fps), trajectories (trajs), </span>
+<span class="sd">            and a pickled (dilled) continuation object (if equilibrium curves are asked in args), is appended to the queue.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">order_params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span> 
+        <span class="n">default_params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+    
+    <span class="n">out</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    
+    <span class="c1"># fixed point and nullclines</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">create_model</span><span class="p">(</span><span class="n">default_params</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+    <span class="n">model</span><span class="p">,</span> <span class="n">fps</span><span class="p">,</span> <span class="n">nullclines</span> <span class="o">=</span> <span class="n">get_fixed_points</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">default_params</span><span class="p">)</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">compute_trajectories</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">n_trajs</span><span class="p">)</span>
+    <span class="n">out</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">],</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;fps&#39;</span><span class="p">],</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;ncs&#39;</span><span class="p">],</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;trajs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span><span class="p">,</span> <span class="n">fps</span><span class="p">,</span> <span class="n">nullclines</span><span class="p">,</span> <span class="n">points</span>
+
+    <span class="c1"># EP-C</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">compute_epc</span><span class="p">:</span>
+        <span class="c1"># takes a bit of ressource and memory</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cont</span> <span class="o">=</span> <span class="n">compute_equilibrium_point_curve</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">fps</span><span class="p">,</span> <span class="n">pdomain</span><span class="p">)</span>
+            <span class="n">out</span><span class="p">[</span><span class="s1">&#39;dilled_cont&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">cont</span><span class="p">,</span> <span class="n">byref</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error in computing Equilibrium Point Curve&quot;</span><span class="p">)</span>
+
+    <span class="c1"># put output to output queue</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">order_params</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span>
+    <span class="n">out_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">dill</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">output</span><span class="p">))</span></div>
+
+    
+
+
+
+<div class="viewcode-block" id="launch_stability_analysis">
+<a class="viewcode-back" href="../../../dynamical_analysis.html#OCD_modeling.launch_stability_analysis">[docs]</a>
+<span class="k">def</span> <span class="nf">launch_stability_analysis</span><span class="p">(</span><span class="n">order_params</span><span class="p">,</span> <span class="n">default_params</span><span class="p">,</span> <span class="n">out_queue</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Ghost process that launches the stability analysis for a set of defined order parameter,</span>
+<span class="sd">        creating a child process with a set timeout per child process, such that the stbaility analysis</span>
+<span class="sd">        does not hang waiting for the continuation to terminate if it does not converge. </span>
+<span class="sd">        </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        order_params: dict </span>
+<span class="sd">            Fixed parameters, for which to analyse the system using discretized values, for example ``{&#39;C_21&#39;: np.linspace(0.2,0.8,4)}``.</span>
+<span class="sd">        default_params: dict</span>
+<span class="sd">            Default model&#39;s parameters. </span>
+<span class="sd">        out_queue: Queue</span>
+<span class="sd">            Output queue on which to append the results.</span>
+<span class="sd">        args: Argparse.Namespace</span>
+<span class="sd">            Structure of necessary options. For example, must include ``args.compute_epc = True`` to compute equilibrium point curves.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">proc</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">stability_analysis</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">order_params</span><span class="p">,</span> <span class="n">default_params</span><span class="p">,</span> <span class="n">out_queue</span><span class="p">,</span> <span class="n">args</span><span class="p">))</span>
+    <span class="n">proc</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+    <span class="c1"># wait for the process until timeout</span>
+    <span class="n">proc</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">timeout</span><span class="p">)</span>
+    <span class="c1"># if process is still running after timeout, force terminating it </span>
+    <span class="k">if</span> <span class="n">proc</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Stability analysis for </span><span class="si">{</span><span class="n">order_params</span><span class="si">}</span><span class="s2"> took too long, aborted after </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">timeout</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">)</span>
+        <span class="n">proc</span><span class="o">.</span><span class="n">terminate</span><span class="p">()</span></div>
+
+
+
+
+<div class="viewcode-block" id="run_stability_analysis">
+<a class="viewcode-back" href="../../../dynamical_analysis.html#OCD_modeling.run_stability_analysis">[docs]</a>
+<span class="k">def</span> <span class="nf">run_stability_analysis</span><span class="p">(</span><span class="n">order_params</span><span class="p">,</span> <span class="n">default_params</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Starts a pool of parallel processes to run the stability analysis.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        order_params: dict </span>
+<span class="sd">            Fixed parameters, for which to analyse the system using discretized values, for example ``{&#39;C_21&#39;: np.linspace(0.2,0.8,4)}``.</span>
+<span class="sd">        default_params: dict</span>
+<span class="sd">            Default model&#39;s parameters. </span>
+<span class="sd">        args: Argparse.Namespace</span>
+<span class="sd">            Structure of necessary options. For example, must include ``args.compute_epc = True`` to compute equilibrium point curves.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">        outputs: list of dict</span>
+<span class="sd">            Stability analysis of each values (or combination of values) given in order_params.</span>
+<span class="sd">        futures: list of concurrent.futures.Future</span>
+<span class="sd">            (deprecated) if using futures.concurrent library for parallel process, return the list of Future objects (https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Future).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># debug</span>
+    <span class="c1">#outputs = []</span>
+    <span class="c1">#for vals in itertools.product(*order_params.values()):</span>
+    <span class="c1">#    out = stability_analysis(dict(zip(order_params.keys(), vals)), copy.deepcopy(default_params), out_queue=None, args=args)</span>
+    <span class="c1">#    outputs.append(out)</span>
+    <span class="c1">#return outputs, []</span>
+    <span class="c1">#outputs = joblib.Parallel(n_jobs=32, verbose=10, timeout=20)(joblib.delayed(perform_stability_analysis)(copy.deepcopy(model), dict(zip(order_params.keys(), vals)), copy.deepcopy(default_params)) </span>
+    <span class="c1">#        for vals in itertools.product(*order_params.values()))</span>
+    
+    <span class="n">o_pars</span> <span class="o">=</span> <span class="nb">list</span><span class="p">([</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">order_params</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">vals</span><span class="p">))</span> <span class="k">for</span> <span class="n">vals</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="o">*</span><span class="n">order_params</span><span class="o">.</span><span class="n">values</span><span class="p">())])</span>
+    <span class="n">n_pars</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">o_pars</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Run stability analysis...&quot;</span><span class="p">)</span>
+    <span class="c1">#out_queue = multiprocessing.Queue(maxsize=n_pars) #  /!\ Standard queues seems (at least) 10x slower than managed queues, resulting in timeouts..  </span>
+    <span class="n">out_queue</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Manager</span><span class="p">()</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>      <span class="c1">#         if performance is primordial, it could be changed to Pipes with locks (even faster)</span>
+    <span class="n">futures</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">with</span> <span class="n">ProcessPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">n_jobs</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+        <span class="c1">#future = [pool.map(launch_stability_analysis, (copy.deepcopy(order_param), copy.deepcopy(default_params), out_queue, args)) for order_param in o_pars]</span>
+        <span class="k">for</span> <span class="n">order_param</span> <span class="ow">in</span> <span class="n">o_pars</span><span class="p">:</span>
+            <span class="n">future</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">launch_stability_analysis</span><span class="p">,</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">order_param</span><span class="p">),</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">default_params</span><span class="p">),</span> <span class="n">out_queue</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+            <span class="n">futures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">future</span><span class="p">)</span>
+    <span class="c1">#with ProcessingPool(nodes=args.n_jobs) as pool:</span>
+    <span class="c1">#    params = [(copy.deepcopy(order_param), copy.deepcopy(default_params), out_queue, args) for order_param in o_pars]</span>
+    <span class="c1">#    futures = pool.uimap(launch_stability_analysis, params)</span>
+    
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">while</span> <span class="ow">not</span> <span class="n">out_queue</span><span class="o">.</span><span class="n">empty</span><span class="p">():</span>
+        <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">out_queue</span><span class="o">.</span><span class="n">get_nowait</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">futures</span></div>
+
+    
+
+<div class="viewcode-block" id="plot_phasespace">
+<a class="viewcode-back" href="../../../dynamical_analysis.html#OCD_modeling.plot_phasespace">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_phasespace</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">fps</span><span class="p">,</span> <span class="n">nullclines</span><span class="p">,</span> <span class="n">trajs</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Plot vector field, nullclines and fixed points of a model previously set with parameters.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        model: PyDSTool.Vode_ODEsystem </span>
+<span class="sd">            PyDSTool model object.</span>
+<span class="sd">        fps: PyDSTool.Toolbox.phaseplane.fixedpoint_2D</span>
+<span class="sd">            Fixed points of he system</span>
+<span class="sd">        nullclines: list</span>
+<span class="sd">            list of PyDSTool nullcline objects, containing arrays of xs and ys of nullclines.</span>
+<span class="sd">        trajs: list of dict</span>
+<span class="sd">            Simulated trajectories.</span>
+<span class="sd">        ax: matplotlib.Axis </span>
+<span class="sd">            Axis in which to plot the phasespace.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">sca</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+    <span class="n">pp</span><span class="o">.</span><span class="n">plot_PP_vf</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;S1&#39;</span><span class="p">,</span> <span class="s1">&#39;S2&#39;</span><span class="p">,</span> <span class="n">scale_exp</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">pp</span><span class="o">.</span><span class="n">plot_PP_fps</span><span class="p">(</span><span class="n">fps</span><span class="p">,</span> <span class="n">do_evecs</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">nullclines</span><span class="p">[</span><span class="mi">0</span><span class="p">][:,</span><span class="mi">0</span><span class="p">],</span> <span class="n">nullclines</span><span class="p">[</span><span class="mi">0</span><span class="p">][:,</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">nullclines</span><span class="p">[</span><span class="mi">1</span><span class="p">][:,</span><span class="mi">0</span><span class="p">],</span> <span class="n">nullclines</span><span class="p">[</span><span class="mi">1</span><span class="p">][:,</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;g&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">traj</span> <span class="ow">in</span> <span class="n">trajs</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">traj</span><span class="p">[</span><span class="s1">&#39;S1&#39;</span><span class="p">],</span> <span class="n">traj</span><span class="p">[</span><span class="s1">&#39;S2&#39;</span><span class="p">],</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+
+    <span class="c1">#plt.show(block=False)</span>
+
+
+<span class="k">def</span> <span class="nf">get_grid_inds</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">order_params</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; get the indices (i,j) of the order parameters from output &quot;&quot;&quot;</span>
+    <span class="n">o_pars</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">([</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="o">!=</span><span class="s1">&#39;output&#39;</span><span class="p">])</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span><span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">order_params</span><span class="p">[</span><span class="n">o_pars</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span> <span class="k">if</span> <span class="n">val</span><span class="o">==</span><span class="n">output</span><span class="p">[</span><span class="n">o_pars</span><span class="p">[</span><span class="mi">0</span><span class="p">]]]</span>
+    <span class="n">j</span> <span class="o">=</span> <span class="p">[</span><span class="n">y</span> <span class="k">for</span> <span class="n">y</span><span class="p">,</span><span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">order_params</span><span class="p">[</span><span class="n">o_pars</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span> <span class="k">if</span> <span class="n">val</span><span class="o">==</span><span class="n">output</span><span class="p">[</span><span class="n">o_pars</span><span class="p">[</span><span class="mi">1</span><span class="p">]]]</span>
+    <span class="k">return</span> <span class="n">o_pars</span><span class="p">,</span> <span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">j</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<div class="viewcode-block" id="plot_phasespace_grid">
+<a class="viewcode-back" href="../../../dynamical_analysis.html#OCD_modeling.plot_phasespace_grid">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_phasespace_grid</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">order_params</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Plot a grid of phasespaces from stability analysis outputs.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        outputs: list </span>
+<span class="sd">            Outputs from stability analysis.</span>
+<span class="sd">        order_params: dict </span>
+<span class="sd">            Fixed parameters, for which to analyse the system using discretized values, for example ``{&#39;C_21&#39;: np.linspace(0.2,0.8,4)}``.</span>
+<span class="sd">        args: Argparse.Namespace</span>
+<span class="sd">            Optional extra arguments in argprase Namespace, such as ``args.save_figs=True`` to save figure and ``args.plot_figs=True`` to plot figures.</span>
+<span class="sd">      </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;svg.fonttype&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;none&#39;</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;font.size&#39;</span><span class="p">:</span><span class="mi">11</span><span class="p">,</span> <span class="s1">&#39;axes.titlesize&#39;</span><span class="p">:</span><span class="s1">&#39;medium&#39;</span><span class="p">,</span> <span class="s1">&#39;mathtext.default&#39;</span><span class="p">:</span> <span class="s1">&#39;regular&#39;</span><span class="p">})</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">16</span><span class="p">,</span><span class="mi">16</span><span class="p">])</span>
+    <span class="n">p1s</span><span class="p">,</span> <span class="n">p2s</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">order_params</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">list</span><span class="p">(</span><span class="n">order_params</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">gs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">GridSpec</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">p1s</span><span class="p">),</span> <span class="n">ncols</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">p2s</span><span class="p">))</span>
+    
+    <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">outputs</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">]</span>
+        <span class="n">o_pars</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="n">j</span> <span class="o">=</span> <span class="n">get_grid_inds</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">order_params</span><span class="p">)</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">])</span>
+        <span class="n">plot_phasespace</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">],</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;fps&#39;</span><span class="p">],</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;ncs&#39;</span><span class="p">],</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;trajs&#39;</span><span class="p">],</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+        <span class="c1">#plt.title(&quot;{}={:.3f}  {}={:.3f}&quot;.format(o_pars[0], p1s[i], o_pars[1], p2s[j]))</span>
+        <span class="n">ttl</span> <span class="o">=</span> <span class="s2">&quot;$C_</span><span class="si">{12}</span><span class="s2">$=</span><span class="si">%s</span><span class="s2">        $C_</span><span class="si">{21}</span><span class="s2">$=</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{:.2f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p1s</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span><span class="s2">&quot;</span><span class="si">{:.2f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p2s</span><span class="p">[</span><span class="n">j</span><span class="p">]))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="n">ttl</span><span class="p">,</span> <span class="n">fontdict</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;fontsize&#39;</span><span class="p">:</span> <span class="mi">13</span><span class="p">}</span> <span class="p">)</span><span class="c1">#.format(p1s[i], p2s[j]))</span>
+        
+        <span class="k">if</span> <span class="n">i</span><span class="o">==</span><span class="nb">len</span><span class="p">(</span><span class="n">p1s</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;$S_1$&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">13</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">j</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;$S_2$&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">13</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+
+        <span class="c1"># makes quiver a bit more transparent and arrows a bit larger</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">getp</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="s1">&#39;children&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
+        <span class="c1">#for path in plt.getp(plt.getp(ax,&#39;children&#39;)[0], &#39;paths&#39;):</span>
+        <span class="c1">#    path.vertices = path.vertices*10</span>
+
+    <span class="c1">#pdb.set_trace()</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">save_figs</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">,</span> <span class="s1">&#39;phase_space&#39;</span><span class="o">+</span><span class="n">today</span><span class="p">()</span><span class="o">+</span><span class="s1">&#39;.svg&#39;</span><span class="p">),</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;svg&#39;</span><span class="p">,</span> <span class="n">transparent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">plot_figs</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+
+    
+
+<span class="k">def</span> <span class="nf">plot_phasespace_row</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">order_params</span><span class="p">,</span> <span class="n">rww</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">t_range</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Plot a row of graphs from outputs &quot;&quot;&quot;</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;svg.fonttype&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;none&#39;</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;font.size&#39;</span><span class="p">:</span><span class="mi">11</span><span class="p">,</span> <span class="s1">&#39;axes.titlesize&#39;</span><span class="p">:</span><span class="s1">&#39;medium&#39;</span><span class="p">,</span> <span class="s1">&#39;mathtext.default&#39;</span><span class="p">:</span> <span class="s1">&#39;regular&#39;</span><span class="p">})</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">12</span><span class="p">,</span><span class="mi">3</span><span class="p">])</span>
+    <span class="n">p1s</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">order_params</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">gs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">GridSpec</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">p1s</span><span class="p">))</span>
+    <span class="c1">#o_pars = np.sort([k for k in output.keys() if k!=&#39;output&#39;])</span>
+    <span class="c1">#i = [x for x,val in enumerate(order_params[o_pars[0]]) if val==output[o_pars[0]]]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">res</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">outputs</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">]</span>    
+        
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">i</span><span class="p">])</span>
+        <span class="n">plot_phasespace</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">],</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;fps&#39;</span><span class="p">],</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;ncs&#39;</span><span class="p">],</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;trajs&#39;</span><span class="p">],</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+        <span class="c1">#plt.title(&quot;{}={:.3f}  {}={:.3f}&quot;.format(o_pars[0], p1s[i], o_pars[1], p2s[j]))</span>
+        <span class="n">ttl</span> <span class="o">=</span> <span class="s2">&quot;$C_{2 \leftarrow 1}$=</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p1s</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="n">ttl</span><span class="p">,</span> <span class="n">fontdict</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;fontsize&#39;</span><span class="p">:</span> <span class="mi">11</span><span class="p">}</span> <span class="p">)</span><span class="c1">#.format(p1s[i], p2s[j]))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;$S_1$&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">i</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;$S_2$&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+
+        <span class="c1"># makes quiver a bit more transparent and arrows a bit larger</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">getp</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="s1">&#39;children&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
+        <span class="c1">#for path in plt.getp(plt.getp(ax,&#39;children&#39;)[0], &#39;paths&#39;):</span>
+        <span class="c1">#    path.vertices = path.vertices*10</span>
+
+        <span class="k">if</span> <span class="n">rww</span><span class="o">!=</span><span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">t_range</span><span class="o">!=</span><span class="kc">None</span><span class="p">:</span>
+                <span class="n">start</span> <span class="o">=</span> <span class="n">t_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">rww</span><span class="o">.</span><span class="n">sf</span>
+                <span class="n">stop</span> <span class="o">=</span> <span class="n">t_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">rww</span><span class="o">.</span><span class="n">sf</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">stop</span> <span class="o">=</span> <span class="n">rww</span><span class="o">.</span><span class="n">S_rec</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">rww</span><span class="o">.</span><span class="n">rec_C_12</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">],</span> <span class="n">rww</span><span class="o">.</span><span class="n">S_rec</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.4</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">rww</span><span class="o">.</span><span class="n">rec_C_12</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">],</span> <span class="n">rww</span><span class="o">.</span><span class="n">S_rec</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.4</span><span class="p">)</span>
+
+    <span class="c1">#pdb.set_trace()</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">save_figs</span><span class="p">:</span>
+        <span class="n">today</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y%m</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">,</span> <span class="s1">&#39;phase_space&#39;</span><span class="o">+</span><span class="n">today</span><span class="o">+</span><span class="s1">&#39;.svg&#39;</span><span class="p">),</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;svg&#39;</span><span class="p">,</span> <span class="n">transparent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">plot_figs</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="plot_bifurcation_grid">
+<a class="viewcode-back" href="../../../api/OCD_modeling.analysis.html#OCD_modeling.plot_bifurcation_grid">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_bifurcation_grid</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">order_params</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Plot a grid of bifurcation diagrams &quot;&quot;&quot;</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;font.size&#39;</span><span class="p">:</span><span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;axes.titlesize&#39;</span><span class="p">:</span><span class="s1">&#39;medium&#39;</span><span class="p">})</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">20</span><span class="p">,</span><span class="mi">20</span><span class="p">])</span>
+    <span class="n">p1s</span><span class="p">,</span> <span class="n">p2s</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">order_params</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">list</span><span class="p">(</span><span class="n">order_params</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">gs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">GridSpec</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">p1s</span><span class="p">),</span> <span class="n">ncols</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">p2s</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">output</span> <span class="ow">in</span> <span class="n">outputs</span><span class="p">:</span> 
+        <span class="n">o_pars</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="n">j</span> <span class="o">=</span> <span class="n">get_grid_inds</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">order_params</span><span class="p">)</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">])</span>
+        <span class="k">if</span> <span class="s1">&#39;output&#39;</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">cont</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;dilled_cont&#39;</span><span class="p">])</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">cont</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">axes</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;C_12&#39;</span><span class="p">,</span> <span class="s1">&#39;S2&#39;</span><span class="p">],</span> <span class="n">stability</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">)</span>
+                <span class="n">cont</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">axes</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;C_12&#39;</span><span class="p">,</span> <span class="s1">&#39;S1&#39;</span><span class="p">],</span> <span class="n">stability</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;orange&#39;</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([])</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">([])</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">=</span><span class="si">{:.3f}</span><span class="s2">  </span><span class="si">{}</span><span class="s2">=</span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">o_pars</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">p1s</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">o_pars</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">p2s</span><span class="p">[</span><span class="n">j</span><span class="p">]))</span>
+                <span class="k">continue</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">sca</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">=</span><span class="si">{:.3f}</span><span class="s2">  </span><span class="si">{}</span><span class="s2">=</span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">o_pars</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">p1s</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">o_pars</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">p2s</span><span class="p">[</span><span class="n">j</span><span class="p">]))</span>
+            <span class="k">if</span> <span class="n">i</span><span class="o">&lt;</span><span class="nb">len</span><span class="p">(</span><span class="n">p1s</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([])</span>
+            <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">([])</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([])</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">([])</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">=</span><span class="si">{:.3f}</span><span class="s2">  </span><span class="si">{}</span><span class="s2">=</span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">o_pars</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">p1s</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">o_pars</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">p2s</span><span class="p">[</span><span class="n">j</span><span class="p">]))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">plot_bifurcation_row</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">order_params</span><span class="p">,</span> <span class="n">rww</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">t_range</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Plot a row of bifurcation diagrams (ie. a 1 by n grid) &quot;&quot;&quot;</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;font.size&#39;</span><span class="p">:</span><span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;axes.titlesize&#39;</span><span class="p">:</span><span class="s1">&#39;medium&#39;</span><span class="p">})</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">15</span><span class="p">,</span><span class="mi">3</span><span class="p">])</span>
+    <span class="n">p1s</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">order_params</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">gs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">GridSpec</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">p1s</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">output</span> <span class="ow">in</span> <span class="n">outputs</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">output</span><span class="p">)</span> 
+        <span class="n">o_par</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">order_params</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span><span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">order_params</span><span class="p">[</span><span class="n">o_par</span><span class="p">])</span> <span class="k">if</span> <span class="n">val</span><span class="o">==</span><span class="n">output</span><span class="p">[</span><span class="n">o_par</span><span class="p">]][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">if</span> <span class="s1">&#39;output&#39;</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">cont</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;dilled_cont&#39;</span><span class="p">])</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">cont</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">axes</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;C_12&#39;</span><span class="p">,</span> <span class="s1">&#39;S1&#39;</span><span class="p">],</span> <span class="n">stability</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">)</span>
+                <span class="n">cont</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">axes</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;C_12&#39;</span><span class="p">,</span> <span class="s1">&#39;S2&#39;</span><span class="p">],</span> <span class="n">stability</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([])</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">([])</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">=</span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">o_par</span><span class="p">,</span> <span class="n">p1s</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+                <span class="k">continue</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">sca</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">=</span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">o_par</span><span class="p">,</span> <span class="n">p1s</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">([])</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span><span class="mf">0.5</span><span class="p">])</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([])</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">([])</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">=</span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">o_par</span><span class="p">,</span> <span class="n">p1s</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="n">rww</span><span class="o">!=</span><span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">t_range</span><span class="o">!=</span><span class="kc">None</span><span class="p">:</span>
+                <span class="n">start</span> <span class="o">=</span> <span class="n">t_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">rww</span><span class="o">.</span><span class="n">sf</span>
+                <span class="n">stop</span> <span class="o">=</span> <span class="n">t_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">sf</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">stop</span> <span class="o">=</span> <span class="n">rww</span><span class="o">.</span><span class="n">S_rec</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">rww</span><span class="o">.</span><span class="n">rec_C_12</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">],</span> <span class="n">rww</span><span class="o">.</span><span class="n">S_rec</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.4</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">rww</span><span class="o">.</span><span class="n">rec_C_12</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">],</span> <span class="n">rww</span><span class="o">.</span><span class="n">S_rec</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.4</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+    
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">save_figs</span><span class="p">:</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">,</span> <span class="s1">&#39;bifurcation_diagram_023_&#39;</span><span class="o">+</span><span class="n">today</span><span class="p">()</span><span class="o">+</span><span class="s1">&#39;.svg&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">plot_figs</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="plot_timeseries_phasespace_bif">
+<a class="viewcode-back" href="../../../dynamical_analysis.html#OCD_modeling.plot_timeseries_phasespace_bif">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_timeseries_phasespace_bif</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">rww</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Show S1, S2, C_12 timeseries, S1-S2 phase space with trajectories and C_12 S1/S2 phase space </span>
+<span class="sd">    with bifurcation diagram.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        outputs: list </span>
+<span class="sd">            Outputs from stability analysis.</span>
+<span class="sd">        rww: OCD_modeling.models.ReducedWongWangOU</span>
+<span class="sd">            Model instance that ran. </span>
+<span class="sd">        args: Argparse.Namespace</span>
+<span class="sd">            Extra options.        </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">t_range</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2800</span><span class="p">,</span><span class="mi">6000</span><span class="p">]</span>
+
+    <span class="n">ticks</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span> <span class="p">,</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">]</span>
+
+    <span class="n">start</span> <span class="o">=</span> <span class="n">t_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">rww</span><span class="o">.</span><span class="n">sf</span>
+    <span class="n">stop</span> <span class="o">=</span> <span class="n">t_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">rww</span><span class="o">.</span><span class="n">sf</span>
+
+
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">9</span><span class="p">,</span><span class="mi">6</span><span class="p">])</span>
+    <span class="n">gs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">GridSpec</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">sub_gs</span> <span class="o">=</span> <span class="n">gs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">subgridspec</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Time series</span>
+    <span class="c1">#------------</span>
+    <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">sub_gs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">rww</span><span class="o">.</span><span class="n">t</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">],</span> <span class="n">rww</span><span class="o">.</span><span class="n">S_rec</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;dodgerblue&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">top</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">bottom</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([],</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;$S_1$&#39;</span><span class="p">,</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">labelpad</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+
+    <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">sub_gs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">rww</span><span class="o">.</span><span class="n">t</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">],</span> <span class="n">rww</span><span class="o">.</span><span class="n">S_rec</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;forestgreen&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">top</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">bottom</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([],</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;$S_2$&#39;</span><span class="p">,</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">labelpad</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+
+    <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">sub_gs</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">hlines</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">xmin</span><span class="o">=</span><span class="n">t_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">xmax</span><span class="o">=</span><span class="n">t_range</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">rww</span><span class="o">.</span><span class="n">t</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">],</span> <span class="n">rww</span><span class="o">.</span><span class="n">rec_C_12</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">],</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;orange&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">top</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="c1">#plt.yticks([-0.5,0.75])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">([</span><span class="o">-</span><span class="mf">1.2</span><span class="p">,</span><span class="mf">1.6</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;$C_</span><span class="si">{12}</span><span class="s1">$&#39;</span><span class="p">,</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">labelpad</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+
+    <span class="n">xticks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">t_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">t_range</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">600</span><span class="p">)</span> <span class="c1"># 10min ticks</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">xticks</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="n">xticks</span><span class="o">-</span><span class="n">t_range</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="mi">60</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;time (min)&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+
+
+    <span class="c1"># S1-S2 State space</span>
+    <span class="c1">#------------------</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="mi">3</span><span class="p">])[</span><span class="s1">&#39;output&#39;</span><span class="p">]</span>
+    <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;ncs&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">][:,</span><span class="mi">0</span><span class="p">],</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;ncs&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">][:,</span><span class="mi">1</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;forestgreen&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;ncs&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][:,</span><span class="mi">0</span><span class="p">],</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;ncs&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][:,</span><span class="mi">1</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;dodgerblue&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">rww</span><span class="o">.</span><span class="n">S_rec</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">rww</span><span class="o">.</span><span class="n">S_rec</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">fp</span> <span class="ow">in</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;fps&#39;</span><span class="p">]:</span>
+        <span class="n">x</span><span class="p">,</span><span class="n">y</span> <span class="o">=</span> <span class="n">fp</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">80</span><span class="p">)</span>
+        
+    <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">top</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;$S_1$&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;$S_2$&#39;</span><span class="p">,</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">labelpad</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">ticks</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">(</span><span class="n">ticks</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">(</span><span class="n">ticks</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">(</span><span class="n">ticks</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.05</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.05</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+
+
+    <span class="c1"># S - C_12 state space</span>
+    <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">cont</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;dilled_cont&#39;</span><span class="p">])</span>
+    <span class="n">cont</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">axes</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;C_12&#39;</span><span class="p">,</span> <span class="s1">&#39;S1&#39;</span><span class="p">],</span> <span class="n">stability</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">1.6</span><span class="p">)</span>
+    <span class="n">cont</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">axes</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;C_12&#39;</span><span class="p">,</span> <span class="s1">&#39;S2&#39;</span><span class="p">],</span> <span class="n">stability</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">1.6</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">rww</span><span class="o">.</span><span class="n">rec_C_12</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">],</span> <span class="n">rww</span><span class="o">.</span><span class="n">S_rec</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;$S_1$&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">rww</span><span class="o">.</span><span class="n">rec_C_12</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">],</span> <span class="n">rww</span><span class="o">.</span><span class="n">S_rec</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">stop</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;$S_2$&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">top</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">left</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="s1">&#39;blue&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="s1">&#39;red&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">(</span><span class="n">ticks</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">(</span><span class="n">ticks</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.05</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="o">-</span><span class="mf">0.6</span><span class="p">,</span><span class="mf">1.6</span><span class="p">])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s1">&#39;both&#39;</span><span class="p">,</span> <span class="n">labelleft</span><span class="o">=</span><span class="s1">&#39;on&#39;</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s1">&#39;both&#39;</span><span class="p">,</span> <span class="n">labelright</span><span class="o">=</span><span class="s1">&#39;on&#39;</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;$C_</span><span class="si">{12}</span><span class="s1">$&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;$S_1$&#39;</span><span class="p">,</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">save_figs</span><span class="p">:</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">,</span> <span class="s1">&#39;single_pathway_model&#39;</span><span class="o">+</span><span class="n">today</span><span class="p">()</span><span class="o">+</span><span class="s1">&#39;.svg&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span></div>
+
+
+
+
+<div class="viewcode-block" id="get_parser">
+<a class="viewcode-back" href="../../../api/OCD_modeling.analysis.html#OCD_modeling.get_parser">[docs]</a>
+<span class="k">def</span> <span class="nf">get_parser</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; parsing global script argument &quot;&quot;&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--create_model&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;create symbolic model&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--compute_nullclines&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;compute nullclines numerically&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--compute_epc&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;compute equilibrium point curves numerically&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--save_model&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;save symbolic model with its computed attributes&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--run_stability_analysis&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;run stability analysis: find fixed points (semi-analytically) and perform linear stability analysis around them&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--load_stability_analysis&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;load previously completed stability analysis&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--plot_figs&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;plot figures&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--plot_phasespace_grid&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;plot grid of phase spaces using discretized order parameters&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--plot_bifurcation_diagrams&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;plot grid of bifurcation diagrams using discretized order parameters&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--save_figs&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;save figures&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--save_outputs&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;save analysis outputs&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--timeout&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">3000</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;timeout of the stability analysis (per parameter combination invoked)&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--n_jobs&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;number of processes used in parallelization&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--n_trajs&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;number of trajectories (traces) to compute for phase space projections&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--n_op&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;number of values taken for each order parameters&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--load_sample_rww&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;load a sample of ReducedWongWang model object previously ran for illustration&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--plot_timeseries_phasespace_bif&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;plot neat figure of timeseries, phase space and bifurcations with trajectories (paper quality)&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">parser</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span><span class="o">==</span><span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">get_parser</span><span class="p">()</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    <span class="n">default_params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span><span class="mi">270</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">108</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mf">0.154</span><span class="p">,</span> <span class="s1">&#39;C_12&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span><span class="mf">2.5</span><span class="p">,</span> <span class="s1">&#39;J_N&#39;</span><span class="p">:</span><span class="mf">0.2609</span><span class="p">,</span> <span class="s1">&#39;I_0&#39;</span><span class="p">:</span><span class="mf">0.3</span><span class="p">,</span> <span class="s1">&#39;I_1&#39;</span><span class="p">:</span><span class="mf">0.0</span><span class="p">,</span> <span class="s1">&#39;tau_S&#39;</span><span class="p">:</span><span class="mi">100</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">:</span><span class="mf">0.9</span><span class="p">,</span> <span class="s1">&#39;gam&#39;</span><span class="p">:</span><span class="mf">0.000641</span><span class="p">}</span>
+    <span class="c1">#order_params = {&#39;C_12&#39;: np.linspace(-1,1,args.n_op), &#39;I_0&#39;: np.linspace(0.2,0.5,args.n_op)} #, &#39;C_21&#39;: np.linspace(-1,1,args.n_op)}</span>
+    <span class="n">order_params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;C_12&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span><span class="mf">0.5</span><span class="p">,</span><span class="n">args</span><span class="o">.</span><span class="n">n_op</span><span class="p">),</span> <span class="s1">&#39;C_21&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span><span class="mf">0.5</span><span class="p">,</span><span class="n">args</span><span class="o">.</span><span class="n">n_op</span><span class="p">)}</span>
+    <span class="c1">#order_params = {&#39;C_21&#39;: np.linspace(0.2,0.8,args.n_op)}</span>
+    
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">load_stability_analysis</span><span class="p">:</span>
+        <span class="c1">#fname = os.path.join(proj_dir, &#39;postprocessing&#39;, &#39;outputs_dst__20230925_op_C_12_fix025_C21_var023.pkl&#39;)</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;postprocessing&#39;</span><span class="p">,</span> <span class="s1">&#39;outputs_dst__20230925_op_C_12_fix025_C21_var0_1_10.pkl&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">outputs</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> 
+    
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">run_stability_analysis</span><span class="p">:</span>
+        <span class="n">outputs</span><span class="p">,</span> <span class="n">futures</span> <span class="o">=</span> <span class="n">run_stability_analysis</span><span class="p">(</span><span class="n">order_params</span><span class="p">,</span> <span class="n">default_params</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">save_outputs</span><span class="p">:</span>
+            <span class="n">fname</span> <span class="o">=</span> <span class="s1">&#39;outputs_dst_&#39;</span><span class="o">+</span><span class="n">today</span><span class="p">()</span><span class="o">+</span><span class="s1">&#39;_phasespace_grid.pkl&#39;</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;postprocessing&#39;</span><span class="p">,</span> <span class="n">fname</span><span class="p">),</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">plot_bifurcation_diagrams</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">order_params</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">plot_bifurcation_row</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">order_params</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">order_params</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">==</span><span class="mi">2</span><span class="p">:</span>
+                <span class="n">plot_bifurcation_grid</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">order_params</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;can&#39;t plot for the number of order parameters&quot;</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">plot_phasespace_grid</span><span class="p">:</span>
+        <span class="c1">#if (&#39;outputs&#39; not in globals()) &amp; (&#39;outputs&#39; not in locals()):</span>
+        <span class="c1">#    outputs = pickle.load(os.path.join(proj_dir, &#39;postprocessing&#39;, &#39;outputs_dst_20230227.pkl&#39;))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">order_params</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">plot_phasespace_row</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">order_params</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">order_params</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">==</span><span class="mi">2</span><span class="p">:</span>
+            <span class="n">plot_phasespace_grid</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">order_params</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">load_sample_rww</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;postprocessing&#39;</span><span class="p">,</span> <span class="s1">&#39;sample_rww.pkl&#39;</span><span class="p">),</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">rww</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">plot_timeseries_phasespace_bif</span><span class="p">:</span>
+        <span class="n">plot_timeseries_phasespace_bif</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">rww</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Sebastien Naze.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

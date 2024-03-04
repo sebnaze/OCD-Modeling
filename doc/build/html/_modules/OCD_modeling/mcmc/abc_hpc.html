@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OCD_modeling.mcmc.abc_hpc &mdash; OCD modeling  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            OCD modeling
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dynamical_analysis.html">Dynamical system analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../optimization.html">Simulation-based inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../restoration.html">Restoration analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../validation.html">Digital twins validation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">OCD modeling</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">OCD_modeling.mcmc.abc_hpc</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for OCD_modeling.mcmc.abc_hpc</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Approximate Bayesian Computation of the Reduced Wong Wang model for OCD</span>
+<span class="c1">#</span>
+<span class="c1"># Adapted from https://pyabc.readthedocs.io/en/latest/examples/sde_ion_channels.html</span>
+<span class="c1"># by Sebastien Naze</span>
+<span class="c1">#</span>
+<span class="c1"># QIMR Berghofer 2023</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">importlib</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">joblib</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">pyabc</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">import</span> <span class="nn">OCD_modeling</span>
+<span class="kn">from</span> <span class="nn">OCD_modeling.models</span> <span class="kn">import</span> <span class="n">ReducedWongWang</span> <span class="k">as</span> <span class="n">RWW</span>
+<span class="kn">from</span> <span class="nn">OCD_modeling.hpc</span> <span class="kn">import</span> <span class="n">parallel_launcher</span>
+<span class="kn">from</span> <span class="nn">OCD_modeling.utils.utils</span> <span class="kn">import</span> <span class="o">*</span>
+
+
+<div class="viewcode-block" id="get_default_params">
+<a class="viewcode-back" href="../../../api/OCD_modeling.mcmc.html#OCD_modeling.get_default_params">[docs]</a>
+<span class="k">def</span> <span class="nf">get_default_params</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Create a structure with default models, simulation and BOLD parameters</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">        default_model_params: dict</span>
+<span class="sd">            Model parameters.</span>
+<span class="sd">        default_sim_params: dict</span>
+<span class="sd">            Simulation parameters.</span>
+<span class="sd">        default_bold_params: dict</span>
+<span class="sd">            BOLD parameters.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># model default parameters</span>
+    <span class="n">default_model_params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;I_0&#39;</span><span class="p">]</span>       <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;J_N&#39;</span><span class="p">]</span>       <span class="o">=</span> <span class="mf">0.2609</span>
+    <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;w&#39;</span><span class="p">]</span>         <span class="o">=</span> <span class="mf">0.9</span>
+    <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;G&#39;</span><span class="p">]</span>         <span class="o">=</span> <span class="mf">2.5</span>
+    <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;tau_S&#39;</span><span class="p">]</span>     <span class="o">=</span> <span class="mf">100.</span>
+    <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;gamma&#39;</span><span class="p">]</span>     <span class="o">=</span> <span class="mf">0.000641</span>
+    <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;sigma&#39;</span><span class="p">]</span>     <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;N&#39;</span><span class="p">]</span>         <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;dt&#39;</span><span class="p">]</span>        <span class="o">=</span> <span class="mf">0.01</span>
+    <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;C&#39;</span><span class="p">]</span>         <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;N&#39;</span><span class="p">],</span> <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;N&#39;</span><span class="p">]))</span>
+    <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;sigma_C&#39;</span><span class="p">]</span>   <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;N&#39;</span><span class="p">],</span> <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;N&#39;</span><span class="p">]))</span>
+    <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;eta_C&#39;</span><span class="p">]</span>     <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;N&#39;</span><span class="p">],</span> <span class="n">default_model_params</span><span class="p">[</span><span class="s1">&#39;N&#39;</span><span class="p">]))</span>
+
+    <span class="c1"># simulation default parameters</span>
+    <span class="n">default_sim_params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="n">default_sim_params</span><span class="p">[</span><span class="s1">&#39;t_tot&#39;</span><span class="p">]</span>         <span class="o">=</span> <span class="mi">8000</span>
+    <span class="n">default_sim_params</span><span class="p">[</span><span class="s1">&#39;rec_vars&#39;</span><span class="p">]</span>      <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;C_13&#39;</span><span class="p">,</span> <span class="s1">&#39;C_24&#39;</span><span class="p">]</span>
+    <span class="n">default_sim_params</span><span class="p">[</span><span class="s1">&#39;sf&#39;</span><span class="p">]</span>            <span class="o">=</span> <span class="mi">100</span>
+
+    <span class="c1"># Control default parameters</span>
+    <span class="n">default_control_params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+
+    <span class="c1"># BOLD default parameters</span>
+    <span class="n">default_bold_params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="n">default_bold_params</span><span class="p">[</span><span class="s1">&#39;t_range&#39;</span><span class="p">]</span>      <span class="o">=</span> <span class="p">[</span><span class="mi">5000</span><span class="p">,</span><span class="mi">8000</span><span class="p">]</span>
+    <span class="n">default_bold_params</span><span class="p">[</span><span class="s1">&#39;transient&#39;</span><span class="p">]</span>    <span class="o">=</span> <span class="mi">60</span>
+
+    <span class="k">return</span> <span class="n">default_model_params</span><span class="p">,</span> <span class="n">default_sim_params</span><span class="p">,</span> <span class="n">default_control_params</span><span class="p">,</span> <span class="n">default_bold_params</span></div>
+
+
+
+<div class="viewcode-block" id="get_prior">
+<a class="viewcode-back" href="../../../api/OCD_modeling.mcmc.html#OCD_modeling.get_prior">[docs]</a>
+<span class="k">def</span> <span class="nf">get_prior</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Create uniform prior distributions of parameters to start Sequential Monte-Carlo.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">        prior: pyABC.Distribution</span>
+<span class="sd">            Distribution object of priors.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># PRIORS</span>
+    <span class="c1"># lower_bound, upper_bound</span>
+    <span class="n">sigma_min</span><span class="p">,</span> <span class="n">sigma_max</span>    <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.1</span>     <span class="c1"># noise amplitude</span>
+    <span class="n">G_min</span><span class="p">,</span> <span class="n">G_max</span>            <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span>           <span class="c1"># global coupling</span>
+    <span class="n">C_12_min</span><span class="p">,</span> <span class="n">C_12_max</span>      <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span>        <span class="c1"># PFC -&gt; OFC</span>
+    <span class="n">C_21_min</span><span class="p">,</span> <span class="n">C_21_max</span>      <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span>        <span class="c1"># OFC -&gt; PFC</span>
+    <span class="n">C_13_min</span><span class="p">,</span> <span class="n">C_13_max</span>      <span class="o">=</span> <span class="o">-</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.5</span>      <span class="c1"># NAcc -&gt; OFC</span>
+    <span class="n">C_31_min</span><span class="p">,</span> <span class="n">C_31_max</span>      <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span>         <span class="c1"># OFC -&gt; NAcc</span>
+    <span class="n">C_24_min</span><span class="p">,</span> <span class="n">C_24_max</span>      <span class="o">=</span> <span class="o">-</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.5</span>      <span class="c1"># Put -&gt; PFC</span>
+    <span class="n">C_42_min</span><span class="p">,</span> <span class="n">C_42_max</span>      <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span>         <span class="c1"># PFC -&gt; Put</span>
+    <span class="n">C_34_min</span><span class="p">,</span> <span class="n">C_34_max</span>      <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span>      <span class="c1"># Put -&gt; NAcc</span>
+    <span class="n">C_43_min</span><span class="p">,</span> <span class="n">C_43_max</span>      <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span>      <span class="c1"># Nacc -&gt; Put</span>
+
+    <span class="c1"># coupling noises on Ornstein-Uhlenbeck process </span>
+    <span class="n">sigma_C_13_min</span><span class="p">,</span> <span class="n">sigma_C_13_max</span>  <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.4</span>
+    <span class="n">sigma_C_24_min</span><span class="p">,</span> <span class="n">sigma_C_24_max</span>  <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.4</span>
+    <span class="n">eta_C_13_min</span><span class="p">,</span> <span class="n">eta_C_13_max</span>  <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.1</span>
+    <span class="n">eta_C_24_min</span><span class="p">,</span> <span class="n">eta_C_24_max</span>  <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.1</span>
+
+
+    <span class="n">prior</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">Distribution</span><span class="p">(</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">sigma_min</span><span class="p">,</span> <span class="n">sigma_max</span> <span class="o">-</span> <span class="n">sigma_min</span><span class="p">),</span>
+        <span class="n">G</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">G_min</span><span class="p">,</span> <span class="n">G_max</span> <span class="o">-</span> <span class="n">G_min</span><span class="p">),</span>
+        <span class="n">C_12</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">C_12_min</span><span class="p">,</span> <span class="n">C_12_max</span> <span class="o">-</span> <span class="n">C_12_min</span><span class="p">),</span>
+        <span class="n">C_21</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">C_21_min</span><span class="p">,</span> <span class="n">C_21_max</span> <span class="o">-</span> <span class="n">C_21_min</span><span class="p">),</span>
+        <span class="n">C_13</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">C_13_min</span><span class="p">,</span> <span class="n">C_13_max</span> <span class="o">-</span> <span class="n">C_13_min</span><span class="p">),</span>
+        <span class="n">C_31</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">C_31_min</span><span class="p">,</span> <span class="n">C_31_max</span> <span class="o">-</span> <span class="n">C_31_min</span><span class="p">),</span>
+        <span class="n">C_24</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">C_24_min</span><span class="p">,</span> <span class="n">C_24_max</span> <span class="o">-</span> <span class="n">C_24_min</span><span class="p">),</span>
+        <span class="n">C_42</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">C_42_min</span><span class="p">,</span> <span class="n">C_42_max</span> <span class="o">-</span> <span class="n">C_42_min</span><span class="p">),</span>
+        <span class="n">C_34</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">C_34_min</span><span class="p">,</span> <span class="n">C_34_max</span> <span class="o">-</span> <span class="n">C_34_min</span><span class="p">),</span>
+        <span class="n">C_43</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">C_43_min</span><span class="p">,</span> <span class="n">C_43_max</span> <span class="o">-</span> <span class="n">C_43_min</span><span class="p">),</span>
+        <span class="n">sigma_C_13</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">sigma_C_13_min</span><span class="p">,</span> <span class="n">sigma_C_13_max</span> <span class="o">-</span> <span class="n">sigma_C_13_min</span><span class="p">),</span>
+        <span class="n">sigma_C_24</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">sigma_C_24_min</span><span class="p">,</span> <span class="n">sigma_C_24_max</span> <span class="o">-</span> <span class="n">sigma_C_24_min</span><span class="p">),</span>
+        <span class="n">eta_C_13</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">eta_C_13_min</span><span class="p">,</span> <span class="n">eta_C_13_max</span> <span class="o">-</span> <span class="n">eta_C_13_min</span><span class="p">),</span>
+        <span class="n">eta_C_24</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">eta_C_24_min</span><span class="p">,</span> <span class="n">eta_C_24_max</span> <span class="o">-</span> <span class="n">eta_C_24_min</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">prior</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">get_default_args</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value &quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; (actually not in use -- deprecated) &quot;&quot;&quot;</span> 
+    <span class="n">signature</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="o">.</span><span class="n">default</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">signature</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">default</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">inspect</span><span class="o">.</span><span class="n">Parameter</span><span class="o">.</span><span class="n">empty</span>
+    <span class="p">}</span>
+
+
+<div class="viewcode-block" id="unpack_params">
+<a class="viewcode-back" href="../../../api/OCD_modeling.mcmc.html#OCD_modeling.unpack_params">[docs]</a>
+<span class="k">def</span> <span class="nf">unpack_params</span><span class="p">(</span><span class="n">in_params</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Unpack parameters to be given to model and simulation.</span>
+<span class="sd">    </span>
+<span class="sd">    All type of input parameter can be given, it will be unpacked and atrributed to the correct parameter dictrionnary.</span>
+<span class="sd">    If the parameter is not recognized, a warning will be displayed and the input parameters will be ignored.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        in_params: dict</span>
+<span class="sd">            Input parameters. </span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">        model_params: dict</span>
+<span class="sd">            Model parameters.</span>
+<span class="sd">        sim_params: dict</span>
+<span class="sd">            Simulations parameters.</span>
+<span class="sd">        control_params: dict</span>
+<span class="sd">            Control parameters.</span>
+<span class="sd">        bold_params: dict</span>
+<span class="sd">            BOLD parameters.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">model_params</span><span class="p">,</span> <span class="n">sim_params</span><span class="p">,</span> <span class="n">control_params</span><span class="p">,</span> <span class="n">bold_params</span> <span class="o">=</span> <span class="n">get_default_params</span><span class="p">()</span>
+
+    <span class="c1"># unpack model&#39;s params</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">in_params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">model_params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="ow">is</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span> <span class="c1"># otherwise matrix multiplication can be a problem at inference</span>
+            <span class="n">model_params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="s1">&#39;C_&#39;</span> <span class="ow">in</span> <span class="n">k</span><span class="p">):</span>
+            <span class="n">var</span><span class="p">,</span> <span class="n">inds</span> <span class="o">=</span> <span class="n">k</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="n">maxsplit</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">j</span><span class="p">,</span><span class="n">i</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">inds</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">inds</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">-</span><span class="mi">1</span>
+            <span class="n">model_params</span><span class="p">[</span><span class="n">var</span><span class="p">][</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+
+        <span class="c1"># unpack sim params</span>
+        <span class="k">elif</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">sim_params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">sim_params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+        
+        <span class="c1"># unpack bold params</span>
+        <span class="k">elif</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">bold_params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">bold_params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;parameter </span><span class="si">{}</span><span class="s1"> is unknown, it is being discarded.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+            <span class="k">continue</span>
+    <span class="k">return</span> <span class="n">model_params</span><span class="p">,</span> <span class="n">sim_params</span><span class="p">,</span> <span class="n">control_params</span><span class="p">,</span> <span class="n">bold_params</span></div>
+
+
+
+<div class="viewcode-block" id="simulate_rww">
+<a class="viewcode-back" href="../../../api/OCD_modeling.mcmc.html#OCD_modeling.simulate_rww">[docs]</a>
+<span class="k">def</span> <span class="nf">simulate_rww</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; instanciate model and simulate trace &quot;&quot;&quot;</span>
+    <span class="n">model_params</span><span class="p">,</span> <span class="n">sim_params</span><span class="p">,</span> <span class="n">control_params</span><span class="p">,</span> <span class="n">bold_params</span> <span class="o">=</span> <span class="n">unpack_params</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+    <span class="c1">#print(model_params)</span>
+    <span class="n">rww</span> <span class="o">=</span> <span class="n">RWW</span><span class="o">.</span><span class="n">ReducedWongWangND</span><span class="p">(</span><span class="o">**</span><span class="n">model_params</span><span class="p">)</span>
+    <span class="n">rww</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="n">sim_params</span><span class="p">)</span>
+    <span class="c1">#print(sim_params)</span>
+    <span class="n">RWW</span><span class="o">.</span><span class="n">compute_bold</span><span class="p">(</span><span class="n">rww</span><span class="p">)</span>
+    <span class="n">r</span><span class="p">,</span> <span class="n">corr_diff</span><span class="p">,</span> <span class="n">corr</span> <span class="o">=</span> <span class="n">RWW</span><span class="o">.</span><span class="n">score_model</span><span class="p">(</span><span class="n">rww</span><span class="p">,</span> <span class="n">coh</span><span class="o">=</span><span class="s1">&#39;pat&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;r&#39;</span><span class="p">:</span> <span class="n">r</span><span class="p">,</span> <span class="s1">&#39;corr_diff&#39;</span><span class="p">:</span><span class="n">corr_diff</span><span class="p">,</span> <span class="s1">&#39;corr&#39;</span><span class="p">:</span><span class="n">corr</span><span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="simulate_population_rww">
+<a class="viewcode-back" href="../../../optimization.html#OCD_modeling.simulate_population_rww">[docs]</a>
+<span class="k">def</span> <span class="nf">simulate_population_rww</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Run a pool of simulations and score their outputs.</span>
+
+<span class="sd">    As a design choice, the number of simulations per pool and the number of processes used in parallel are hard coded here </span>
+<span class="sd">    in a `Argparse.Namespace` object which is propagated to the launcher.  </span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        params: dict</span>
+<span class="sd">            Set of parameters are used to instanciate model.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">        RMSE: dict</span>
+<span class="sd">            Root Mean Square Error between the simulated pool (i.e. a &quot;population cohort&quot;) </span>
+<span class="sd">            and the real data (either &quot;controls&quot; or &quot;patients&quot;).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span><span class="p">()</span>
+    <span class="n">args</span><span class="o">.</span><span class="n">n_sims</span> <span class="o">=</span> <span class="mi">56</span>
+    <span class="n">args</span><span class="o">.</span><span class="n">n_jobs</span> <span class="o">=</span> <span class="mi">8</span>
+    <span class="n">args</span><span class="o">.</span><span class="n">model_pars</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sim_pars</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">control_pars</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">bold_pars</span> <span class="o">=</span> <span class="n">unpack_params</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+    
+    <span class="c1">#sim_objs = parallel_launcher.launch_simulations(args)</span>
+    <span class="n">sim_objs</span> <span class="o">=</span> <span class="n">parallel_launcher</span><span class="o">.</span><span class="n">launch_pool_simulations</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    
+    <span class="n">RMSE</span> <span class="o">=</span> <span class="n">RWW</span><span class="o">.</span><span class="n">score_population_models</span><span class="p">(</span><span class="n">sim_objs</span><span class="p">,</span> <span class="n">cohort</span><span class="o">=</span><span class="s1">&#39;patients&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;RMSE&#39;</span><span class="p">:</span> <span class="n">RMSE</span><span class="p">}</span></div>
+
+
+
+
+<div class="viewcode-block" id="evaluate_prediction">
+<a class="viewcode-back" href="../../../api/OCD_modeling.mcmc.html#OCD_modeling.evaluate_prediction">[docs]</a>
+<span class="k">def</span> <span class="nf">evaluate_prediction</span><span class="p">(</span><span class="n">history</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">1000</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Re-run model for the best scored parameters (highest posteriors) &quot;&quot;&quot;</span>
+    <span class="c1"># get paramaters from best estimates and re-simulate with it</span>
+    <span class="n">pop_ext</span> <span class="o">=</span> <span class="n">history</span><span class="o">.</span><span class="n">get_population_extended</span><span class="p">()</span>
+    <span class="n">cols</span> <span class="o">=</span> <span class="n">pop_ext</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">res</span><span class="o">=</span><span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_samples</span><span class="p">):</span>
+        <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">dict</span><span class="p">((</span><span class="n">k</span><span class="p">[</span><span class="mi">4</span><span class="p">:],</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">pop_ext</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">cols</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+
+    <span class="n">output</span> <span class="o">=</span> <span class="n">joblib</span><span class="o">.</span><span class="n">Parallel</span><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">28</span><span class="p">)(</span><span class="n">joblib</span><span class="o">.</span><span class="n">delayed</span><span class="p">(</span><span class="n">simulate_rww</span><span class="p">)(</span><span class="n">param</span><span class="p">)</span> <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">res</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">output</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">sim_output_to_df</span><span class="p">(</span><span class="n">sim_output</span><span class="p">,</span> <span class="n">coh</span><span class="o">=</span><span class="s1">&#39;con&#39;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; reformats simluation output to dataframe &quot;&quot;&quot;</span> 
+    <span class="n">df</span> <span class="o">=</span> <span class="p">[]</span> 
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">out</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sim_output</span><span class="p">):</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;subj&#39;</span><span class="p">:</span><span class="s1">&#39;sim-</span><span class="si">{}{:04d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">coh</span><span class="p">,</span><span class="n">i</span><span class="p">),</span> <span class="s1">&#39;pathway&#39;</span><span class="p">:</span><span class="s1">&#39;OFC_PFC&#39;</span><span class="p">,</span> <span class="s1">&#39;cohort&#39;</span><span class="p">:</span><span class="s1">&#39;sim-&#39;</span><span class="o">+</span><span class="n">coh</span><span class="p">,</span> <span class="s1">&#39;corr&#39;</span><span class="p">:</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;corr&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]})</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;subj&#39;</span><span class="p">:</span><span class="s1">&#39;sim-</span><span class="si">{}{:04d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">coh</span><span class="p">,</span><span class="n">i</span><span class="p">),</span> <span class="s1">&#39;pathway&#39;</span><span class="p">:</span><span class="s1">&#39;Acc_OFC&#39;</span><span class="p">,</span> <span class="s1">&#39;cohort&#39;</span><span class="p">:</span><span class="s1">&#39;sim-&#39;</span><span class="o">+</span><span class="n">coh</span><span class="p">,</span> <span class="s1">&#39;corr&#39;</span><span class="p">:</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;corr&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">]})</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;subj&#39;</span><span class="p">:</span><span class="s1">&#39;sim-</span><span class="si">{}{:04d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">coh</span><span class="p">,</span><span class="n">i</span><span class="p">),</span> <span class="s1">&#39;pathway&#39;</span><span class="p">:</span><span class="s1">&#39;dPut_OFC&#39;</span><span class="p">,</span> <span class="s1">&#39;cohort&#39;</span><span class="p">:</span><span class="s1">&#39;sim-&#39;</span><span class="o">+</span><span class="n">coh</span><span class="p">,</span> <span class="s1">&#39;corr&#39;</span><span class="p">:</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;corr&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">]})</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;subj&#39;</span><span class="p">:</span><span class="s1">&#39;sim-</span><span class="si">{}{:04d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">coh</span><span class="p">,</span><span class="n">i</span><span class="p">),</span> <span class="s1">&#39;pathway&#39;</span><span class="p">:</span><span class="s1">&#39;Acc_PFC&#39;</span><span class="p">,</span> <span class="s1">&#39;cohort&#39;</span><span class="p">:</span><span class="s1">&#39;sim-&#39;</span><span class="o">+</span><span class="n">coh</span><span class="p">,</span> <span class="s1">&#39;corr&#39;</span><span class="p">:</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;corr&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">]})</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;subj&#39;</span><span class="p">:</span><span class="s1">&#39;sim-</span><span class="si">{}{:04d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">coh</span><span class="p">,</span><span class="n">i</span><span class="p">),</span> <span class="s1">&#39;pathway&#39;</span><span class="p">:</span><span class="s1">&#39;dPut_PFC&#39;</span><span class="p">,</span> <span class="s1">&#39;cohort&#39;</span><span class="p">:</span><span class="s1">&#39;sim-&#39;</span><span class="o">+</span><span class="n">coh</span><span class="p">,</span> <span class="s1">&#39;corr&#39;</span><span class="p">:</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;corr&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">]})</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;subj&#39;</span><span class="p">:</span><span class="s1">&#39;sim-</span><span class="si">{}{:04d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">coh</span><span class="p">,</span><span class="n">i</span><span class="p">),</span> <span class="s1">&#39;pathway&#39;</span><span class="p">:</span><span class="s1">&#39;Acc_dPut&#39;</span><span class="p">,</span> <span class="s1">&#39;cohort&#39;</span><span class="p">:</span><span class="s1">&#39;sim-&#39;</span><span class="o">+</span><span class="n">coh</span><span class="p">,</span> <span class="s1">&#39;corr&#39;</span><span class="p">:</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;corr&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">]})</span>
+    <span class="n">df_sim</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">df_sim</span>
+
+
+<span class="k">def</span> <span class="nf">get_config</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; extract redis config &quot;&quot;&quot;</span>
+    <span class="n">cfg</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;envs&#39;</span><span class="p">,</span> <span class="s1">&#39;redis.conf&#39;</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+        <span class="n">cfg</span><span class="p">[</span><span class="s1">&#39;pssr&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;traces&#39;</span><span class="p">,</span> <span class="s1">&#39;.redis_ip&#39;</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">cfg</span><span class="p">[</span><span class="s1">&#39;redis_ip&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">cfg</span>
+
+
+<span class="k">def</span> <span class="nf">parse_args</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Parse command line arguments &quot;&quot;&quot;</span> 
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--redis_ip&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;10.10.58.254&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;set ip address of the server. default: hpcapp01&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--redis_pwd&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;bayesopt1234321&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;password to access server&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--resume_opt&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;name of the optimzation to resume (default:None, start a new optimization)&#39;</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">args</span>
+
+<div class="viewcode-block" id="run_abc">
+<a class="viewcode-back" href="../../../api/OCD_modeling.mcmc.html#OCD_modeling.run_abc">[docs]</a>
+<span class="k">def</span> <span class="nf">run_abc</span><span class="p">(</span><span class="n">prior</span><span class="p">,</span> <span class="n">cfg</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Setup and run the Approximate Bayesian Computation.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        prior: pyABC.Distribution</span>
+<span class="sd">            Prior distributions of parameters.</span>
+<span class="sd">        cfg: Argparse.Namespace</span>
+<span class="sd">            Server configuration information.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">        history: pyABC.History</span>
+<span class="sd">            Output of the optimization, i.e. population parameters of accepted particles and summary statistics. </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">trace_name</span> <span class="o">=</span> <span class="s1">&#39;rww4D_OU_HPC_&#39;</span><span class="o">+</span><span class="n">today</span><span class="p">()</span>
+    <span class="c1">#sampler = pyabc.sampler.MulticoreEvalParallelSampler(n_procs=1)  # used for calibrating on local machine before portage to HPC</span>
+    <span class="n">sampler</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">sampler</span><span class="o">.</span><span class="n">RedisEvalParallelSampler</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="n">cfg</span><span class="p">[</span><span class="s1">&#39;redis_ip&#39;</span><span class="p">],</span> <span class="n">port</span><span class="o">=</span><span class="mi">6379</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="n">cfg</span><span class="p">[</span><span class="s1">&#39;pssr&#39;</span><span class="p">])</span>
+    <span class="n">sampler</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">abc</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">ABCSMC</span><span class="p">(</span><span class="n">simulate_population_rww</span><span class="p">,</span> <span class="n">prior</span><span class="p">,</span> <span class="n">RWW</span><span class="o">.</span><span class="n">distance</span><span class="p">,</span> <span class="n">sampler</span><span class="o">=</span><span class="n">sampler</span><span class="p">,</span> <span class="n">population_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">max_nr_recorded_particles</span><span class="o">=</span><span class="mi">20000</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">resume_opt</span><span class="o">==</span><span class="kc">None</span><span class="p">:</span>
+        <span class="n">abc_id</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">new</span><span class="p">(</span>
+            <span class="s2">&quot;sqlite:///&quot;</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;traces&#39;</span><span class="p">,</span> <span class="n">trace_name</span><span class="o">+</span><span class="s2">&quot;.db&quot;</span><span class="p">),</span>
+            <span class="p">{</span><span class="s2">&quot;RMSE&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>  <span class="c1"># observation # note: here is dummy, the distance function does not use it.</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">abc</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;sqlite:///&quot;</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s1">&#39;traces&#39;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">resume_opt</span><span class="o">+</span><span class="s2">&quot;.db&quot;</span><span class="p">),</span> <span class="n">abc_id</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">history</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">max_nr_populations</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span> <span class="n">minimum_epsilon</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">history</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parse_args</span><span class="p">()</span>
+    <span class="n">cfg</span> <span class="o">=</span> <span class="n">get_config</span><span class="p">()</span>
+    <span class="n">prior</span> <span class="o">=</span> <span class="n">get_prior</span><span class="p">()</span>
+    <span class="n">history</span> <span class="o">=</span> <span class="n">run_abc</span><span class="p">(</span><span class="n">prior</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Sebastien Naze.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

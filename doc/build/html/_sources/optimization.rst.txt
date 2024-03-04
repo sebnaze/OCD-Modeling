@@ -1,0 +1,103 @@
+Simulation-based inference
+==========================
+
+Parameter optimization
+----------------------
+
+We perform parameter optimization using Approximate Bayesian Computation with a Sequential Monte-Carlo algorithm (ABC-SMC) \
+implemented in the `pyABC`_ toolbox (Klinger et al., 2022).
+
+We exploited the computational power offered by our high-performance computing infrastructure by instanciating a REDIS server, \
+which handled the I/O and provided a lightweight database accessible by the worker nodes. 
+For more information, visit https://pyabc.readthedocs.io/en/latest/api/pyabc.sampler.html#pyabc.sampler.RedisEvalParallelSampler.
+
+Once the server is set up, we instanciate and run the ABC-SMC, which is the core class of the toolbox:
+https://pyabc.readthedocs.io/en/latest/api/pyabc.inference.html
+
+.. literalinclude:: ../../code/OCD_modeling/mcmc/abc_hpc.py
+    :pyobject: run_abc
+
+Each worker node is running simulations (Parent Processes) using parameters generated (by the Master process) and stored in the (REDIS) server. 
+
+.. figure:: img/REDIS_diagram.jpg
+    :width: 800
+    :name: REDIS
+    :align: center
+
+    Architecture of the parallel optimization.
+
+.. autofunction:: OCD_modeling.mcmc.simulate_population_rww
+
+The simulations are further parallelized across processes (Child Processes) within a single worker. 
+
+.. autofunction:: OCD_modeling.hpc.launch_pool_simulations
+
+.. autofunction:: OCD_modeling.hpc.run_sim
+
+
+History analysis
+----------------
+
+Once parameters have been optimized to fit empirical data, we can visualize the posterior distributions of model's parameters.
+
+.. autofunction:: OCD_modeling.mcmc.compute_kdes
+
+.. autofunction:: OCD_modeling.mcmc.plot_kdes
+
+.. figure:: img/kdes.png
+  :name: kdes
+  :width: 400
+  :align: center
+
+  Plotting Kernel Density Estimates (KDEs)
+
+We perform statistical test on those posterior distribution to extract parameters differentiating OCD subjects from healthy controls.
+
+.. autofunction:: OCD_modeling.mcmc.compute_stats
+
+We can also verify the meta parameters of the optimizer. Weights distributions indicate whether the sampling at the different 
+generations is using a large number of particles or only a few individuals of a population (indicative of degeneracy).
+Visualizing the error rate :math:`\epsilon` indicates how far is the optimization from the target value and whether 
+the optimization is still progressing or plateauing. 
+
+.. autofunction:: OCD_modeling.mcmc.plot_weights
+
+.. autofunction:: OCD_modeling.mcmc.plot_epsilons
+
+.. figure:: img/weights_epsilons_20231020.png
+  :width: 800
+  :name: weights
+  :align: center
+
+  [A] Error rates (:math:`\epsilon`) and [B] Weights of the optimization (blue: contols; orange:OCD).
+
+
+Synthetic dataset
+-----------------
+
+We then generate new synthetic data using posterior distributions of parameters infered by the ABC-SMC algorithm.
+
+.. autofunction:: OCD_modeling.mcmc.launch_sims_parallel
+
+The distribution of functional connectivities across the frontostriatal system can be visualized and compared between 
+empirical (observed) and simulated data.
+
+.. autofunction:: OCD_modeling.mcmc.plot_fc_sim_vs_data
+
+.. figure:: img/FC_observed_vs_simulated.png
+  :width: 800
+  :name: FC_sim_vs_data
+  :align: center
+
+  Functional connectivity patterns across the frontostriatal system in OCD subjects vs healthy controls, 
+  from empirical (observed) and simulated data.
+
+
+.. argparse::
+  :module: OCD_modeling.mcmc
+  :func: get_history_parser
+  :prog: python history_analysis.py
+  :nodefaultconst:
+
+
+.. _`pyABC`: https://pyabc.readthedocs.io/

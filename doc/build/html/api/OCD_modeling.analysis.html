@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OCD_modeling.analysis &mdash; OCD modeling  documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            OCD modeling
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dynamical_analysis.html">Dynamical system analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../optimization.html">Simulation-based inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../restoration.html">Restoration analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../validation.html">Digital twins validation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">OCD modeling</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">OCD_modeling.analysis</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/OCD_modeling.analysis.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-OCD_modeling.analysis">
+<span id="ocd-modeling-analysis"></span><h1>OCD_modeling.analysis<a class="headerlink" href="#module-OCD_modeling.analysis" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.SymbolicModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">SymbolicModel</span></span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_symbolic_analysis.html#SymbolicModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.SymbolicModel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Abstract class that implement common functions to all symbolic Reduced Wong Wang models</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.compute_equilibrium_point_curve">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">compute_equilibrium_point_curve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pdomain</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_dst_analysis.html#compute_equilibrium_point_curve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.compute_equilibrium_point_curve" title="Link to this definition"></a></dt>
+<dd><p>Find equilibrium point curve(s) of the system, starting from each fixed point (if exist).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>PyDSTool.Vode_ODEsystem</em>) – Model object in PyDSTool.</p></li>
+<li><p><strong>fps</strong> (<em>PyDSTool.Toolbox.phaseplane.fixedpoint_2D</em>) – Fixed points of the system.</p></li>
+<li><p><strong>pdomain</strong> (<em>dict</em>) – Free variable (or order parameter) to perform the bifurcation analyis from.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>cont</strong> – PyDSTool Continuation Class object populated with equilibrium point curves.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>PyDSTool.ContClass</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.compute_trajectories">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">compute_trajectories</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tdata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[0,</span> <span class="pre">1000]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_dst_analysis.html#compute_trajectories"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.compute_trajectories" title="Link to this definition"></a></dt>
+<dd><p>Compute n trajectories from model, each with different initial conditions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>PyDSTool.Vode_ODEsystem</em>) – PyDSTool model object.</p></li>
+<li><p><strong>n</strong> (<em>int</em>) – Number of trajectories to compute.</p></li>
+<li><p><strong>tdata</strong> (<em>list</em>) – Time interval of the saved trajectories.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.create_model">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">create_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_dst_analysis.html#create_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.create_model" title="Link to this definition"></a></dt>
+<dd><p>Create the Dynamical System in PyDSTool</p>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[\dot{S_i} = - \cfrac{S_i}{\tau_S} + (1 - S_i) \gamma H(x_i) + \sigma v_i\]</div>
+</div></blockquote>
+<p>with</p>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[H(x) = \cfrac{ax-b}{1-\exp{(-d(ax-b))}}\]</div>
+</div></blockquote>
+<p>and</p>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[x_i = w J_N S_i + G J_N \sum_j{C_{ij} S_j} + I_0\]</div>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>params</strong> (<em>dict</em>) – Parameters of the model</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Optional arguments</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>rww</strong> – PyDSTool object containing the dynamical system</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>PyDSTool.Vode_ODEsystem</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.find_roots">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">find_roots</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">itv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slope_thr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_symbolic_analysis.html#find_roots"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.find_roots" title="Link to this definition"></a></dt>
+<dd><p>Find zero crossings of function f (numerical roots).</p>
+<p>:param slope_thr” defines the slopes above which the zero crossing is an artifact
+e.g. in case of hyperbolic function</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.get_fixed_point_stability">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">get_fixed_point_stability</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_symbolic_analysis.html#get_fixed_point_stability"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.get_fixed_point_stability" title="Link to this definition"></a></dt>
+<dd><p>Derive stability based on eigenvalues of the jacobian around the fixed point</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.get_fixed_points">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">get_fixed_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xdomain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{'S1':</span> <span class="pre">[0,</span> <span class="pre">1],</span> <span class="pre">'S2':</span> <span class="pre">[0,</span> <span class="pre">1]}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_dst_analysis.html#get_fixed_points"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.get_fixed_points" title="Link to this definition"></a></dt>
+<dd><p>Get model’s nullclines <span class="math notranslate nohighlight">\(\frac{dS_1}{dt}=0\)</span> and <span class="math notranslate nohighlight">\(\frac{dS_2}{dt}=0\)</span>
+and fixed points <span class="math notranslate nohighlight">\(\frac{dS_1}{dt}=\frac{dS_2}{dt}=0\)</span> for a given set of parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>PyDSTool.Vode_ODEsystem</em>) – Model object in PyDSTool.</p></li>
+<li><p><strong>params</strong> (<em>dict</em>) – Model parameters.</p></li>
+<li><p><strong>xdomain</strong> (<em>dict</em>) – Variable and lower/upper bounds.</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Optional extra arguments.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>model</strong> (<em>PyDSTool.Vode_ODEsystem</em>) – Updated model object with given parameters.</p></li>
+<li><p><strong>fps</strong> (<em>PyDSTool.Toolbox.phaseplane.fixedpoint_2D</em>) – Fixed points of the system.</p></li>
+<li><p><strong>(nulls_x, nulls_y)</strong> (<em>tuple</em>) – Tuple containing nullclines (arrays of paired xs and ys).</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.get_parser">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">get_parser</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_dst_analysis.html#get_parser"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.get_parser" title="Link to this definition"></a></dt>
+<dd><p>parsing global script argument</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.lambdify_model">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">lambdify_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order_params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_symbolic_analysis.html#lambdify_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.lambdify_model" title="Link to this definition"></a></dt>
+<dd><p>evaluate model for parameters using sympa lambdify.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> – symbolic model (object)</p></li>
+<li><p><strong>params</strong> – dictionnary of parameters</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.launch_stability_analysis">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">launch_stability_analysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">order_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_queue</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_dst_analysis.html#launch_stability_analysis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.launch_stability_analysis" title="Link to this definition"></a></dt>
+<dd><dl class="simple">
+<dt>Ghost process that launches the stability analysis for a set of defined order parameter,</dt><dd><p>creating a child process with a set timeout per child process, such that the stbaility analysis
+does not hang waiting for the continuation to terminate if it does not converge.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>order_params</strong> (<em>dict</em>) – Fixed parameters, for which to analyse the system using discretized values, for example <code class="docutils literal notranslate"><span class="pre">{'C_21':</span> <span class="pre">np.linspace(0.2,0.8,4)}</span></code>.</p></li>
+<li><p><strong>default_params</strong> (<em>dict</em>) – Default model’s parameters.</p></li>
+<li><p><strong>out_queue</strong> (<em>Queue</em>) – Output queue on which to append the results.</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Structure of necessary options. For example, must include <code class="docutils literal notranslate"><span class="pre">args.compute_epc</span> <span class="pre">=</span> <span class="pre">True</span></code> to compute equilibrium point curves.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.perform_stability_analysis">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">perform_stability_analysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_queue</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([-3.,</span> <span class="pre">-2.98996656,</span> <span class="pre">-2.97993311,</span> <span class="pre">-2.96989967,</span> <span class="pre">-2.95986622,</span> <span class="pre">-2.94983278,</span> <span class="pre">-2.93979933,</span> <span class="pre">-2.92976589,</span> <span class="pre">-2.91973244,</span> <span class="pre">-2.909699,</span> <span class="pre">-2.89966555,</span> <span class="pre">-2.88963211,</span> <span class="pre">-2.87959866,</span> <span class="pre">-2.86956522,</span> <span class="pre">-2.85953177,</span> <span class="pre">-2.84949833,</span> <span class="pre">-2.83946488,</span> <span class="pre">-2.82943144,</span> <span class="pre">-2.81939799,</span> <span class="pre">-2.80936455,</span> <span class="pre">-2.7993311,</span> <span class="pre">-2.78929766,</span> <span class="pre">-2.77926421,</span> <span class="pre">-2.76923077,</span> <span class="pre">-2.75919732,</span> <span class="pre">-2.74916388,</span> <span class="pre">-2.73913043,</span> <span class="pre">-2.72909699,</span> <span class="pre">-2.71906355,</span> <span class="pre">-2.7090301,</span> <span class="pre">-2.69899666,</span> <span class="pre">-2.68896321,</span> <span class="pre">-2.67892977,</span> <span class="pre">-2.66889632,</span> <span class="pre">-2.65886288,</span> <span class="pre">-2.64882943,</span> <span class="pre">-2.63879599,</span> <span class="pre">-2.62876254,</span> <span class="pre">-2.6187291,</span> <span class="pre">-2.60869565,</span> <span class="pre">-2.59866221,</span> <span class="pre">-2.58862876,</span> <span class="pre">-2.57859532,</span> <span class="pre">-2.56856187,</span> <span class="pre">-2.55852843,</span> <span class="pre">-2.54849498,</span> <span class="pre">-2.53846154,</span> <span class="pre">-2.52842809,</span> <span class="pre">-2.51839465,</span> <span class="pre">-2.5083612,</span> <span class="pre">-2.49832776,</span> <span class="pre">-2.48829431,</span> <span class="pre">-2.47826087,</span> <span class="pre">-2.46822742,</span> <span class="pre">-2.45819398,</span> <span class="pre">-2.44816054,</span> <span class="pre">-2.43812709,</span> <span class="pre">-2.42809365,</span> <span class="pre">-2.4180602,</span> <span class="pre">-2.40802676,</span> <span class="pre">-2.39799331,</span> <span class="pre">-2.38795987,</span> <span class="pre">-2.37792642,</span> <span class="pre">-2.36789298,</span> <span class="pre">-2.35785953,</span> <span class="pre">-2.34782609,</span> <span class="pre">-2.33779264,</span> <span class="pre">-2.3277592,</span> <span class="pre">-2.31772575,</span> <span class="pre">-2.30769231,</span> <span class="pre">-2.29765886,</span> <span class="pre">-2.28762542,</span> <span class="pre">-2.27759197,</span> <span class="pre">-2.26755853,</span> <span class="pre">-2.25752508,</span> <span class="pre">-2.24749164,</span> <span class="pre">-2.23745819,</span> <span class="pre">-2.22742475,</span> <span class="pre">-2.2173913,</span> <span class="pre">-2.20735786,</span> <span class="pre">-2.19732441,</span> <span class="pre">-2.18729097,</span> <span class="pre">-2.17725753,</span> <span class="pre">-2.16722408,</span> <span class="pre">-2.15719064,</span> <span class="pre">-2.14715719,</span> <span class="pre">-2.13712375,</span> <span class="pre">-2.1270903,</span> <span class="pre">-2.11705686,</span> <span class="pre">-2.10702341,</span> <span class="pre">-2.09698997,</span> <span class="pre">-2.08695652,</span> <span class="pre">-2.07692308,</span> <span class="pre">-2.06688963,</span> <span class="pre">-2.05685619,</span> <span class="pre">-2.04682274,</span> <span class="pre">-2.0367893,</span> <span class="pre">-2.02675585,</span> <span class="pre">-2.01672241,</span> <span class="pre">-2.00668896,</span> <span class="pre">-1.99665552,</span> <span class="pre">-1.98662207,</span> <span class="pre">-1.97658863,</span> <span class="pre">-1.96655518,</span> <span class="pre">-1.95652174,</span> <span class="pre">-1.94648829,</span> <span class="pre">-1.93645485,</span> <span class="pre">-1.9264214,</span> <span class="pre">-1.91638796,</span> <span class="pre">-1.90635452,</span> <span class="pre">-1.89632107,</span> <span class="pre">-1.88628763,</span> <span class="pre">-1.87625418,</span> <span class="pre">-1.86622074,</span> <span class="pre">-1.85618729,</span> <span class="pre">-1.84615385,</span> <span class="pre">-1.8361204,</span> <span class="pre">-1.82608696,</span> <span class="pre">-1.81605351,</span> <span class="pre">-1.80602007,</span> <span class="pre">-1.79598662,</span> <span class="pre">-1.78595318,</span> <span class="pre">-1.77591973,</span> <span class="pre">-1.76588629,</span> <span class="pre">-1.75585284,</span> <span class="pre">-1.7458194,</span> <span class="pre">-1.73578595,</span> <span class="pre">-1.72575251,</span> <span class="pre">-1.71571906,</span> <span class="pre">-1.70568562,</span> <span class="pre">-1.69565217,</span> <span class="pre">-1.68561873,</span> <span class="pre">-1.67558528,</span> <span class="pre">-1.66555184,</span> <span class="pre">-1.65551839,</span> <span class="pre">-1.64548495,</span> <span class="pre">-1.63545151,</span> <span class="pre">-1.62541806,</span> <span class="pre">-1.61538462,</span> <span class="pre">-1.60535117,</span> <span class="pre">-1.59531773,</span> <span class="pre">-1.58528428,</span> <span class="pre">-1.57525084,</span> <span class="pre">-1.56521739,</span> <span class="pre">-1.55518395,</span> <span class="pre">-1.5451505,</span> <span class="pre">-1.53511706,</span> <span class="pre">-1.52508361,</span> <span class="pre">-1.51505017,</span> <span class="pre">-1.50501672,</span> <span class="pre">-1.49498328,</span> <span class="pre">-1.48494983,</span> <span class="pre">-1.47491639,</span> <span class="pre">-1.46488294,</span> <span class="pre">-1.4548495,</span> <span class="pre">-1.44481605,</span> <span class="pre">-1.43478261,</span> <span class="pre">-1.42474916,</span> <span class="pre">-1.41471572,</span> <span class="pre">-1.40468227,</span> <span class="pre">-1.39464883,</span> <span class="pre">-1.38461538,</span> <span class="pre">-1.37458194,</span> <span class="pre">-1.36454849,</span> <span class="pre">-1.35451505,</span> <span class="pre">-1.34448161,</span> <span class="pre">-1.33444816,</span> <span class="pre">-1.32441472,</span> <span class="pre">-1.31438127,</span> <span class="pre">-1.30434783,</span> <span class="pre">-1.29431438,</span> <span class="pre">-1.28428094,</span> <span class="pre">-1.27424749,</span> <span class="pre">-1.26421405,</span> <span class="pre">-1.2541806,</span> <span class="pre">-1.24414716,</span> <span class="pre">-1.23411371,</span> <span class="pre">-1.22408027,</span> <span class="pre">-1.21404682,</span> <span class="pre">-1.20401338,</span> <span class="pre">-1.19397993,</span> <span class="pre">-1.18394649,</span> <span class="pre">-1.17391304,</span> <span class="pre">-1.1638796,</span> <span class="pre">-1.15384615,</span> <span class="pre">-1.14381271,</span> <span class="pre">-1.13377926,</span> <span class="pre">-1.12374582,</span> <span class="pre">-1.11371237,</span> <span class="pre">-1.10367893,</span> <span class="pre">-1.09364548,</span> <span class="pre">-1.08361204,</span> <span class="pre">-1.0735786,</span> <span class="pre">-1.06354515,</span> <span class="pre">-1.05351171,</span> <span class="pre">-1.04347826,</span> <span class="pre">-1.03344482,</span> <span class="pre">-1.02341137,</span> <span class="pre">-1.01337793,</span> <span class="pre">-1.00334448,</span> <span class="pre">-0.99331104,</span> <span class="pre">-0.98327759,</span> <span class="pre">-0.97324415,</span> <span class="pre">-0.9632107,</span> <span class="pre">-0.95317726,</span> <span class="pre">-0.94314381,</span> <span class="pre">-0.93311037,</span> <span class="pre">-0.92307692,</span> <span class="pre">-0.91304348,</span> <span class="pre">-0.90301003,</span> <span class="pre">-0.89297659,</span> <span class="pre">-0.88294314,</span> <span class="pre">-0.8729097,</span> <span class="pre">-0.86287625,</span> <span class="pre">-0.85284281,</span> <span class="pre">-0.84280936,</span> <span class="pre">-0.83277592,</span> <span class="pre">-0.82274247,</span> <span class="pre">-0.81270903,</span> <span class="pre">-0.80267559,</span> <span class="pre">-0.79264214,</span> <span class="pre">-0.7826087,</span> <span class="pre">-0.77257525,</span> <span class="pre">-0.76254181,</span> <span class="pre">-0.75250836,</span> <span class="pre">-0.74247492,</span> <span class="pre">-0.73244147,</span> <span class="pre">-0.72240803,</span> <span class="pre">-0.71237458,</span> <span class="pre">-0.70234114,</span> <span class="pre">-0.69230769,</span> <span class="pre">-0.68227425,</span> <span class="pre">-0.6722408,</span> <span class="pre">-0.66220736,</span> <span class="pre">-0.65217391,</span> <span class="pre">-0.64214047,</span> <span class="pre">-0.63210702,</span> <span class="pre">-0.62207358,</span> <span class="pre">-0.61204013,</span> <span class="pre">-0.60200669,</span> <span class="pre">-0.59197324,</span> <span class="pre">-0.5819398,</span> <span class="pre">-0.57190635,</span> <span class="pre">-0.56187291,</span> <span class="pre">-0.55183946,</span> <span class="pre">-0.54180602,</span> <span class="pre">-0.53177258,</span> <span class="pre">-0.52173913,</span> <span class="pre">-0.51170569,</span> <span class="pre">-0.50167224,</span> <span class="pre">-0.4916388,</span> <span class="pre">-0.48160535,</span> <span class="pre">-0.47157191,</span> <span class="pre">-0.46153846,</span> <span class="pre">-0.45150502,</span> <span class="pre">-0.44147157,</span> <span class="pre">-0.43143813,</span> <span class="pre">-0.42140468,</span> <span class="pre">-0.41137124,</span> <span class="pre">-0.40133779,</span> <span class="pre">-0.39130435,</span> <span class="pre">-0.3812709,</span> <span class="pre">-0.37123746,</span> <span class="pre">-0.36120401,</span> <span class="pre">-0.35117057,</span> <span class="pre">-0.34113712,</span> <span class="pre">-0.33110368,</span> <span class="pre">-0.32107023,</span> <span class="pre">-0.31103679,</span> <span class="pre">-0.30100334,</span> <span class="pre">-0.2909699,</span> <span class="pre">-0.28093645,</span> <span class="pre">-0.27090301,</span> <span class="pre">-0.26086957,</span> <span class="pre">-0.25083612,</span> <span class="pre">-0.24080268,</span> <span class="pre">-0.23076923,</span> <span class="pre">-0.22073579,</span> <span class="pre">-0.21070234,</span> <span class="pre">-0.2006689,</span> <span class="pre">-0.19063545,</span> <span class="pre">-0.18060201,</span> <span class="pre">-0.17056856,</span> <span class="pre">-0.16053512,</span> <span class="pre">-0.15050167,</span> <span class="pre">-0.14046823,</span> <span class="pre">-0.13043478,</span> <span class="pre">-0.12040134,</span> <span class="pre">-0.11036789,</span> <span class="pre">-0.10033445,</span> <span class="pre">-0.090301,</span> <span class="pre">-0.08026756,</span> <span class="pre">-0.07023411,</span> <span class="pre">-0.06020067,</span> <span class="pre">-0.05016722,</span> <span class="pre">-0.04013378,</span> <span class="pre">-0.03010033,</span> <span class="pre">-0.02006689,</span> <span class="pre">-0.01003344,</span> <span class="pre">0.,</span> <span class="pre">0.01003344,</span> <span class="pre">0.02006689,</span> <span class="pre">0.03010033,</span> <span class="pre">0.04013378,</span> <span class="pre">0.05016722,</span> <span class="pre">0.06020067,</span> <span class="pre">0.07023411,</span> <span class="pre">0.08026756,</span> <span class="pre">0.090301,</span> <span class="pre">0.10033445,</span> <span class="pre">0.11036789,</span> <span class="pre">0.12040134,</span> <span class="pre">0.13043478,</span> <span class="pre">0.14046823,</span> <span class="pre">0.15050167,</span> <span class="pre">0.16053512,</span> <span class="pre">0.17056856,</span> <span class="pre">0.18060201,</span> <span class="pre">0.19063545,</span> <span class="pre">0.2006689,</span> <span class="pre">0.21070234,</span> <span class="pre">0.22073579,</span> <span class="pre">0.23076923,</span> <span class="pre">0.24080268,</span> <span class="pre">0.25083612,</span> <span class="pre">0.26086957,</span> <span class="pre">0.27090301,</span> <span class="pre">0.28093645,</span> <span class="pre">0.2909699,</span> <span class="pre">0.30100334,</span> <span class="pre">0.31103679,</span> <span class="pre">0.32107023,</span> <span class="pre">0.33110368,</span> <span class="pre">0.34113712,</span> <span class="pre">0.35117057,</span> <span class="pre">0.36120401,</span> <span class="pre">0.37123746,</span> <span class="pre">0.3812709,</span> <span class="pre">0.39130435,</span> <span class="pre">0.40133779,</span> <span class="pre">0.41137124,</span> <span class="pre">0.42140468,</span> <span class="pre">0.43143813,</span> <span class="pre">0.44147157,</span> <span class="pre">0.45150502,</span> <span class="pre">0.46153846,</span> <span class="pre">0.47157191,</span> <span class="pre">0.48160535,</span> <span class="pre">0.4916388,</span> <span class="pre">0.50167224,</span> <span class="pre">0.51170569,</span> <span class="pre">0.52173913,</span> <span class="pre">0.53177258,</span> <span class="pre">0.54180602,</span> <span class="pre">0.55183946,</span> <span class="pre">0.56187291,</span> <span class="pre">0.57190635,</span> <span class="pre">0.5819398,</span> <span class="pre">0.59197324,</span> <span class="pre">0.60200669,</span> <span class="pre">0.61204013,</span> <span class="pre">0.62207358,</span> <span class="pre">0.63210702,</span> <span class="pre">0.64214047,</span> <span class="pre">0.65217391,</span> <span class="pre">0.66220736,</span> <span class="pre">0.6722408,</span> <span class="pre">0.68227425,</span> <span class="pre">0.69230769,</span> <span class="pre">0.70234114,</span> <span class="pre">0.71237458,</span> <span class="pre">0.72240803,</span> <span class="pre">0.73244147,</span> <span class="pre">0.74247492,</span> <span class="pre">0.75250836,</span> <span class="pre">0.76254181,</span> <span class="pre">0.77257525,</span> <span class="pre">0.7826087,</span> <span class="pre">0.79264214,</span> <span class="pre">0.80267559,</span> <span class="pre">0.81270903,</span> <span class="pre">0.82274247,</span> <span class="pre">0.83277592,</span> <span class="pre">0.84280936,</span> <span class="pre">0.85284281,</span> <span class="pre">0.86287625,</span> <span class="pre">0.8729097,</span> <span class="pre">0.88294314,</span> <span class="pre">0.89297659,</span> <span class="pre">0.90301003,</span> <span class="pre">0.91304348,</span> <span class="pre">0.92307692,</span> <span class="pre">0.93311037,</span> <span class="pre">0.94314381,</span> <span class="pre">0.95317726,</span> <span class="pre">0.9632107,</span> <span class="pre">0.97324415,</span> <span class="pre">0.98327759,</span> <span class="pre">0.99331104,</span> <span class="pre">1.00334448,</span> <span class="pre">1.01337793,</span> <span class="pre">1.02341137,</span> <span class="pre">1.03344482,</span> <span class="pre">1.04347826,</span> <span class="pre">1.05351171,</span> <span class="pre">1.06354515,</span> <span class="pre">1.0735786,</span> <span class="pre">1.08361204,</span> <span class="pre">1.09364548,</span> <span class="pre">1.10367893,</span> <span class="pre">1.11371237,</span> <span class="pre">1.12374582,</span> <span class="pre">1.13377926,</span> <span class="pre">1.14381271,</span> <span class="pre">1.15384615,</span> <span class="pre">1.1638796,</span> <span class="pre">1.17391304,</span> <span class="pre">1.18394649,</span> <span class="pre">1.19397993,</span> <span class="pre">1.20401338,</span> <span class="pre">1.21404682,</span> <span class="pre">1.22408027,</span> <span class="pre">1.23411371,</span> <span class="pre">1.24414716,</span> <span class="pre">1.2541806,</span> <span class="pre">1.26421405,</span> <span class="pre">1.27424749,</span> <span class="pre">1.28428094,</span> <span class="pre">1.29431438,</span> <span class="pre">1.30434783,</span> <span class="pre">1.31438127,</span> <span class="pre">1.32441472,</span> <span class="pre">1.33444816,</span> <span class="pre">1.34448161,</span> <span class="pre">1.35451505,</span> <span class="pre">1.36454849,</span> <span class="pre">1.37458194,</span> <span class="pre">1.38461538,</span> <span class="pre">1.39464883,</span> <span class="pre">1.40468227,</span> <span class="pre">1.41471572,</span> <span class="pre">1.42474916,</span> <span class="pre">1.43478261,</span> <span class="pre">1.44481605,</span> <span class="pre">1.4548495,</span> <span class="pre">1.46488294,</span> <span class="pre">1.47491639,</span> <span class="pre">1.48494983,</span> <span class="pre">1.49498328,</span> <span class="pre">1.50501672,</span> <span class="pre">1.51505017,</span> <span class="pre">1.52508361,</span> <span class="pre">1.53511706,</span> <span class="pre">1.5451505,</span> <span class="pre">1.55518395,</span> <span class="pre">1.56521739,</span> <span class="pre">1.57525084,</span> <span class="pre">1.58528428,</span> <span class="pre">1.59531773,</span> <span class="pre">1.60535117,</span> <span class="pre">1.61538462,</span> <span class="pre">1.62541806,</span> <span class="pre">1.63545151,</span> <span class="pre">1.64548495,</span> <span class="pre">1.65551839,</span> <span class="pre">1.66555184,</span> <span class="pre">1.67558528,</span> <span class="pre">1.68561873,</span> <span class="pre">1.69565217,</span> <span class="pre">1.70568562,</span> <span class="pre">1.71571906,</span> <span class="pre">1.72575251,</span> <span class="pre">1.73578595,</span> <span class="pre">1.7458194,</span> <span class="pre">1.75585284,</span> <span class="pre">1.76588629,</span> <span class="pre">1.77591973,</span> <span class="pre">1.78595318,</span> <span class="pre">1.79598662,</span> <span class="pre">1.80602007,</span> <span class="pre">1.81605351,</span> <span class="pre">1.82608696,</span> <span class="pre">1.8361204,</span> <span class="pre">1.84615385,</span> <span class="pre">1.85618729,</span> <span class="pre">1.86622074,</span> <span class="pre">1.87625418,</span> <span class="pre">1.88628763,</span> <span class="pre">1.89632107,</span> <span class="pre">1.90635452,</span> <span class="pre">1.91638796,</span> <span class="pre">1.9264214,</span> <span class="pre">1.93645485,</span> <span class="pre">1.94648829,</span> <span class="pre">1.95652174,</span> <span class="pre">1.96655518,</span> <span class="pre">1.97658863,</span> <span class="pre">1.98662207,</span> <span class="pre">1.99665552,</span> <span class="pre">2.00668896,</span> <span class="pre">2.01672241,</span> <span class="pre">2.02675585,</span> <span class="pre">2.0367893,</span> <span class="pre">2.04682274,</span> <span class="pre">2.05685619,</span> <span class="pre">2.06688963,</span> <span class="pre">2.07692308,</span> <span class="pre">2.08695652,</span> <span class="pre">2.09698997,</span> <span class="pre">2.10702341,</span> <span class="pre">2.11705686,</span> <span class="pre">2.1270903,</span> <span class="pre">2.13712375,</span> <span class="pre">2.14715719,</span> <span class="pre">2.15719064,</span> <span class="pre">2.16722408,</span> <span class="pre">2.17725753,</span> <span class="pre">2.18729097,</span> <span class="pre">2.19732441,</span> <span class="pre">2.20735786,</span> <span class="pre">2.2173913,</span> <span class="pre">2.22742475,</span> <span class="pre">2.23745819,</span> <span class="pre">2.24749164,</span> <span class="pre">2.25752508,</span> <span class="pre">2.26755853,</span> <span class="pre">2.27759197,</span> <span class="pre">2.28762542,</span> <span class="pre">2.29765886,</span> <span class="pre">2.30769231,</span> <span class="pre">2.31772575,</span> <span class="pre">2.3277592,</span> <span class="pre">2.33779264,</span> <span class="pre">2.34782609,</span> <span class="pre">2.35785953,</span> <span class="pre">2.36789298,</span> <span class="pre">2.37792642,</span> <span class="pre">2.38795987,</span> <span class="pre">2.39799331,</span> <span class="pre">2.40802676,</span> <span class="pre">2.4180602,</span> <span class="pre">2.42809365,</span> <span class="pre">2.43812709,</span> <span class="pre">2.44816054,</span> <span class="pre">2.45819398,</span> <span class="pre">2.46822742,</span> <span class="pre">2.47826087,</span> <span class="pre">2.48829431,</span> <span class="pre">2.49832776,</span> <span class="pre">2.5083612,</span> <span class="pre">2.51839465,</span> <span class="pre">2.52842809,</span> <span class="pre">2.53846154,</span> <span class="pre">2.54849498,</span> <span class="pre">2.55852843,</span> <span class="pre">2.56856187,</span> <span class="pre">2.57859532,</span> <span class="pre">2.58862876,</span> <span class="pre">2.59866221,</span> <span class="pre">2.60869565,</span> <span class="pre">2.6187291,</span> <span class="pre">2.62876254,</span> <span class="pre">2.63879599,</span> <span class="pre">2.64882943,</span> <span class="pre">2.65886288,</span> <span class="pre">2.66889632,</span> <span class="pre">2.67892977,</span> <span class="pre">2.68896321,</span> <span class="pre">2.69899666,</span> <span class="pre">2.7090301,</span> <span class="pre">2.71906355,</span> <span class="pre">2.72909699,</span> <span class="pre">2.73913043,</span> <span class="pre">2.74916388,</span> <span class="pre">2.75919732,</span> <span class="pre">2.76923077,</span> <span class="pre">2.77926421,</span> <span class="pre">2.78929766,</span> <span class="pre">2.7993311,</span> <span class="pre">2.80936455,</span> <span class="pre">2.81939799,</span> <span class="pre">2.82943144,</span> <span class="pre">2.83946488,</span> <span class="pre">2.84949833,</span> <span class="pre">2.85953177,</span> <span class="pre">2.86956522,</span> <span class="pre">2.87959866,</span> <span class="pre">2.88963211,</span> <span class="pre">2.89966555,</span> <span class="pre">2.909699,</span> <span class="pre">2.91973244,</span> <span class="pre">2.92976589,</span> <span class="pre">2.93979933,</span> <span class="pre">2.94983278,</span> <span class="pre">2.95986622,</span> <span class="pre">2.96989967,</span> <span class="pre">2.97993311,</span> <span class="pre">2.98996656,</span> <span class="pre">3.])</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_symbolic_analysis.html#perform_stability_analysis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.perform_stability_analysis" title="Link to this definition"></a></dt>
+<dd><p>Analyses the stability of the system of ODEs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> – sympy model</p></li>
+<li><p><strong>order_params</strong> – dictionary of order parameters</p></li>
+<li><p><strong>default_params</strong> – dictionary of other default parameters</p></li>
+<li><p><strong>x</strong> – substitution variable values</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.plot_3d_bifurcations">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">plot_3d_bifurcations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">azim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elev</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_symbolic_analysis.html#plot_3d_bifurcations"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.plot_3d_bifurcations" title="Link to this definition"></a></dt>
+<dd><p>plot bifurcation diagram in 3D</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.plot_bifurcation_grid">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">plot_bifurcation_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_dst_analysis.html#plot_bifurcation_grid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.plot_bifurcation_grid" title="Link to this definition"></a></dt>
+<dd><p>Plot a grid of bifurcation diagrams</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.plot_phasespace">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">plot_phasespace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nullclines</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trajs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_dst_analysis.html#plot_phasespace"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.plot_phasespace" title="Link to this definition"></a></dt>
+<dd><p>Plot vector field, nullclines and fixed points of a model previously set with parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>PyDSTool.Vode_ODEsystem</em>) – PyDSTool model object.</p></li>
+<li><p><strong>fps</strong> (<em>PyDSTool.Toolbox.phaseplane.fixedpoint_2D</em>) – Fixed points of he system</p></li>
+<li><p><strong>nullclines</strong> (<em>list</em>) – list of PyDSTool nullcline objects, containing arrays of xs and ys of nullclines.</p></li>
+<li><p><strong>trajs</strong> (<em>list</em><em> of </em><em>dict</em>) – Simulated trajectories.</p></li>
+<li><p><strong>ax</strong> (<em>matplotlib.Axis</em>) – Axis in which to plot the phasespace.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.plot_phasespace_grid">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">plot_phasespace_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_dst_analysis.html#plot_phasespace_grid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.plot_phasespace_grid" title="Link to this definition"></a></dt>
+<dd><p>Plot a grid of phasespaces from stability analysis outputs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> (<em>list</em>) – Outputs from stability analysis.</p></li>
+<li><p><strong>order_params</strong> (<em>dict</em>) – Fixed parameters, for which to analyse the system using discretized values, for example <code class="docutils literal notranslate"><span class="pre">{'C_21':</span> <span class="pre">np.linspace(0.2,0.8,4)}</span></code>.</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Optional extra arguments in argprase Namespace, such as <code class="docutils literal notranslate"><span class="pre">args.save_figs=True</span></code> to save figure and <code class="docutils literal notranslate"><span class="pre">args.plot_figs=True</span></code> to plot figures.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.plot_timeseries_phasespace_bif">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">plot_timeseries_phasespace_bif</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rww</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_dst_analysis.html#plot_timeseries_phasespace_bif"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.plot_timeseries_phasespace_bif" title="Link to this definition"></a></dt>
+<dd><p>Show S1, S2, C_12 timeseries, S1-S2 phase space with trajectories and C_12 S1/S2 phase space
+with bifurcation diagram.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> (<em>list</em>) – Outputs from stability analysis.</p></li>
+<li><p><strong>rww</strong> (<a class="reference internal" href="OCD_modeling.models.html#OCD_modeling.models.ReducedWongWangOU" title="OCD_modeling.models.ReducedWongWangOU"><em>OCD_modeling.models.ReducedWongWangOU</em></a>) – Model instance that ran.</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Extra options.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.pw_RWW_2D">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">pw_RWW_2D</span></span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_symbolic_analysis.html#pw_RWW_2D"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.pw_RWW_2D" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#OCD_modeling.analysis.SymbolicModel" title="OCD_modeling.analysis.rww_symbolic_analysis.SymbolicModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">SymbolicModel</span></code></a></p>
+<p>Piecewise linear Reduced Wong Wang symbolic model</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.pw_RWW_2D.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_symbolic_analysis.html#pw_RWW_2D.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.pw_RWW_2D.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.run_stability_analysis">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">run_stability_analysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">order_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_dst_analysis.html#run_stability_analysis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.run_stability_analysis" title="Link to this definition"></a></dt>
+<dd><p>Starts a pool of parallel processes to run the stability analysis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>order_params</strong> (<em>dict</em>) – Fixed parameters, for which to analyse the system using discretized values, for example <code class="docutils literal notranslate"><span class="pre">{'C_21':</span> <span class="pre">np.linspace(0.2,0.8,4)}</span></code>.</p></li>
+<li><p><strong>default_params</strong> (<em>dict</em>) – Default model’s parameters.</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Structure of necessary options. For example, must include <code class="docutils literal notranslate"><span class="pre">args.compute_epc</span> <span class="pre">=</span> <span class="pre">True</span></code> to compute equilibrium point curves.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>outputs</strong> (<em>list of dict</em>) – Stability analysis of each values (or combination of values) given in order_params.</p></li>
+<li><p><strong>futures</strong> (<em>list of concurrent.futures.Future</em>) – (deprecated) if using futures.concurrent library for parallel process, return the list of Future objects (<a class="reference external" href="https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Future">https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Future</a>).</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.stability_analysis">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">stability_analysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">order_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_queue</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pdomain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{'C_12':</span> <span class="pre">[-1,</span> <span class="pre">2]}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_dst_analysis.html#stability_analysis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.stability_analysis" title="Link to this definition"></a></dt>
+<dd><p>Create model and analyse dynamics using PyDSTool.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>order_params</strong> (<em>dict</em>) – Fixed parameters, for which to analyse the system using discretized values, for example <code class="docutils literal notranslate"><span class="pre">{'C_21':</span> <span class="pre">np.linspace(0.2,0.8,4)}</span></code>.</p></li>
+<li><p><strong>default_params</strong> (<em>dict</em>) – Default model’s parameters.</p></li>
+<li><p><strong>out_queue</strong> (<em>Queue</em>) – Queue to put results in (used for parallel computation) for each values of order parameter.</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Structure of necessary options. For example, must include <code class="docutils literal notranslate"><span class="pre">args.compute_epc</span> <span class="pre">=</span> <span class="pre">True</span></code> to compute equilibrium point curves.</p></li>
+<li><p><strong>pdomain</strong> (<em>dict</em>) – Free variable (or order parameter) to perform the bifurcation analyis from.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A dict with model, nullclines (ncs), fixed points (fps), trajectories (trajs),
+and a pickled (dilled) continuation object (if equilibrium curves are asked in args), is appended to the queue.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.symRWW_2D">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">symRWW_2D</span></span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_symbolic_analysis.html#symRWW_2D"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.symRWW_2D" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#OCD_modeling.analysis.SymbolicModel" title="OCD_modeling.analysis.rww_symbolic_analysis.SymbolicModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">SymbolicModel</span></code></a></p>
+<p>Original Reduced Wong Wang model</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.symRWW_2D.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/analysis/rww_symbolic_analysis.html#symRWW_2D.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.symRWW_2D.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Sebastien Naze.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

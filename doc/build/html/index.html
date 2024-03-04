@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OCD modeling documentation &mdash; OCD modeling  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            OCD modeling
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dynamical_analysis.html">Dynamical system analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="optimization.html">Simulation-based inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="restoration.html">Restoration analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Digital twins validation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">OCD modeling</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">OCD modeling documentation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="ocd-modeling-documentation">
+<h1>OCD modeling documentation<a class="headerlink" href="#ocd-modeling-documentation" title="Link to this heading"></a></h1>
+<p>This project aims to model the changes of functional connectivity observed in obsessive-compulsive disorder (OCD)
+compared to healthy subjects.</p>
+<p>We previously confirmed that OCD is associated with disrupted fronto-striatal connectivity using functional MRI
+at rest <a class="reference external" href="https://academic.oup.com/brain/advance-article-abstract/doi/10.1093/brain/awac425/6830574">(Naze et al., 2022)</a>.</p>
+<p>We also conducted a clinical trial to assess the effect of transcranial magnetic stimulation (TMS) targeted to the
+frontal pole to reduce OCD symptoms <a class="reference external" href="https://www.nature.com/articles/s44220-023-00094-0">(Cocchi et al., 2023)</a>.</p>
+<video autoplay="True" loop="True" poster="_static/mesh_360.svg" preload="auto" width="600"><source src="_static/mesh_360_89.mp4" type="video/mp4"></video><p><em>The frontostriatal regions disrupted in OCD: nucleus accumbens (red), putamen (magenta), orbitofrontal cortex (blue), and lateral prefrontal cortex (green).</em></p>
+<p>Here, we provide a model of frontostriatal dynamics derived from a well-known decision making model.
+Two of those models are coupled to simulate the ventral and dorsal frontostriatal circuits <em>in-silico</em>.
+Parameters are optimized to reproduce healthy and OCD functional connectivity using Bayesian inference.
+Virtual interventions targeting sets of model paramteters are performed to simulate the restoration of healthy functional dynamics from the OCD condition.
+We generate predictions about best intervention targets, and test those predictions using longitudinal dataset of OCD subjects
+showing improvement of symptoms over time.</p>
+<figure class="align-center" id="schematic">
+<a class="reference internal image-reference" href="_images/schematic_20240213-01.svg"><img alt="_images/schematic_20240213-01.svg" src="_images/schematic_20240213-01.svg" width="800" /></a>
+<figcaption>
+<p><span class="caption-text">Schematic of the analysis steps and modelling framework.</span><a class="headerlink" href="#schematic" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>This documentation exposes this modeling and analysis work along <strong>four main axis</strong>:</p>
+<dl class="simple">
+<dt>Dynamical system analysis</dt><dd><p>Development and analysis of the dynamical system derived from the Reduced Wong-Wang model <a class="reference external" href="https://www.jneurosci.org/content/33/27/11239.short">(Deco et al., 2013)</a>.
+This includes phaseplane and bifurcation analysis of the model dynamics in two-dimensions.</p>
+</dd>
+<dt>Simulation-based inference</dt><dd><p>Large scale simulation framework performing the Bayesian optimization of model parameters to fit healthy and OCD
+frontostriatal functional connectivity. This section also introduce how to leverage the outputs of the optimization
+to generate synthetic data.</p>
+</dd>
+<dt>Restoration analysis</dt><dd><p>Virtual intervention framework to assess which targeted changes in sets of parameters bring functional connectivity
+closer to the healthy regime. This implies the definition of intervention efficacy and parameter contribution measures.</p>
+</dd>
+<dt>Digital twins validation</dt><dd><p>Validation framework using the concept of digital twins: pairing OCD subjects from the empirical dataset to virtual subjects
+from the simulated dataset. This pairing permits to associate the improvement of symptoms in the empirical data to the changes
+of parameters in the model, and test the predictions generated by the restoration analysis.</p>
+</dd>
+</dl>
+<p>The package is composed of <strong>three major modules</strong>:</p>
+<dl class="simple">
+<dt>Models</dt><dd><p>Classes of dynamical systems derived from the Reduced Wong-Wang model of perception <a class="reference external" href="https://www.jneurosci.org/content/26/4/1314">(Wong &amp; Wang, 2006)</a>,
+tailored to modeling OCD, with recording, scoring and plotting functions.</p>
+</dd>
+<dt>Analysis</dt><dd><p>Analytical and numerical analysis of the two-populations model.
+Phase portrait, bifurcation analysis, symbolic analysis and piece-wise linear approximations.</p>
+</dd>
+<dt>MCMC</dt><dd><p>Framework for Bayesian optimizations using Approximate-Bayesian Computation with Sequential Monte-Carlo
+sampling (ABC-SMC) via the <a class="reference external" href="https://pyabc.readthedocs.io/">pyABC</a> package. Parameters optimizations are performed
+to fit both patients and controls cohorts. Key parameters are extracted for optimized potential future treatment
+through inference and analysis of the resulting dynamics.</p>
+</dd>
+</dl>
+</section>
+<section id="workflow">
+<h1>Workflow<a class="headerlink" href="#workflow" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dynamical_analysis.html">Dynamical system analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="optimization.html">Simulation-based inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="restoration.html">Restoration analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Digital twins validation</a></li>
+</ul>
+</div>
+</section>
+<section id="api">
+<h1>API<a class="headerlink" href="#api" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="OCD_modeling.html">OCD_modeling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="OCD_modeling.models.html">OCD_modeling.models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="OCD_modeling.analysis.html">OCD_modeling.analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="OCD_modeling.mcmc.html">OCD_modeling.mcmc</a></li>
+<li class="toctree-l2"><a class="reference internal" href="OCD_modeling.utils.html">OCD_modeling.utils</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading"></a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+<section id="references">
+<h1>References<a class="headerlink" href="#references" title="Link to this heading"></a></h1>
+<blockquote>
+<div><p>Clewley, Robert.
+<em>“Hybrid Models and Biological Model Reduction with PyDSTool.”</em>
+<strong>PLoS Comput Biol</strong> 8, no. 8 (August 9, 2012): e1002628.
+<a class="reference external" href="https://doi.org/10.1371/journal.pcbi.1002628">https://doi.org/10.1371/journal.pcbi.1002628</a>.</p>
+<p>Cocchi, Luca, Sebastien Naze, Conor Robinson, Lachlan Webb, Saurabh Sonkusare, Luke J. Hearne, Genevieve Whybird, et al.
+<em>“Effects of Transcranial Magnetic Stimulation of the Rostromedial Prefrontal Cortex in Obsessive–Compulsive Disorder:
+A Randomized Clinical Trial.”</em>
+<strong>Nature Mental Health</strong> 1, no. 8 (August 2023): 555–63.
+<a class="reference external" href="https://doi.org/10.1038/s44220-023-00094-0">https://doi.org/10.1038/s44220-023-00094-0</a>.</p>
+<p>Deco, Gustavo, Adrián Ponce-Alvarez, Dante Mantini, Gian Luca Romani, Patric Hagmann, and Maurizio Corbetta.
+<em>“Resting-State Functional Connectivity Emerges from Structurally and Dynamically Shaped Slow Linear Fluctuations.”</em>
+<strong>Journal of Neuroscience</strong> 33, no. 27 (2013): 11239–52.
+<a class="reference external" href="https://www.jneurosci.org/content/33/27/11239.short">https://www.jneurosci.org/content/33/27/11239.short</a>.</p>
+<p>Schälte, Y., Klinger, E., Alamoudi, E., Hasenauer, J.
+<em>“pyABC: Efficient and robust easy-to-use approximate Bayesian computation.”</em>
+<strong>Journal of Open Source Software.</strong> (2022).
+<a class="reference external" href="https://doi.org/10.21105/joss.04304">https://doi.org/10.21105/joss.04304</a>.</p>
+<p>Naze, Sebastien, Luke J Hearne, James A Roberts, Paula Sanz-Leon, Bjorn Burgher, Caitlin Hall, Saurabh Sonkusare, et al.
+<em>“Mechanisms of Imbalanced Frontostriatal Functional Connectivity in Obsessive-Compulsive Disorder.”</em>
+<strong>Brain</strong> 146, no. 4 (April 3, 2023): 1322–27.
+<a class="reference external" href="https://doi.org/10.1093/brain/awac425">https://doi.org/10.1093/brain/awac425</a>.</p>
+<p>Wong, Kong-Fatt, and Xiao-Jing Wang.
+<em>“A Recurrent Network Mechanism of Time Integration in Perceptual Decisions.”</em>
+<strong>Journal of Neuroscience</strong> 26, no. 4 (January 25, 2006): 1314–28.
+<a class="reference external" href="https://doi.org/10.1523/JNEUROSCI.3733-05.2006">https://doi.org/10.1523/JNEUROSCI.3733-05.2006</a>.</p>
+</div></blockquote>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-right" title="Installation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Sebastien Naze.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

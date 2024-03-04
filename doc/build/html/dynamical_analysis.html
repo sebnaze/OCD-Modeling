@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dynamical system analysis &mdash; OCD modeling  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Simulation-based inference" href="optimization.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            OCD modeling
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Dynamical system analysis</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#script-overview">Script overview</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#named-arguments">Named Arguments</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#reduced-wong-wang-model">Reduced Wong-Wang Model</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.analysis.create_model"><code class="docutils literal notranslate"><span class="pre">create_model()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#stability-analysis">Stability analysis</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.analysis.stability_analysis"><code class="docutils literal notranslate"><span class="pre">stability_analysis()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.analysis.get_fixed_points"><code class="docutils literal notranslate"><span class="pre">get_fixed_points()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.analysis.compute_trajectories"><code class="docutils literal notranslate"><span class="pre">compute_trajectories()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.analysis.compute_equilibrium_point_curve"><code class="docutils literal notranslate"><span class="pre">compute_equilibrium_point_curve()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#parallel-processing">Parallel processing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.analysis.run_stability_analysis"><code class="docutils literal notranslate"><span class="pre">run_stability_analysis()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.analysis.launch_stability_analysis"><code class="docutils literal notranslate"><span class="pre">launch_stability_analysis()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#plotting">Plotting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.analysis.plot_phasespace"><code class="docutils literal notranslate"><span class="pre">plot_phasespace()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.analysis.plot_phasespace_grid"><code class="docutils literal notranslate"><span class="pre">plot_phasespace_grid()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.analysis.plot_timeseries_phasespace_bif"><code class="docutils literal notranslate"><span class="pre">plot_timeseries_phasespace_bif()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="optimization.html">Simulation-based inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="restoration.html">Restoration analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Digital twins validation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">OCD modeling</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Dynamical system analysis</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/dynamical_analysis.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="dynamical-system-analysis">
+<h1>Dynamical system analysis<a class="headerlink" href="#dynamical-system-analysis" title="Link to this heading"></a></h1>
+<p>This section presents the code implemented for the analysis of the Reduced Wong Wang model <a class="reference external" href="https://www.jneurosci.org/content/26/4/1314">(Wong &amp; Wang, 2006)</a> using <a class="reference external" href="https://github.com/robclewley/pydstool">PyDSTool</a> <a class="reference external" href="https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1002628">(Clewley et al., 2012)</a>.</p>
+<section id="script-overview">
+<h2>Script overview<a class="headerlink" href="#script-overview" title="Link to this heading"></a></h2>
+<p>The main part of the dynamical system analysis code is in <code class="docutils literal notranslate"><span class="pre">OCD_modeling.analysis.rww_dst_analysis.py</span></code>.
+The script can be run with the following options:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">python</span> <span class="n">rww_dst_analysis</span><span class="o">.</span><span class="n">py</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">create_model</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">compute_nullclines</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">compute_epc</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">save_model</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">run_stability_analysis</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">load_stability_analysis</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_figs</span><span class="p">]</span>
+                                  <span class="p">[</span><span class="o">--</span><span class="n">plot_phasespace_grid</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_bifurcation_diagrams</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">save_figs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">save_outputs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">timeout</span> <span class="n">TIMEOUT</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">n_jobs</span> <span class="n">N_JOBS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">n_trajs</span> <span class="n">N_TRAJS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">n_op</span> <span class="n">N_OP</span><span class="p">]</span>
+                                  <span class="p">[</span><span class="o">--</span><span class="n">load_sample_rww</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_timeseries_phasespace_bif</span><span class="p">]</span>
+</pre></div>
+</div>
+<section id="named-arguments">
+<h3>Named Arguments<a class="headerlink" href="#named-arguments" title="Link to this heading"></a></h3>
+<dl class="option-list">
+<dt><kbd>--create_model</kbd></dt>
+<dd><p>create symbolic model</p>
+</dd>
+<dt><kbd>--compute_nullclines</kbd></dt>
+<dd><p>compute nullclines numerically</p>
+</dd>
+<dt><kbd>--compute_epc</kbd></dt>
+<dd><p>compute equilibrium point curves numerically</p>
+</dd>
+<dt><kbd>--save_model</kbd></dt>
+<dd><p>save symbolic model with its computed attributes</p>
+</dd>
+<dt><kbd>--run_stability_analysis</kbd></dt>
+<dd><p>run stability analysis: find fixed points (semi-analytically) and perform linear stability analysis around them</p>
+</dd>
+<dt><kbd>--load_stability_analysis</kbd></dt>
+<dd><p>load previously completed stability analysis</p>
+</dd>
+<dt><kbd>--plot_figs</kbd></dt>
+<dd><p>plot figures</p>
+</dd>
+<dt><kbd>--plot_phasespace_grid</kbd></dt>
+<dd><p>plot grid of phase spaces using discretized order parameters</p>
+</dd>
+<dt><kbd>--plot_bifurcation_diagrams</kbd></dt>
+<dd><p>plot grid of bifurcation diagrams using discretized order parameters</p>
+</dd>
+<dt><kbd>--save_figs</kbd></dt>
+<dd><p>save figures</p>
+</dd>
+<dt><kbd>--save_outputs</kbd></dt>
+<dd><p>save analysis outputs</p>
+</dd>
+<dt><kbd>--timeout</kbd></dt>
+<dd><p>timeout of the stability analysis (per parameter combination invoked)</p>
+<p>Default: 3000</p>
+</dd>
+<dt><kbd>--n_jobs</kbd></dt>
+<dd><p>number of processes used in parallelization</p>
+<p>Default: 20</p>
+</dd>
+<dt><kbd>--n_trajs</kbd></dt>
+<dd><p>number of trajectories (traces) to compute for phase space projections</p>
+<p>Default: 10</p>
+</dd>
+<dt><kbd>--n_op</kbd></dt>
+<dd><p>number of values taken for each order parameters</p>
+<p>Default: 5</p>
+</dd>
+<dt><kbd>--load_sample_rww</kbd></dt>
+<dd><p>load a sample of ReducedWongWang model object previously ran for illustration</p>
+</dd>
+<dt><kbd>--plot_timeseries_phasespace_bif</kbd></dt>
+<dd><p>plot neat figure of timeseries, phase space and bifurcations with trajectories (paper quality)</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="reduced-wong-wang-model">
+<h2>Reduced Wong-Wang Model<a class="headerlink" href="#reduced-wong-wang-model" title="Link to this heading"></a></h2>
+<p>First, we instanciate the Reduced Wong-Wang model <a class="reference external" href="https://www.jneurosci.org/content/26/4/1314">(Wong &amp; Wang, 2006)</a> in <a class="reference external" href="https://github.com/robclewley/pydstool">PyDSTool</a> <a class="reference external" href="https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1002628">(Clewley et al., 2012)</a>
+following the implementation provided in Deco et al. <a class="reference external" href="https://www.jneurosci.org/content/33/27/11239.short">(Deco et al., 2013)</a>:</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.create_model">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">create_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/analysis/rww_dst_analysis.html#create_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.create_model" title="Link to this definition"></a></dt>
+<dd><p>Create the Dynamical System in PyDSTool</p>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[\dot{S_i} = - \cfrac{S_i}{\tau_S} + (1 - S_i) \gamma H(x_i) + \sigma v_i\]</div>
+</div></blockquote>
+<p>with</p>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[H(x) = \cfrac{ax-b}{1-\exp{(-d(ax-b))}}\]</div>
+</div></blockquote>
+<p>and</p>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[x_i = w J_N S_i + G J_N \sum_j{C_{ij} S_j} + I_0\]</div>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>params</strong> (<em>dict</em>) – Parameters of the model</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Optional arguments</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>rww</strong> – PyDSTool object containing the dynamical system</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>PyDSTool.Vode_ODEsystem</p>
+</dd>
+</dl>
+</dd></dl>
+
+<table class="docutils align-default" id="id1">
+<caption><span class="caption-text">Default model’s paremeters</span><a class="headerlink" href="#id1" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Parameter</p></th>
+<th class="head"><p>Value</p></th>
+<th class="head"><p>(unit) Interpretation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(a\)</span></p></td>
+<td><p>270</p></td>
+<td><p>(n/C) slope of the transfer function</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(b\)</span></p></td>
+<td><p>108</p></td>
+<td><p>(Hz) offset of the transfer function</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(d\)</span></p></td>
+<td><p>0.154</p></td>
+<td><ol class="loweralpha simple" start="19">
+<li><p>decay of the transfer function</p></li>
+</ol>
+</td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(G\)</span></p></td>
+<td><p>2.5</p></td>
+<td><p>(N/A) global coupling gain of the system</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(J_N\)</span></p></td>
+<td><p>0.2609</p></td>
+<td><p>(nA) synaptic scaling factor</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(I_0\)</span></p></td>
+<td><p>0.3</p></td>
+<td><p>(nA) external input</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(\tau_S\)</span></p></td>
+<td><p>0.1</p></td>
+<td><ol class="loweralpha simple" start="19">
+<li><p>timescale of the local population activity</p></li>
+</ol>
+</td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(\gamma\)</span></p></td>
+<td><p>0.000641</p></td>
+<td><p>(Hz) timescale of the coupled activity</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(w\)</span></p></td>
+<td><p>0.9</p></td>
+<td><p>(N/A) recurrent excitation factor</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(\sigma\)</span></p></td>
+<td><p>0.01</p></td>
+<td><p>(nA) noise amplitude</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="stability-analysis">
+<h2>Stability analysis<a class="headerlink" href="#stability-analysis" title="Link to this heading"></a></h2>
+<p>The stability analysis involves 3 major steps, which are executed for each single discretization of the order parameters:</p>
+<ol class="arabic simple">
+<li><p>Compute the nullclines (where each state variable is at equilibrium) and finding the fixed points (where nullclines cross).</p></li>
+<li><p>Compute trajectories to illustrate the system behavior in the phase space (optional).</p></li>
+<li><p>Compute equilibrium point curves. These are the branches of the bifurcation diagram indicating stability regimes and transition types.</p></li>
+</ol>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.stability_analysis">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">stability_analysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">order_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_queue</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pdomain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{'C_12':</span> <span class="pre">[-1,</span> <span class="pre">2]}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/analysis/rww_dst_analysis.html#stability_analysis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.stability_analysis" title="Link to this definition"></a></dt>
+<dd><p>Create model and analyse dynamics using PyDSTool.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>order_params</strong> (<em>dict</em>) – Fixed parameters, for which to analyse the system using discretized values, for example <code class="docutils literal notranslate"><span class="pre">{'C_21':</span> <span class="pre">np.linspace(0.2,0.8,4)}</span></code>.</p></li>
+<li><p><strong>default_params</strong> (<em>dict</em>) – Default model’s parameters.</p></li>
+<li><p><strong>out_queue</strong> (<em>Queue</em>) – Queue to put results in (used for parallel computation) for each values of order parameter.</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Structure of necessary options. For example, must include <code class="docutils literal notranslate"><span class="pre">args.compute_epc</span> <span class="pre">=</span> <span class="pre">True</span></code> to compute equilibrium point curves.</p></li>
+<li><p><strong>pdomain</strong> (<em>dict</em>) – Free variable (or order parameter) to perform the bifurcation analyis from.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A dict with model, nullclines (ncs), fixed points (fps), trajectories (trajs),
+and a pickled (dilled) continuation object (if equilibrium curves are asked in args), is appended to the queue.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.get_fixed_points">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">get_fixed_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xdomain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{'S1':</span> <span class="pre">[0,</span> <span class="pre">1],</span> <span class="pre">'S2':</span> <span class="pre">[0,</span> <span class="pre">1]}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/analysis/rww_dst_analysis.html#get_fixed_points"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.get_fixed_points" title="Link to this definition"></a></dt>
+<dd><p>Get model’s nullclines <span class="math notranslate nohighlight">\(\frac{dS_1}{dt}=0\)</span> and <span class="math notranslate nohighlight">\(\frac{dS_2}{dt}=0\)</span>
+and fixed points <span class="math notranslate nohighlight">\(\frac{dS_1}{dt}=\frac{dS_2}{dt}=0\)</span> for a given set of parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>PyDSTool.Vode_ODEsystem</em>) – Model object in PyDSTool.</p></li>
+<li><p><strong>params</strong> (<em>dict</em>) – Model parameters.</p></li>
+<li><p><strong>xdomain</strong> (<em>dict</em>) – Variable and lower/upper bounds.</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Optional extra arguments.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>model</strong> (<em>PyDSTool.Vode_ODEsystem</em>) – Updated model object with given parameters.</p></li>
+<li><p><strong>fps</strong> (<em>PyDSTool.Toolbox.phaseplane.fixedpoint_2D</em>) – Fixed points of the system.</p></li>
+<li><p><strong>(nulls_x, nulls_y)</strong> (<em>tuple</em>) – Tuple containing nullclines (arrays of paired xs and ys).</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.compute_trajectories">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">compute_trajectories</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tdata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[0,</span> <span class="pre">1000]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/analysis/rww_dst_analysis.html#compute_trajectories"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.compute_trajectories" title="Link to this definition"></a></dt>
+<dd><p>Compute n trajectories from model, each with different initial conditions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>PyDSTool.Vode_ODEsystem</em>) – PyDSTool model object.</p></li>
+<li><p><strong>n</strong> (<em>int</em>) – Number of trajectories to compute.</p></li>
+<li><p><strong>tdata</strong> (<em>list</em>) – Time interval of the saved trajectories.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.compute_equilibrium_point_curve">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">compute_equilibrium_point_curve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pdomain</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/analysis/rww_dst_analysis.html#compute_equilibrium_point_curve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.compute_equilibrium_point_curve" title="Link to this definition"></a></dt>
+<dd><p>Find equilibrium point curve(s) of the system, starting from each fixed point (if exist).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>PyDSTool.Vode_ODEsystem</em>) – Model object in PyDSTool.</p></li>
+<li><p><strong>fps</strong> (<em>PyDSTool.Toolbox.phaseplane.fixedpoint_2D</em>) – Fixed points of the system.</p></li>
+<li><p><strong>pdomain</strong> (<em>dict</em>) – Free variable (or order parameter) to perform the bifurcation analyis from.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>cont</strong> – PyDSTool Continuation Class object populated with equilibrium point curves.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>PyDSTool.ContClass</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="parallel-processing">
+<h2>Parallel processing<a class="headerlink" href="#parallel-processing" title="Link to this heading"></a></h2>
+<p>Since we conducted the stability analysis while varying coupling parameters,
+we wrapped the stability analysis from the section above such that we can parallelize
+its execution with custom ranges of parameters.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.run_stability_analysis">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">run_stability_analysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">order_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/analysis/rww_dst_analysis.html#run_stability_analysis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.run_stability_analysis" title="Link to this definition"></a></dt>
+<dd><p>Starts a pool of parallel processes to run the stability analysis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>order_params</strong> (<em>dict</em>) – Fixed parameters, for which to analyse the system using discretized values, for example <code class="docutils literal notranslate"><span class="pre">{'C_21':</span> <span class="pre">np.linspace(0.2,0.8,4)}</span></code>.</p></li>
+<li><p><strong>default_params</strong> (<em>dict</em>) – Default model’s parameters.</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Structure of necessary options. For example, must include <code class="docutils literal notranslate"><span class="pre">args.compute_epc</span> <span class="pre">=</span> <span class="pre">True</span></code> to compute equilibrium point curves.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>outputs</strong> (<em>list of dict</em>) – Stability analysis of each values (or combination of values) given in order_params.</p></li>
+<li><p><strong>futures</strong> (<em>list of concurrent.futures.Future</em>) – (deprecated) if using futures.concurrent library for parallel process, return the list of Future objects (<a class="reference external" href="https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Future">https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Future</a>).</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.launch_stability_analysis">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">launch_stability_analysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">order_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_queue</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/analysis/rww_dst_analysis.html#launch_stability_analysis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.launch_stability_analysis" title="Link to this definition"></a></dt>
+<dd><dl class="simple">
+<dt>Ghost process that launches the stability analysis for a set of defined order parameter,</dt><dd><p>creating a child process with a set timeout per child process, such that the stbaility analysis
+does not hang waiting for the continuation to terminate if it does not converge.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>order_params</strong> (<em>dict</em>) – Fixed parameters, for which to analyse the system using discretized values, for example <code class="docutils literal notranslate"><span class="pre">{'C_21':</span> <span class="pre">np.linspace(0.2,0.8,4)}</span></code>.</p></li>
+<li><p><strong>default_params</strong> (<em>dict</em>) – Default model’s parameters.</p></li>
+<li><p><strong>out_queue</strong> (<em>Queue</em>) – Output queue on which to append the results.</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Structure of necessary options. For example, must include <code class="docutils literal notranslate"><span class="pre">args.compute_epc</span> <span class="pre">=</span> <span class="pre">True</span></code> to compute equilibrium point curves.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="plotting">
+<h2>Plotting<a class="headerlink" href="#plotting" title="Link to this heading"></a></h2>
+<p>We visualized phase space topology via a wrapper of <a class="reference external" href="https://github.com/robclewley/pydstool">PyDSTool</a> functions to plot fixed points and vector fields, and customed plotting of nullclines:</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.plot_phasespace">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">plot_phasespace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nullclines</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trajs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/analysis/rww_dst_analysis.html#plot_phasespace"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.plot_phasespace" title="Link to this definition"></a></dt>
+<dd><p>Plot vector field, nullclines and fixed points of a model previously set with parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>PyDSTool.Vode_ODEsystem</em>) – PyDSTool model object.</p></li>
+<li><p><strong>fps</strong> (<em>PyDSTool.Toolbox.phaseplane.fixedpoint_2D</em>) – Fixed points of he system</p></li>
+<li><p><strong>nullclines</strong> (<em>list</em>) – list of PyDSTool nullcline objects, containing arrays of xs and ys of nullclines.</p></li>
+<li><p><strong>trajs</strong> (<em>list</em><em> of </em><em>dict</em>) – Simulated trajectories.</p></li>
+<li><p><strong>ax</strong> (<em>matplotlib.Axis</em>) – Axis in which to plot the phasespace.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<p>It can then be called multiple times to plot grids of phase spaces as in Supplementary Section I.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.plot_phasespace_grid">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">plot_phasespace_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/analysis/rww_dst_analysis.html#plot_phasespace_grid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.plot_phasespace_grid" title="Link to this definition"></a></dt>
+<dd><p>Plot a grid of phasespaces from stability analysis outputs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> (<em>list</em>) – Outputs from stability analysis.</p></li>
+<li><p><strong>order_params</strong> (<em>dict</em>) – Fixed parameters, for which to analyse the system using discretized values, for example <code class="docutils literal notranslate"><span class="pre">{'C_21':</span> <span class="pre">np.linspace(0.2,0.8,4)}</span></code>.</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Optional extra arguments in argprase Namespace, such as <code class="docutils literal notranslate"><span class="pre">args.save_figs=True</span></code> to save figure and <code class="docutils literal notranslate"><span class="pre">args.plot_figs=True</span></code> to plot figures.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<figure class="align-center" id="id2">
+<a class="reference internal image-reference" href="_images/numeric_state_space_20240214-01.svg"><img alt="_images/numeric_state_space_20240214-01.svg" src="_images/numeric_state_space_20240214-01.svg" width="1000" /></a>
+<figcaption>
+<p><span class="caption-text">Grid of phase space with fixed point, nullclines and trajectories for different values of couplings.</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.analysis.plot_timeseries_phasespace_bif">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.analysis.</span></span><span class="sig-name descname"><span class="pre">plot_timeseries_phasespace_bif</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rww</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/analysis/rww_dst_analysis.html#plot_timeseries_phasespace_bif"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.analysis.plot_timeseries_phasespace_bif" title="Link to this definition"></a></dt>
+<dd><p>Show S1, S2, C_12 timeseries, S1-S2 phase space with trajectories and C_12 S1/S2 phase space
+with bifurcation diagram.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> (<em>list</em>) – Outputs from stability analysis.</p></li>
+<li><p><strong>rww</strong> (<a class="reference internal" href="api/OCD_modeling.models.html#OCD_modeling.models.ReducedWongWangOU" title="OCD_modeling.models.ReducedWongWangOU"><em>OCD_modeling.models.ReducedWongWangOU</em></a>) – Model instance that ran.</p></li>
+<li><p><strong>args</strong> (<em>Argparse.Namespace</em>) – Extra options.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<figure class="align-center" id="id3">
+<a class="reference internal image-reference" href="_images/single_pathway_model_20230926.svg"><img alt="_images/single_pathway_model_20230926.svg" src="_images/single_pathway_model_20230926.svg" width="800" /></a>
+<figcaption>
+<p><span class="caption-text">Timeseries of the model variables S1, S2 and stochastic coupling C_12, with corresponding projections in different state spaces.</span><a class="headerlink" href="#id3" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="optimization.html" class="btn btn-neutral float-right" title="Simulation-based inference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Sebastien Naze.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

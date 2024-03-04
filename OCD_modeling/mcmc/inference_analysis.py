@@ -759,9 +759,10 @@ def get_max_distance_sims(args):
     cons = df_base[df_base.base_cohort=='controls']
     pats = df_base[df_base.base_cohort=='patients']
 
-    # using combinations and within cohort stats
+    
     distances = {'con':[], 'pat':[], 'con_pat':[]}
-    i_s = list(itertools.islice(range(len(cons)), 0, None, args.n_sims))
+    i_s = list(itertools.islice(range(len(cons)), 0, None, args.n_sims))[:-1]
+    # within-group distances
     for i,j in itertools.combinations(i_s, 2):
         cons_i = cons.iloc[i:i+args.n_sims]
         cons_j = cons.iloc[j:j+args.n_sims]
@@ -769,6 +770,8 @@ def get_max_distance_sims(args):
         pats_j = pats.iloc[j:j+args.n_sims]
         distances['con'].append(metric[args.distance_metric](cons_i[args.pathways], cons_j[args.pathways]))
         distances['pat'].append(metric[args.distance_metric](pats_i[args.pathways], pats_j[args.pathways]))
+    # between-group distances
+    for i,j in itertools.product(i_s, i_s):
         distances['con_pat'].append(metric[args.distance_metric](cons_i[args.pathways], pats_j[args.pathways]))
     return distances
 
@@ -780,32 +783,75 @@ def plot_efficacy_transform(args):
 
     def get_KDE(values):
         vmin, vmax = np.min(values), np.max(values)
-        bw = (vmax-vmin)/10
+        bw = (vmax-vmin)/20
         kde = sklearn.neighbors.KernelDensity(kernel='gaussian', bandwidth=bw).fit(np.array(values).reshape(-1,1))
         X = np.linspace(vmin-3*bw, vmax+3*bw, 100).reshape(-1,1)
         pdf = kde.score_samples(X)
         return {'kde':kde, 'pdf':pdf, 'X':X}
     
-    kde_con = get_KDE(distances['con'])
-    kde_pat = get_KDE(distances['pat'])
-    bias_pat = np.mean(distances['pat'])
+    #kde_con = get_KDE(distances['con'])
+    #kde_pat = get_KDE(distances['pat'])
+    #bias_con = np.mean(distances['con'])
+    #bias_pat = np.mean(distances['pat'])
     bias_con = np.mean(distances['con'])
+    bias_pat = np.mean(distances['pat'])
+    bias_con_pat = np.mean(distances['con_pat'])
     bias = np.mean([bias_con, bias_pat])
     offset = np.mean(distances['con_pat'])
+    #scale = np.mean(distances['con_pat'])
     scale = np.mean(distances['con_pat'])
 
-    plt.figure(figsize=[10,5])
-    ax = plt.subplot(2,1,1)
-    plt.hist(distances['pat']-np.mean(distances['pat'])+offset, color='orange', alpha=0.5, density=False, bins=np.linspace(0,0.3,30))
-    plt.hist(distances['con']-np.mean(distances['con']), bins=np.linspace(0,0.3,30), color='lightblue', alpha=0.5, density=False)
+    kde_con = get_KDE(1-((distances['con']-bias_con)/scale)*100)
+    kde_pat = get_KDE(1-((distances['con_pat']-bias_con)/scale)*100)
+
+    plt.figure(figsize=[10,12])
+    ax = plt.subplot(5,1,1)
+    #plt.hist(distances['pat']-np.mean(distances['pat'])+offset, color='orange', alpha=0.5, density=False, bins=np.linspace(0,0.3,30))
+    #plt.hist(distances['con']-np.mean(distances['con']), bins=np.linspace(0,0.3,30), color='lightblue', alpha=0.5, density=False)
+    plt.hist(distances['con'], bins=np.linspace(0,0.3,30), color='lightblue', alpha=0.3, density=False)
+    plt.hist(distances['pat'], bins=np.linspace(0,0.3,30), color='orange', alpha=0.3, density=False)
+    plt.hist(distances['con_pat']-bias_con-bias_pat, bins=np.linspace(0,0.3,30), color='magenta', alpha=0.3, density=False)
+    plt.vlines(np.mean(distances['con']), ymin=0, ymax=50, color='lightblue')
+    plt.vlines(np.mean(distances['pat']), ymin=0, ymax=50, color='orange')
+    plt.vlines(np.mean(distances['con_pat']), ymin=0, ymax=50, color='magenta')
     #plt.xlim([0,1])
-    plt.xlabel('$d_Z$', fontsize=12)
+    plt.xlabel('$d$', fontsize=12)
     plt.ylabel('counts', fontsize=12)
     ax.spines.top.set_visible(False)
     ax.spines.right.set_visible(False)
-    ax = plt.subplot(2,1,2)
-    plt.plot(100*(kde_pat['X']-bias)/scale, kde_pat['pdf'], color='orange')
-    plt.plot(100*(kde_con['X']-bias+offset)/scale, kde_con['pdf'], color='lightblue')
+    
+    ax = plt.subplot(5,1,2)
+    plt.hist(distances['con']-bias_con, bins=np.linspace(-0.1,0.3,40), color='lightblue', alpha=0.5, density=False)
+    plt.hist(distances['con_pat'], bins=np.linspace(-0.1,0.3,40), color='orange', alpha=0.5, density=False)
+    #plt.xlim([0,1])
+    plt.xlabel('$d-\mu_{d_{XX}}$', fontsize=12)
+    plt.ylabel('counts', fontsize=12)
+    ax.spines.top.set_visible(False)
+    ax.spines.right.set_visible(False)
+    
+    ax = plt.subplot(5,1,3)
+    plt.hist((distances['con']-bias_con)/scale, bins=np.linspace(-2,2,40), color='lightblue', alpha=0.5, density=False)
+    plt.hist((distances['con_pat']-bias_con)/scale, bins=np.linspace(-2,2,40), color='orange', alpha=0.5, density=False)
+    #plt.xlim([0,1])
+    plt.xlabel('$ \\frac{d-\mu_{d_{XX}}}{\mu_{d_{XY}} - \mu_{d_{XX}}}$', fontsize=12)
+    plt.ylabel('counts', fontsize=12)
+    ax.spines.top.set_visible(False)
+    ax.spines.right.set_visible(False)
+
+    ax = plt.subplot(5,1,4)
+    plt.hist(1-((distances['con']-bias_con)/scale), bins=np.linspace(-2,2,40), color='lightblue', alpha=0.5, density=False)
+    plt.hist(1-((distances['con_pat']-bias_con)/scale), bins=np.linspace(-2,2,40), color='orange', alpha=0.5, density=False)
+    #plt.xlim([0,1])
+    plt.xlabel('$1- \\frac{d-\mu_{d_{XX}}}{\mu_{d_{XY}} - \mu_{d_{XX}}}$', fontsize=12)
+    plt.ylabel('counts', fontsize=12)
+    ax.spines.top.set_visible(False)
+    ax.spines.right.set_visible(False)
+    
+    ax = plt.subplot(5,1,5)
+    #plt.plot(100*(kde_pat['X']-bias)/scale, kde_pat['pdf'], color='orange')
+    #plt.plot(100*(kde_con['X']-bias+offset)/scale, kde_con['pdf'], color='lightblue')
+    plt.plot(kde_con['X'], kde_con['pdf'], color='lightblue')
+    plt.plot(kde_pat['X'], kde_pat['pdf'], color='orange')
     plt.xlabel('$E_{ff} \, (\%)$', fontsize=12)
     plt.ylabel('density', fontsize=12)
     ax.spines.top.set_visible(False)
@@ -882,8 +928,11 @@ def compute_efficacy(df_restore, base='sims', args=None):
     """
     if base=='sims':
         distances = get_max_distance_sims(args)
+        # mu_d
         offset = np.mean([np.mean(distances['pat']), np.mean(distances['con'])])
+        # mu_d_XY
         scale = np.mean(distances['con_pat'])
+        # E_ff
         df_restore['efficacy'] = (1-((df_restore['dist']-offset))/scale)*100 # make % of restoration
     else:
         distances = get_max_distance_data(args)

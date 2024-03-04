@@ -1,8 +1,8 @@
 Installation
 ============
 
-    *Tested on Ubuntu 20.04*
-    *Linux-5.8.0*
+    *Tested on Ubuntu 20.04, Linux-5.8.0*
+
 
 It is strongly advised to install the package in a new virtual environment using python 3.9::
 

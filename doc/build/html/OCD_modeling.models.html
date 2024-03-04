@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OCD_modeling.models &mdash; OCD modeling  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="OCD_modeling.analysis" href="OCD_modeling.analysis.html" />
+    <link rel="prev" title="OCD_modeling" href="OCD_modeling.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            OCD modeling
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dynamical_analysis.html">Dynamical system analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="optimization.html">Simulation-based inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="restoration.html">Restoration analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Digital twins validation</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="api.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="OCD_modeling.html">OCD_modeling</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">OCD_modeling.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangND"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangND</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangND.H"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangND.H()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangND.__init__"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangND.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangND.dS"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangND.dS()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangND.integrate"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangND.integrate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangND.load_C_param"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangND.load_C_param()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangND.prepare_auxiliary_variables"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangND.prepare_auxiliary_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangND.prepare_control_params"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangND.prepare_control_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangND.record_auxiliary_variables"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangND.record_auxiliary_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangND.run"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangND.run()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangND.set_control_params"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangND.set_control_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangND.update_control_params"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangND.update_control_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangND.v"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangND.v()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangOU"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangOU</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangOU.__init__"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangOU.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangOU.integrate"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangOU.integrate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#OCD_modeling.models.ReducedWongWangOU.record_auxiliary_variables"><code class="docutils literal notranslate"><span class="pre">ReducedWongWangOU.record_auxiliary_variables()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.models.compute_bold"><code class="docutils literal notranslate"><span class="pre">compute_bold()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.models.create_sim_df"><code class="docutils literal notranslate"><span class="pre">create_sim_df()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.models.plot_auxiliary_variables"><code class="docutils literal notranslate"><span class="pre">plot_auxiliary_variables()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.models.plot_bold"><code class="docutils literal notranslate"><span class="pre">plot_bold()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.models.plot_control_params"><code class="docutils literal notranslate"><span class="pre">plot_control_params()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.models.plot_correlations"><code class="docutils literal notranslate"><span class="pre">plot_correlations()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.models.plot_timeseries"><code class="docutils literal notranslate"><span class="pre">plot_timeseries()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.models.score_model"><code class="docutils literal notranslate"><span class="pre">score_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.models.score_population_models"><code class="docutils literal notranslate"><span class="pre">score_population_models()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="OCD_modeling.analysis.html">OCD_modeling.analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="OCD_modeling.mcmc.html">OCD_modeling.mcmc</a></li>
+<li class="toctree-l2"><a class="reference internal" href="OCD_modeling.utils.html">OCD_modeling.utils</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">OCD modeling</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="api.html">API Reference</a></li>
+      <li class="breadcrumb-item active">OCD_modeling.models</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/OCD_modeling.models.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-OCD_modeling.models">
+<span id="ocd-modeling-models"></span><h1>OCD_modeling.models<a class="headerlink" href="#module-OCD_modeling.models" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangND">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">OCD_modeling.models.</span></span><span class="sig-name descname"><span class="pre">ReducedWongWangND</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">270.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">108.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.154</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">I_0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">J_N</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2609</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">G</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_S</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.000641</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">C</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">S</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangND" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Reduced Wong Wang model (N-dimensional)</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangND.H">
+<span class="sig-name descname"><span class="pre">H</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND.H"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangND.H" title="Link to this definition"></a></dt>
+<dd><p>Average synaptic gating.</p>
+<p>a: slope (n/C); default=270
+b: offset (Hz); default=108
+d: decay (s);   default=0.154</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangND.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">270.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">108.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.154</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">I_0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">J_N</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2609</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">G</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_S</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.000641</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">C</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">S</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangND.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangND.dS">
+<span class="sig-name descname"><span class="pre">dS</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND.dS"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangND.dS" title="Link to this definition"></a></dt>
+<dd><p>ODE of firing rate.</p>
+<p>tau_S: kinetic parameter of local population (ms); default=100
+gamma: kinetic parameter of coupled population (ms); default=0.000641
+sigma: noise amplitude (nA); default=0.001
+v_i: gaussian noise (n/a); default=0</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangND.integrate">
+<span class="sig-name descname"><span class="pre">integrate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND.integrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangND.integrate" title="Link to this definition"></a></dt>
+<dd><p>Euler(-Maruyama) integration of the ODE</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangND.load_C_param">
+<span class="sig-name descname"><span class="pre">load_C_param</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">par</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vals</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND.load_C_param"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangND.load_C_param" title="Link to this definition"></a></dt>
+<dd><p>Special case for connectivity control parameters as it is an array</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangND.prepare_auxiliary_variables">
+<span class="sig-name descname"><span class="pre">prepare_auxiliary_variables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rec_vars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_rec</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND.prepare_auxiliary_variables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangND.prepare_auxiliary_variables" title="Link to this definition"></a></dt>
+<dd><p>creates dtata structures to recored supplementary variables</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangND.prepare_control_params">
+<span class="sig-name descname"><span class="pre">prepare_control_params</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND.prepare_control_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangND.prepare_control_params" title="Link to this definition"></a></dt>
+<dd><p>Prepare the control parameters to be updated during the simulation</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangND.record_auxiliary_variables">
+<span class="sig-name descname"><span class="pre">record_auxiliary_variables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rec_vars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rec_idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND.record_auxiliary_variables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangND.record_auxiliary_variables" title="Link to this definition"></a></dt>
+<dd><p>Record variables other than S</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangND.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t_tot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sf</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_rec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rec_vars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangND.run" title="Link to this definition"></a></dt>
+<dd><p>Runs the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t_tot</strong> (<em>int</em>) – Total simulation time (s).</p></li>
+<li><p><strong>sf</strong> (<em>int</em>) – Sampling frequency of the reccording (Hz).</p></li>
+<li><p><strong>t_rec</strong> (<em>list</em>) – Interval of recording (s) in the form <code class="docutils literal notranslate"><span class="pre">[start,</span> <span class="pre">stop]</span></code>.</p></li>
+<li><p><strong>rec_vars</strong> (<em>list</em>) – Variables to records (note that S is always recorded).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangND.set_control_params">
+<span class="sig-name descname"><span class="pre">set_control_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND.set_control_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangND.set_control_params" title="Link to this definition"></a></dt>
+<dd><p>Set the parameters to be updated during the simulation (e.g. a slow control parameter).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>params</strong> (<em>dict</em>) – Parameters to be udpated, keys of this dict must match parameters names of the model.
+values of the dictionary are list of tuple indicating times and values of the parameter to be updated, i.e.:
+<code class="docutils literal notranslate"><span class="pre">params</span> <span class="pre">=</span> <span class="pre">{I_0:</span> <span class="pre">[</span> <span class="pre">(t0,v0),</span> <span class="pre">(t1,v1),</span> <span class="pre">(t2,v2),</span> <span class="pre">...</span> <span class="pre">]}</span></code></p>
+</dd>
+</dl>
+<p>Note that the update is linear monotonic between referenced points, and the update frequency used is
+the sampling frequency (SF). Control parameter can only be changed during recording period.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangND.update_control_params">
+<span class="sig-name descname"><span class="pre">update_control_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND.update_control_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangND.update_control_params" title="Link to this definition"></a></dt>
+<dd><p>Update the control parameters during the simulation</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangND.v">
+<span class="sig-name descname"><span class="pre">v</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND.v"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangND.v" title="Link to this definition"></a></dt>
+<dd><p>Implementing the Gaussian white noise process.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangOU">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">OCD_modeling.models.</span></span><span class="sig-name descname"><span class="pre">ReducedWongWangOU</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma_C</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eta_C</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangOU"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangOU" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="api/OCD_modeling.models.html#OCD_modeling.models.ReducedWongWangND" title="OCD_modeling.models.ReducedWongWang.ReducedWongWangND"><code class="xref py py-class docutils literal notranslate"><span class="pre">ReducedWongWangND</span></code></a></p>
+<p>Reduced Wong-Wang model with Ornsetin-Uhlenbeck process for coupling (n dimensions)</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangOU.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma_C</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eta_C</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangOU.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangOU.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangOU.integrate">
+<span class="sig-name descname"><span class="pre">integrate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangOU.integrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangOU.integrate" title="Link to this definition"></a></dt>
+<dd><p>Euler(-Maruyama) integration of the ODE</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="OCD_modeling.models.ReducedWongWangOU.record_auxiliary_variables">
+<span class="sig-name descname"><span class="pre">record_auxiliary_variables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rec_vars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rec_idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangOU.record_auxiliary_variables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.ReducedWongWangOU.record_auxiliary_variables" title="Link to this definition"></a></dt>
+<dd><p>Record auxiliary variables other than S</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.models.compute_bold">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.models.</span></span><span class="sig-name descname"><span class="pre">compute_bold</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transient</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#compute_bold"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.compute_bold" title="Link to this definition"></a></dt>
+<dd><p>BOLD timeseries and functional connectivity between regions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>OCD_modeling.models.ReducedWongWang.</em>) – Model object.</p></li>
+<li><p><strong>t_range</strong> (<em>list</em>) – Times of interest (in sec), in the form <code class="docutils literal notranslate"><span class="pre">[start,</span> <span class="pre">stop]</span></code>. Default: all recorded time.</p></li>
+<li><p><strong>transient</strong> (<em>int</em>) – Time discarded at the beginning of t_range due to BOLD transient (in sec). Default: 30s.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.models.create_sim_df">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.models.</span></span><span class="sig-name descname"><span class="pre">create_sim_df</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim_objs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sim_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sim-con'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#create_sim_df"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.create_sim_df" title="Link to this definition"></a></dt>
+<dd><p>Make a pandas DataFrame from list of simulation outputs objects</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.models.plot_auxiliary_variables">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.models.</span></span><span class="sig-name descname"><span class="pre">plot_auxiliary_variables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rec_vars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#plot_auxiliary_variables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.plot_auxiliary_variables" title="Link to this definition"></a></dt>
+<dd><p>Visualize time serie generated by model</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>rww</strong> – ReducedWangWang object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.models.plot_bold">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.models.</span></span><span class="sig-name descname"><span class="pre">plot_bold</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#plot_bold"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.plot_bold" title="Link to this definition"></a></dt>
+<dd><p>plot BOLD timeseries and FC</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.models.plot_control_params">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.models.</span></span><span class="sig-name descname"><span class="pre">plot_control_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#plot_control_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.plot_control_params" title="Link to this definition"></a></dt>
+<dd><p>Visualize time serie of control parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>model</strong> – ReducedWangWang object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.models.plot_correlations">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.models.</span></span><span class="sig-name descname"><span class="pre">plot_correlations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rww</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#plot_correlations"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.plot_correlations" title="Link to this definition"></a></dt>
+<dd><p>Visualize correlation between timeseries generated by model (S_rec, not BOLD).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>rww</strong> – ReducedWangWang object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.models.plot_timeseries">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.models.</span></span><span class="sig-name descname"><span class="pre">plot_timeseries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['OFC',</span> <span class="pre">'PFC',</span> <span class="pre">'NAcc',</span> <span class="pre">'Put']</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#plot_timeseries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.plot_timeseries" title="Link to this definition"></a></dt>
+<dd><p>visualize time serie generated by model</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>model</strong> – ReducedWangWang object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.models.score_model">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.models.</span></span><span class="sig-name descname"><span class="pre">score_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rww</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'con'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#score_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.score_model" title="Link to this definition"></a></dt>
+<dd><p>Score single model against empirical FC (only considering mean).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rww</strong> – instance of model to score.</p></li>
+<li><p><strong>coh</strong> – cohort to be scored against (‘con’ or ‘pat’).</p></li>
+</ul>
+</dd>
+</dl>
+<p>(that is used when optimizing single models, not populations of models)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.models.score_population_models">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.models.</span></span><span class="sig-name descname"><span class="pre">score_population_models</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim_objs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cohort</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'controls'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/models/ReducedWongWang.html#score_population_models"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.models.score_population_models" title="Link to this definition"></a></dt>
+<dd><p>Score a population of simulated model (using a parameter set) against experimental observations.
+Here, the whole distribution of models outputs is scored against the distributions of observations.</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="OCD_modeling.html" class="btn btn-neutral float-left" title="OCD_modeling" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="OCD_modeling.analysis.html" class="btn btn-neutral float-right" title="OCD_modeling.analysis" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Sebastien Naze.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
