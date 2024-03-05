@@ -3,7 +3,7 @@ future == 0.18.3
 joblib >= 1.2.0
 matplotlib >= 3.4.3
 nilearn == 0.8.*
-numpy == 0.23.*
+numpy == 1.23.*
 pandas == 2.0.*
 pingouin == 0.3.*
 pyabc == 0.12.8
