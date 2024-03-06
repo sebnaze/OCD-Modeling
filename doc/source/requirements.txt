@@ -2,6 +2,7 @@ dill == 0.3.7
 future == 0.18.3
 joblib >= 1.2.0
 matplotlib >= 3.4.3
+neurolib == 0.6.2
 nilearn == 0.8.*
 numpy == 1.23.*
 pandas == 2.0.*
