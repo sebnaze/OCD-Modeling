@@ -5,6 +5,7 @@ matplotlib >= 3.4.3
 neurolib == 0.6.2
 nilearn == 0.8.*
 numpy == 1.23.*
+pathos == 0.3.1
 pandas == 2.0.*
 pingouin == 0.3.*
 pyabc == 0.12.8

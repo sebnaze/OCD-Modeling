@@ -11,4 +11,3 @@ from .ReducedWongWang import (
     plot_correlations,
     plot_control_params
 )    
-
