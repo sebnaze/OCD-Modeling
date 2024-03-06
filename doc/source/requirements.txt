@@ -1,5 +1,6 @@
 dill == 0.3.7
 future == 0.18.3
+ipython == 8.*
 joblib >= 1.2.0
 matplotlib >= 3.4.3
 nbsphinx == 0.9.*
