@@ -12,8 +12,9 @@ from sklearn import preprocessing
 import time
 
 from OCD_modeling.utils.utils import get_working_dir
-from OCD_modeling.models.HemodynamicResponseModeling.BalloonWindkessel import balloonWindkessel
-from OCD_modeling.utils.neurolib.neurolib.models.bold.timeIntegration import simulateBOLD
+#from OCD_modeling.models.HemodynamicResponseModeling.BalloonWindkessel import balloonWindkessel
+#from OCD_modeling.utils.neurolib.neurolib.models.bold.timeIntegration import simulateBOLD
+from OCD_modeling.utils import simulateBOLD
 
 # get computer name to set paths
 working_dir = get_working_dir()
