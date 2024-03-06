@@ -19,9 +19,9 @@ setup(name='OCD_modeling',
                         'PyDSTool',
                         'pymeshfix',
                         'pyvista',
+                        'scikit-learn',
                         'scipy', 
                         'seaborn',
-                        'sklearn',
                         'sympy'
                         ]
      )
