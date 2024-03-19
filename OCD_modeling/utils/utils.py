@@ -25,7 +25,7 @@ def emd(u,v):
 
 def rmse(u,v):
     """ compute the root mean squared error of correlation accross pathways P between u and v as 
-    :math:`d = \sqrt{ \sum_{p \in P} (\mu_u^p - \mu_v^p)^2 + (\sigma_u_p - \sigma_v^p)^2}` 
+    :math:`d = \sqrt{ \sum_{p \in P} (\mu_u^p - \mu_v^p)^2}` 
     
     Parameters:
     -----------
@@ -37,9 +37,9 @@ def rmse(u,v):
     d
         Root Mean Squared Error 
     """
-    u_ = u.apply([np.mean, np.std])
-    v_ = v.apply([np.mean, np.std])
-    mse = u_.combine(v_, np.subtract).apply('square').apply('sum').sum()
+    u_ = u.apply(np.mean)
+    v_ = v.apply(np.mean)
+    mse = u_.combine(v_, np.subtract).apply('square').sum()
     return np.sqrt(mse)
 
 

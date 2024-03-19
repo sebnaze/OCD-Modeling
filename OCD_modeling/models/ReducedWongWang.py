@@ -113,10 +113,10 @@ class ReducedWongWangND:
         self.G = G             # global scaling factor (n/a); default=1
 
         if S is None:
-            self.S = np.random.rand(N,)         # coupled population firing rates (Hz);
+            self.S = np.array(np.random.rand(N,)*0.1+0.05, dtype=np.float64)         # coupled population firing rates (Hz);
         else:
-            self.S = np.array(S).squeeze().astype(float)
-        self.x = np.random.rand(N,)         # coupled population activity (Hz); default = uniformly distributed
+            self.S = np.array(S).squeeze().astype(np.float64)
+        self.x = np.array(np.random.rand(N,)*0.1+0.05, dtype=np.float64)         # coupled population activity (Hz); default = uniformly distributed
 
         # ODE params
         self.tau_S = tau_S      # kinetic parameter of local population (ms); default=100
@@ -146,7 +146,7 @@ class ReducedWongWangND:
 
     def v(self):
         """ Implementing the Gaussian white noise process. """
-        return np.random.randn(self.N,)
+        return np.array(np.random.randn(self.N,), dtype=np.float64)
 
     def dS(self):
         """ ODE of firing rate.
@@ -291,7 +291,7 @@ class ReducedWongWangND:
 
 
     def prepare_auxiliary_variables(self, rec_vars, n_rec):
-        """ creates dtata structures to recored supplementary variables """
+        """ creates dtata structures to recorded supplementary variables """
         for var in rec_vars:
             if hasattr(self, var):
                 setattr(self, 'rec_'+var, np.zeros((n_rec,))) # <-- assumes single variable, if vector or matrice it needs different shape
@@ -332,14 +332,14 @@ class ReducedWongWangOU(ReducedWongWangND):
     def __init__(self, N=4, sigma_C=[], eta_C=[], *args, **kwargs):
         super().__init__(N=N, *args, **kwargs)
         self.vC = self.C.copy()             # variable connectivity variables
-        if sigma_C==[]:
+        if len(sigma_C)==0:
             self.sigma_C = np.zeros((N,N))
         else:
-            self.sigma_C = sigma_C
-        if eta_C==[]:
+            self.sigma_C = np.array(sigma_C)
+        if len(eta_C)==0:
             self.eta_C = np.zeros((N,N))
         else:
-            self.eta_C = eta_C
+            self.eta_C = np.array(eta_C)
 
     def integrate(self):
         """ Euler(-Maruyama) integration of the ODE """
@@ -525,6 +525,7 @@ def plot_timeseries(model, t_range=None, labels=['OFC', 'PFC', 'NAcc', 'Put']):
     plt.plot(model.t[inds],model.S_rec[inds,:])
     #plt.legend([str(i) for i in range(model.N)])
     plt.legend(labels)
+    plt.title("sigma={:.4f} G={:.1f} C={}".format(model.sigma, model.G, model.C))
     plt.show()
 
 def plot_control_params(model, t_range=None, labels=[]):
@@ -564,6 +565,7 @@ def plot_auxiliary_variables(model, t_range=None, rec_vars=[]):
             ts = getattr(model, 'rec_'+var)
             plt.plot(model.t[inds], ts)
         plt.legend(rec_vars)
+        plt.title("eta_C={} sigma_C={}".format(model.eta_C, model.sigma_C))
         plt.show()
 
 

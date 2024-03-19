@@ -111,9 +111,24 @@ def get_prior():
         sigma_C_13 = pyabc.RV("uniform", sigma_C_13_min, sigma_C_13_max - sigma_C_13_min),
         sigma_C_24 = pyabc.RV("uniform", sigma_C_24_min, sigma_C_24_max - sigma_C_24_min),
         eta_C_13 = pyabc.RV("uniform", eta_C_13_min, eta_C_13_max - eta_C_13_min),
-        eta_C_24 = pyabc.RV("uniform", eta_C_24_min, eta_C_24_max - eta_C_24_min)
-    )
-    return prior
+        eta_C_24 = pyabc.RV("uniform", eta_C_24_min, eta_C_24_max - eta_C_24_min) )
+
+    bounds = dict()
+    bounds['sigma'] = [sigma_min, sigma_max]
+    bounds['G'] = [G_min, G_max]
+    bounds['C_12'] = [C_12_min, C_12_max]
+    bounds['C_21'] = [C_21_min, C_21_max]
+    bounds['C_13'] = [C_13_min, C_13_max]
+    bounds['C_31'] = [C_31_min, C_31_max]
+    bounds['C_24'] = [C_24_min, C_24_max]
+    bounds['C_42'] = [C_42_min, C_42_max]
+    bounds['C_34'] = [C_34_min, C_34_max]
+    bounds['C_43'] = [C_43_min, C_43_max]
+    bounds['eta_C_13'] = [eta_C_13_min, eta_C_13_max]
+    bounds['sigma_C_13'] = [sigma_C_13_min, sigma_C_13_max]
+    bounds['eta_C_24'] = [eta_C_24_min, eta_C_24_max]
+    bounds['sigma_C_24'] = [sigma_C_24_min, sigma_C_24_max]
+    return prior, bounds
 
 
 def get_default_args(func):
@@ -130,7 +145,7 @@ def get_default_args(func):
 def unpack_params(in_params):
     """ Unpack parameters to be given to model and simulation.
     
-    All type of input parameter can be given, it will be unpacked and atrributed to the correct parameter dictrionnary.
+    All type of input parameter can be given, it will be unpacked and atrributed to the correct parameter dictionnary.
     If the parameter is not recognized, a warning will be displayed and the input parameters will be ignored.
 
     Parameters
@@ -299,5 +314,5 @@ def run_abc(prior, cfg):
 if __name__ == '__main__':
     args = parse_args()
     cfg = get_config()
-    prior = get_prior()
+    prior, _ = get_prior()
     history = run_abc(prior, cfg)
