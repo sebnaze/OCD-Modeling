@@ -11,7 +11,7 @@ numpy == 1.21.3
 openpyxl == 3.*
 pathos == 0.2.1
 pandas == 2.0.*
-pingouin == 0.2.1
+pingouin == 0.5.*
 pyabc == 0.12.8
 PyDSTool == 0.91.0
 pyvista == 0.43.*

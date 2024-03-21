@@ -8,7 +8,7 @@ import argparse
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
 import copy
 import dill
-import importlib
+
 import itertools
 import joblib
 import numpy as np
@@ -19,8 +19,7 @@ import multiprocessing
 import mpmath
 import os
 import pandas as pd
-from pathos.multiprocessing import ProcessingPool
-import pdb
+#from pathos.multiprocessing import ProcessingPool
 import pickle
 import PyDSTool as dst
 from PyDSTool.Toolbox import phaseplane as pp
@@ -33,13 +32,7 @@ from OCD_modeling.utils.utils import *
 from OCD_modeling.models import ReducedWongWang as RWW
 
 
-
 rng = np.random.default_rng()
-
-dill.Pickler.dumps, dill.Pickler.loads = dill.dumps, dill.loads
-multiprocessing.reduction.ForkingPickler = dill.Pickler
-multiprocessing.reduction.dump = dill.dump
-multiprocessing.queues._ForkingPickler = dill.Pickler
 
 def create_model(params, args):
     """ Create the Dynamical System in PyDSTool 
@@ -684,6 +677,15 @@ def get_parser():
 
 
 if __name__=='__main__':
+    # This is to be able to run multiple stability analysis in parallel.
+    # In short, PyDSTool objects need to be serialized to be passed across processes through a Queue.
+    # but pyCont objects (used for continuation) are not pickable. We need to set multiprocessing library to 
+    # use dill to serialize the objects. 
+    dill.Pickler.dumps, dill.Pickler.loads = dill.dumps, dill.loads
+    multiprocessing.reduction.ForkingPickler = dill.Pickler
+    multiprocessing.reduction.dump = dill.dump
+    multiprocessing.queues._ForkingPickler = dill.Pickler
+
     args = get_parser().parse_args()
     default_params = {'a':270, 'b': 108, 'd': 0.154, 'C_12': 0.25, 'G':2.5, 'J_N':0.2609, 'I_0':0.3, 'I_1':0.0, 'tau_S':100, 'w':0.9, 'gam':0.000641}
     #order_params = {'C_12': np.linspace(-1,1,args.n_op), 'I_0': np.linspace(0.2,0.5,args.n_op)} #, 'C_21': np.linspace(-1,1,args.n_op)}

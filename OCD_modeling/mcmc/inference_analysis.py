@@ -16,7 +16,6 @@ import os
 import pandas as pd
 import pickle
 import pingouin as pg
-import pdb
 import pyabc
 import scipy
 import seaborn as sbn
@@ -26,12 +25,11 @@ from sklearn.metrics import make_scorer, r2_score
 from sklearn.inspection import permutation_importance
 import sqlite3 as sl
 import statsmodels
-import statsmodels.stats.weightstats
+#import statsmodels.stats.weightstats
 
 # import most relevant environment and project variable
-from OCD_modeling.utils.utils import *
+from OCD_modeling.utils.utils import proj_dir, today, rmse, emd
 from OCD_modeling.mcmc.history_analysis import import_results, compute_kdes
-from OCD_modeling.mcmc.simulate_inference import batched
 from OCD_modeling.analysis.fc_data_analysis import drop_single_session
 
 # mapping of parameter names from numbered to lettered indices (e.g. C_13 to C_OA)
@@ -601,8 +599,22 @@ def print_ANOVA(df_sim_pat, behavs, params):
 
 def get_df_base(args):
     """ Import simulations from infered parameters for controls and patients without restoration """
-    with sl.connect(os.path.join(proj_dir, 'postprocessing', 'sim_test_20230614.db')) as conn:
-        df = pd.read_sql("SELECT * FROM SIMTEST WHERE test_param='None'", conn)
+    #with sl.connect(os.path.join(proj_dir, 'postprocessing', 'sim_test_20230614.db')) as conn:
+    with sl.connect(os.path.join(proj_dir, 'postprocessing', 'sim_base_20240320.db')) as conn:
+        #df = pd.read_sql("SELECT * FROM SIMTEST WHERE test_param='None'", conn)
+        df = pd.read_sql("SELECT * FROM SIMTEST", conn)
+        df.test_param = 'None'
+    conn.close()
+    return df
+
+def get_df_other_base(args):
+    """ Import simulations from infered parameters for controls and patients without restoration 
+    (2nd batch to be able to compare cntrols to controls and patients to patients with same n) """
+    #with sl.connect(os.path.join(proj_dir, 'postprocessing', 'sim_test_20230614.db')) as conn:
+    with sl.connect(os.path.join(proj_dir, 'postprocessing', 'sim_base_20240321.db')) as conn:
+        #df = pd.read_sql("SELECT * FROM SIMTEST WHERE test_param='None'", conn)
+        df = pd.read_sql("SELECT * FROM SIMTEST", conn)
+        df.test_param = 'None'
     conn.close()
     return df
 
@@ -710,7 +722,7 @@ def compute_distance_restore(df_sims, args):
     
     # df_base are the simulated using OCD subjects and helthy controls' posterior (no invervention).
     df_base = get_df_base(args)
-    df_base = fix_df_base(df_base)
+    #df_base = fix_df_base(df_base)
 
     distance_outputs = Parallel(n_jobs=args.n_jobs, verbose=3)(delayed(compute_distance_restore_sims)
                                         (df_base=df_base, 
@@ -726,9 +738,9 @@ def compute_distance_restore(df_sims, args):
     for tp,outputs in zip(test_params, distance_outputs):
         df_test_param = pd.DataFrame(outputs)
         df_test_param['test_param'] = tp
-        df_test_param['mean_Eff'] = np.mean(df_test_param.efficacy)
-        df_test_param['median_Eff'] = np.median(df_test_param.efficacy)
-        df_test_param['std_Eff'] = np.std(df_test_param.efficacy)
+        df_test_param['mean'] = np.mean(df_test_param.dist)
+        df_test_param['median'] = np.median(df_test_param.dist)
+        df_test_param['std'] = np.std(df_test_param.dist)
         lines.append(df_test_param)
         
     df_restore = pd.concat(lines, ignore_index=True)
@@ -763,16 +775,20 @@ def get_max_distance_data(args):
 def get_max_distance_sims(args):
     """ Compute the distance between controls and patients in simulated dataset """
     df_base = get_df_base(args)
-    df_base = fix_df_base(df_base)
+    df_other_base = get_df_other_base(args)
+    #df_base = fix_df_base(df_base)
     #n_pathways = len(df.pathway.unique())
 
     cons = df_base[df_base.base_cohort=='controls']
     pats = df_base[df_base.base_cohort=='patients']
 
+    o_cons = df_other_base[df_other_base.base_cohort=='controls']
+    o_pats = df_other_base[df_other_base.base_cohort=='patients']
+
+    distances = {'con':[], 'pat':[], 'con_pat':[], 'con_pat_centroid':0, 'con_con':[], 'pat_pat':[]}
+    i_s = list(itertools.islice(range(len(cons)), 0, None, args.n_sims))
     
-    distances = {'con':[], 'pat':[], 'con_pat':[], 'con_pat_centroid':0}
-    i_s = list(itertools.islice(range(len(cons)), 0, None, args.n_sims))[:-1]
-    # within-group distances
+    # within-group distances (using same base)
     for i,j in itertools.combinations(i_s, 2):
         cons_i = cons.iloc[i:i+args.n_sims]
         cons_j = cons.iloc[j:j+args.n_sims]
@@ -780,12 +796,24 @@ def get_max_distance_sims(args):
         pats_j = pats.iloc[j:j+args.n_sims]
         distances['con'].append(metric[args.distance_metric](cons_i[args.pathways], cons_j[args.pathways]))
         distances['pat'].append(metric[args.distance_metric](pats_i[args.pathways], pats_j[args.pathways]))
+    
     # between-group distances
     for i,j in itertools.product(i_s, i_s):
         pats_i = pats.iloc[i:i+args.n_sims]
         cons_j = cons.iloc[j:j+args.n_sims]
         distances['con_pat'].append(metric[args.distance_metric](pats_i[args.pathways], cons_j[args.pathways]))
     distances['con_pat_centroid'] = metric[args.distance_metric](cons[args.pathways], pats[args.pathways])
+
+    # within-group distances (using other base)
+    for i,j in itertools.product(i_s, i_s):
+        cons_i = cons.iloc[i:i+args.n_sims]
+        cons_j = o_cons.iloc[j:j+args.n_sims]
+        distances['con_con'].append(metric[args.distance_metric](cons_i[args.pathways], cons_j[args.pathways]))
+        
+        pats_i = pats.iloc[i:i+args.n_sims]
+        pats_j = o_pats.iloc[j:j+args.n_sims]
+        distances['pat_pat'].append(metric[args.distance_metric](pats_i[args.pathways], pats_j[args.pathways]))
+
     return distances
 
 
@@ -983,6 +1011,24 @@ def compute_efficacy(df_restore, args=None):
                 ids = df_restore[df_restore.test_param==test_param].index
                 df_restore.loc[ids, 'efficacy'] = np.divide(df_restore.loc[ids].dist_post_pre, con_pat)
 
+    elif args.efficacy_base=='paired_E':
+        distances = get_max_distance_sims(args)
+        for test_param in df_restore.test_param.unique():
+                ids = df_restore[df_restore.test_param==test_param].index
+                df_restore.loc[ids, 'efficacy'] = df_restore.loc[ids].dist_post_pre
+
+    elif args.efficacy_base=='paired_F':
+        distances = get_max_distance_sims(args)
+        for test_param in df_restore.test_param.unique():
+                ids = df_restore[df_restore.test_param==test_param].index
+                df_restore.loc[ids, 'efficacy'] = np.divide(distances['con_pat'] - df_restore.loc[ids].dist, distances['con_pat'])
+
+    elif args.efficacy_base=='paired_G':
+        distances = get_max_distance_sims(args)
+        for test_param in df_restore.test_param.unique():
+                ids = df_restore[df_restore.test_param==test_param].index
+                df_restore.loc[ids, 'efficacy'] = np.divide(distances['con_pat_centroid'] - df_restore.loc[ids].dist, distances['con_pat_centroid'])
+
     else:
         distances = get_max_distance_data(args)
         offset = np.mean([np.mean(distances['pat']), np.mean(distances['con'])])
@@ -997,8 +1043,8 @@ def compute_efficacy(df_restore, args=None):
 def get_df_top(sub_df_restore, args):
     # get top parameters that restore FC
     top_params = dict()
-    top_params['all'] = sub_df_restore.sort_values('mean_Eff').test_param.unique()[:args.n_restore]
-    top_params['by_n'] = [sub_df_restore[sub_df_restore.n_test_params==n].sort_values('median_Eff').test_param.unique()[:args.n_tops]
+    top_params['all'] = sub_df_restore.sort_values('mean').test_param.unique()[:args.n_restore]
+    top_params['by_n'] = [sub_df_restore[sub_df_restore.n_test_params==n].sort_values('median').test_param.unique()[:args.n_tops]
                           for n in np.arange(1,args.n_test_params+1)]
     top_params['by_n'] = np.concatenate(top_params['by_n'])
     df_top = sub_df_restore[sub_df_restore.test_param.apply(lambda x: x in top_params[args.sort_style])]   
@@ -1035,12 +1081,23 @@ def plot_distance_restore(df_restore, args, gs=None):
     #df_con = pd.DataFrame({'dist': distances['con']-np.mean(distances['con']), 'test_param':'controls', 'n_test_params': 0}) # test_param=controls for legend label
     #df_con['efficacy'] = ((df_con['dist']/np.mean(distances['con_pat']))+1)*100 # make % of restoration
     
-    df_pat = pd.DataFrame({'dist': distances['con_pat'], 'test_param':'patients', 'n_test_params': 0}) # test_param=patients for legend label
+    df_pat = pd.DataFrame({'dist': distances['con_pat'], 'test_param':'patients', 'n_test_params': 0}) 
     n = int(np.sqrt(len(distances['con_pat'])))
     inds, = np.where(np.tril(np.ones((n,n)), k=-1).ravel())
     if args.efficacy_base=='paired_D':
-        df_pat = pd.DataFrame({'dist': distances['pat'], 'test_param':'patients', 'n_test_params': 0}) # test_param=patients for legend label
+        df_pat = pd.DataFrame({'dist': distances['pat'], 'test_param':'patients', 'n_test_params': 0}) 
         df_pat['efficacy'] = np.divide(df_pat['dist'], np.array(distances['con_pat'])[inds])
+    elif args.efficacy_base=='paired_E':
+        df_pat = pd.DataFrame({'dist': distances['con_pat'], 'test_param':'patients', 'n_test_params': 0}) 
+        df_pat['efficacy'] = df_pat['dist']
+    elif args.efficacy_base=='paired_F':
+        # get the con_pat matrice shifted so different patient to same control 
+        con_pat = np.roll(np.array(distances['con_pat']).reshape(n,n), 1, axis=0).ravel()
+        df_pat['efficacy'] = np.divide(df_pat['dist'] - con_pat, df_pat['dist'])
+    elif args.efficacy_base=='paired_G':
+        df_pat = pd.DataFrame({'dist': distances['con_pat'], 'test_param':'patients', 'n_test_params': 0}) 
+        # get the con_pat matrice shifted so different patient to same control 
+        df_pat['efficacy'] = np.divide(distances['con_pat_centroid'] - df_pat['dist'], distances['con_pat_centroid'])
     else:
         df_pat['test_param'] = 'None'
         df_pat = compute_efficacy(df_pat, args=args)
@@ -1056,8 +1113,23 @@ def plot_distance_restore(df_restore, args, gs=None):
     elif args.efficacy_base=='paired_C':
         df_con['efficacy'] = 1-np.divide(df_con['dist'], np.array(distances['con_pat'])[inds])
     elif args.efficacy_base=='paired_D':
-        df_con = pd.DataFrame({'dist': distances['con_pat'], 'test_param':'controls', 'n_test_params': 0}) # test_param=controls for legend label
-        df_con['efficacy'] = np.divide(np.roll(distances['con_pat'],1), df_con['dist'])
+        df_con = pd.DataFrame({'dist': distances['con_pat'], 'test_param':'controls', 'n_test_params': 0}) 
+        df_con['efficacy'] = np.divide(np.roll(np.array(distances['con_pat']).reshape(n,n),1).ravel(), df_con['dist'])
+    elif args.efficacy_base=='paired_E':
+        df_con = pd.DataFrame({'dist': distances['con'], 'test_param':'controls', 'n_test_params': 0}) 
+        df_con['efficacy'] = df_con['dist']
+    elif args.efficacy_base=='paired_F':
+        df_con = pd.DataFrame({'dist': distances['con_con'], 'test_param':'controls', 'n_test_params': 0})
+        # get the con matrice shifted so different control to same control
+        #cons = np.roll(distances['con'], 1).ravel()
+        #inds, = np.where(np.roll(np.triu(np.ones((n,n)), k=1),1).ravel())
+        #df_con['efficacy'] = np.divide(np.array(distances['con_pat'])[inds] - np.roll(np.array(distances['con_pat'])[inds],1), np.array(distances['con_pat'])[inds])
+        #df_con['efficacy'] = np.divide(df_con['dist'] - cons, np.array())
+        df_con['efficacy'] = 1 - np.array(distances['con_con'])
+    elif args.efficacy_base=='paired_G':
+        # get the con matrice shifted so different control to same control
+        df_con['efficacy'] = np.divide(distances['con_pat_centroid'] - df_con['dist'], distances['con_pat_centroid'])
+
     # merge base and restore dataframes
     df_top = pd.concat([df_pat, df_con, df_top], ignore_index=True)
     top_params[args.sort_style] = np.concatenate([['patients','controls'],top_params[args.sort_style]])
@@ -1166,7 +1238,8 @@ def plot_distance_restore(df_restore, args, gs=None):
                 ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.25, linewidth=lw) 
         plt.vlines((1-(np.mean(distances['con_pat'])-2*np.std(distances['con_pat']))/np.mean(distances['con_pat'])), 
                 ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.25, linewidth=lw) 
-
+    else:
+        plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.75, linewidth=lw) 
     
 
     labels = plt.gca().get_yticklabels()
@@ -1647,8 +1720,10 @@ def plot_single_contribution_windrose(df, params, theta, palette, ax):
     new_lbls = format_labels(lbls)
     ax.set_xticklabels(new_lbls, fontsize=10)
     
-    r_max = np.max([np.abs(r).max(), 101])
-    ax.set_yticks(np.arange(0,r_max, 100))
+    #r_max = np.max([np.abs(r).max(), 101])
+    #ax.set_yticks(np.arange(0,r_max, 100))
+    r_max = np.max([np.abs(r).max(), 1.1])
+    ax.set_yticks(np.arange(0,r_max, 1))
     ax.set_yticklabels([])
     #ax.set_rmax(2.2)
     ax.grid(zorder=0)
@@ -2551,7 +2626,7 @@ if __name__=='__main__':
             if 'paired' in args.efficacy_base:
                 restoration_file = 'df_restore_'+args.distance_metric+'_paired_20240309.pkl'
             else:
-                restoration_file = 'df_restore_'+args.distance_metric+'_20240309.pkl'
+                restoration_file = 'df_restore_'+args.distance_metric+'_20240313.pkl'
             
             with open(os.path.join(proj_dir, 'postprocessing', restoration_file), 'rb') as f:
                 df_restore = pickle.load(f)
@@ -2562,7 +2637,7 @@ if __name__=='__main__':
                 with open(os.path.join(proj_dir, 'postprocessing', 'df_restore_'+args.distance_metric+'_'+args.efficacy_base+today()+'.pkl'), 'wb') as f:
                     pickle.dump(df_restore, f)
             
-        #df_restore = compute_efficacy(df_restore, args=args)
+        df_restore = compute_efficacy(df_restore, args=args)
 
         if args.plot_distance_restore:
             plot_distance_restore(df_restore, args=args)

@@ -16,7 +16,7 @@ import pandas as pd
 import pyabc
 import time
 
-import OCD_modeling
+#import OCD_modeling
 from OCD_modeling.models import ReducedWongWang as RWW
 from OCD_modeling.hpc import parallel_launcher
 from OCD_modeling.utils.utils import *

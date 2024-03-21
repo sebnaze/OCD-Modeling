@@ -7,27 +7,28 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from datetime import datetime 
 #import duckdb
 import itertools
-import joblib
 from matplotlib import pyplot as plt
 import multiprocessing
 import numpy as np
 import os 
 import pandas as pd
-import pdb
-import pickle
-import pyabc
-import scipy
-import sklearn
+#import pickle
 import sqlite3
 #import sqlalchemy as sl
 from time import time
 
-import OCD_modeling
+#import OCD_modeling
 # import most relevant environment and project variable
-from OCD_modeling.utils.utils import *
+from OCD_modeling.utils.utils import proj_dir, today
 from OCD_modeling.mcmc.history_analysis import import_results, compute_kdes
-from OCD_modeling.mcmc.abc_hpc import get_default_params, unpack_params
+from OCD_modeling.mcmc.abc_hpc import unpack_params, get_prior
 from OCD_modeling.models.ReducedWongWang import create_sim_df
+from OCD_modeling.hpc.parallel_launcher import run_sim
+
+#from OCD_modeling.utils import proj_dir, today
+#from OCD_modeling.mcmc import import_results, compute_kdes, unpack_params, get_prior
+#from OCD_modeling.models import create_sim_df
+#from OCD_modeling.hpc import run_sim
 
 def batched(iterable, n):
     "Batch data into lists of length n. The last batch may be shorter."
@@ -43,7 +44,7 @@ def create_params(kdes, cols, test_params, args):
     """ creates n_sims new parameters from posetrior distribution of base cohort """
     model_params, sim_params, control_params, bold_params, ids = [],[],[],[],[] # not most elegant but fine for now
     params = [] # to keep formatted parameters easier to convert to DataFrame
-    _,bounds = OCD_modeling.mcmc.get_prior()
+    _,bounds = get_prior()
     # create a new dict of params to unpack
     for i in range(args.n_sims):
         param = dict()
@@ -56,7 +57,7 @@ def create_params(kdes, cols, test_params, args):
                 param[col] = kdes[args.base_cohort][col]['kde'].sample().squeeze()    
             
             # test params
-            if col in test_params:
+            if col==test_params:
                 param[col] = kdes[args.test_cohort][col]['kde'].sample().squeeze()
                 # make sure it's within bounds
                 while( (param[col]<bounds[col][0]) | (param[col]>bounds[col][1])):
@@ -134,7 +135,7 @@ def write_outputs_to_db(params, cols, test_params, outputs, paired_ids, args):
         df_sims = df_sims.pivot(index=['subj', 'cohort'], columns='pathway', values='corr').reset_index()
         df_sims['base_cohort'] = args.base_cohort
         df_sims['test_cohort'] = args.test_cohort
-        df_sims['test_param'] = ' '.join(test_params)
+        df_sims['test_param'] = test_params
         df_sims['paired_ids'] = paired_ids
 
         # get associated parameters
@@ -172,53 +173,55 @@ def launch_sims_parallel(kdes, cols, test_params=[], args=None):
         None. Output of the simulations are written into the local SQLite database.
 
     """
-    if args.use_optim_params:
-        model_params, sim_params, control_params, bold_params, params, paired_ids = use_optim_params(cols, test_params, args)
-    else:
-        model_params, sim_params, control_params, bold_params, params, paired_ids = create_params(kdes, cols, test_params, args)
-    tot_batches = int(np.ceil(args.n_sims/args.n_batch))
-    batch_number = 1
-    #print("Starting a pool of {} workers to run {} simulation(s) by batches of {} with test parameters {}".format(args.n_jobs, args.n_sims, args.n_batch, test_params))
-    #with ProcessPoolExecutor(max_workers=args.n_jobs, mp_context=multiprocessing.get_context('spawn')) as pool: 
-    #with ProcessPoolExecutor(max_workers=args.n_jobs, mp_context=multiprocessing.get_context('fork')) as pool: 
-    #with multiprocessing.pool.Pool(processes=args.n_jobs) as pool:
-    for model_pars, sim_pars,control_pars, bold_pars, pars, p_ids in zip(batched(model_params, args.n_batch), 
-                                                                    batched(sim_params, args.n_batch), 
-                                                                    batched(control_params, args.n_batch), 
-                                                                    batched(bold_params, args.n_batch), 
-                                                                    batched(params, args.n_batch),
-                                                                    batched(paired_ids, args.n_batch)):
-        t = time()
-        print("Starting a pool of {} workers to run a batch of {} simulation(s) with test parameters {}".format(args.n_jobs, args.n_batch, test_params))
+    for test_param in args.test_params:
+        if args.use_optim_params:
+            model_params, sim_params, control_params, bold_params, params, paired_ids = use_optim_params(cols, test_param, args)
+        else:
+            model_params, sim_params, control_params, bold_params, params, paired_ids = create_params(kdes, cols, test_param, args)
+        tot_batches = int(np.ceil(args.n_sims/args.n_batch))
+        batch_number = 1
+        print("Starting a pool of {} workers to run {} simulation(s) by batches of {} with test parameters {}".format(args.n_jobs, args.n_sims, args.n_batch, test_params))
         with ProcessPoolExecutor(max_workers=args.n_jobs, mp_context=multiprocessing.get_context('spawn')) as pool: 
-            sim_objs = pool.map(OCD_modeling.hpc.parallel_launcher.run_sim, 
-                            model_pars, sim_pars, control_pars, bold_pars)
-            #sim_objs = joblib.Parallel(n_jobs=args.n_jobs)(joblib.delayed(OCD_modeling.hpc.parallel_launcher.run_sim)
-            #                                               (model_pars[i], sim_pars[i], control_pars[i], bold_pars[i]) for i in range(args.n_batch))
-            #sim_objs = pool.map(OCD_modeling.hpc.parallel_launcher.run_sim, 
-            #                    (model_pars, sim_pars, control_pars, bold_pars) )
-        outputs = list(sim_objs)
-        write_outputs_to_db(pars, cols, test_params, outputs, p_ids, args)
-        print("    Batch {}/{} done for test_params {} in {:.2f}s.".format(batch_number, tot_batches, test_params, time()-t))
+        #with ProcessPoolExecutor(max_workers=args.n_jobs, mp_context=multiprocessing.get_context('fork')) as pool: 
+        #with multiprocessing.pool.Pool(processes=args.n_jobs) as pool:
+        
+            for model_pars, sim_pars,control_pars, bold_pars, pars, p_ids in zip(batched(model_params, args.n_batch), 
+                                                                            batched(sim_params, args.n_batch), 
+                                                                            batched(control_params, args.n_batch), 
+                                                                            batched(bold_params, args.n_batch), 
+                                                                            batched(params, args.n_batch),
+                                                                            batched(paired_ids, args.n_batch)):
+                
+                t = time()
+                #print("Starting a pool of {} workers to run a batch of {} simulation(s) with test parameters {}".format(args.n_jobs, args.n_batch, test_params))
+                #with ProcessPoolExecutor(max_workers=args.n_jobs, mp_context=multiprocessing.get_context('spawn')) as pool: 
+                sim_objs = pool.map(run_sim, 
+                                model_pars, sim_pars, control_pars, bold_pars)
+                #sim_objs = joblib.Parallel(n_jobs=args.n_jobs)(joblib.delayed(OCD_modeling.hpc.parallel_launcher.run_sim)
+                #                                               (model_pars[i], sim_pars[i], control_pars[i], bold_pars[i]) for i in range(args.n_batch))
+                
+                outputs = list(sim_objs)
+                write_outputs_to_db(pars, cols, test_param, outputs, p_ids, args)
+                print("    Batch {}/{} done for test_params {} in {:.2f}s.".format(batch_number, tot_batches, test_param, time()-t))
 
-        if args.save_outputs:
-            fname = "sim_objs"+today()+"_batch{:04d}".format(batch_number)+".pkl"
-            with open(os.path.join(proj_dir, 'traces/tmp', fname), 'wb') as f:
-                pickle.dump(outputs,f)
-            print("Batch saved in traces/tmp/"+fname)
+                #if args.save_outputs:
+                #    fname = "sim_objs"+today()+"_batch{:04d}".format(batch_number)+".pkl"
+                #    with open(os.path.join(proj_dir, 'traces/tmp', fname), 'wb') as f:
+                #        pickle.dump(outputs,f)
+                #    print("Batch saved in traces/tmp/"+fname)
 
-        batch_number += 1
-    
+                batch_number += 1
+            
         
 def get_test_params(cols, args):
     """ either get test params from command line arguments or from file """
     if args.test_params_index==None:
         # Note: if args.test_params=None, then it is propagated purposefully as it is handled as a special case
         test_params = cols if args.test_params==[] else args.test_params
-    else:
-        with open(os.path.join(proj_dir, 'postprocessing', 'nan_params.pkl'), 'rb') as f:
-            combinations = pickle.load(f)
-            test_params = list(combinations[args.test_params_index])
+    #else:
+    #    with open(os.path.join(proj_dir, 'postprocessing', 'nan_params.pkl'), 'rb') as f:
+    #        combinations = pickle.load(f)
+    #        test_params = list(combinations[args.test_params_index])
     return test_params
 
 
@@ -252,7 +255,7 @@ if __name__=='__main__':
     histories = import_results(args)
     kdes,cols = compute_kdes(histories, args=args)
 
-    test_params = get_test_params(cols, args)
+    #test_params = get_test_params(cols, args)
     
-    launch_sims_parallel(kdes, cols, test_params, args)
+    launch_sims_parallel(kdes, cols, args=args)
 
