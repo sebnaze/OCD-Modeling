@@ -7,7 +7,8 @@ import argparse
 import itertools
 import joblib
 #import nilearn
-from nilearn.input_data import NiftiMasker, NiftiLabelsMasker, NiftiSpheresMasker
+#from nilearn.input_data import NiftiMasker, NiftiLabelsMasker, NiftiSpheresMasker
+from nilearn.maskers import NiftiMasker
 #import matplotlib
 from matplotlib import pyplot as plt
 import nibabel as nib

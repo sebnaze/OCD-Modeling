@@ -590,7 +590,7 @@ if __name__=='__main__':
     if args.plot_fc_sim_vs_data:
         # load simulated and observed data
         df_base = OCD_modeling.mcmc.get_df_base(args)
-        df_base = OCD_modeling.mcmc.fix_df_base(df_base)
+        #df_base = OCD_modeling.mcmc.fix_df_base(df_base)
         df_data = OCD_modeling.mcmc.load_df_data(args)
     
         # observed vs simulated stats
