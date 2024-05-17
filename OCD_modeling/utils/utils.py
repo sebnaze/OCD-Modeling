@@ -15,6 +15,11 @@ def cohen_d(x,y):
     return (np.mean(x) - np.mean(y)) / np.sqrt(((nx-1)*np.std(x, ddof=1) ** 2 + (ny-1)*np.std(y, ddof=1) ** 2) / dof)
 
 
+def paired_euclidian(u,v):
+    """ Euclidian distance between paired simulations """ 
+    u,v = np.array(u), np.array(v)
+    return np.sqrt(np.sum((u - v)**2, axis=1))
+
 def emd(u,v):
     """ computes the Wasserstein distance (i.e. earth mover's distance) across pathways P between u and v """
     d = []

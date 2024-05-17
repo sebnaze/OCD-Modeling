@@ -15,7 +15,7 @@ import pandas as pd
 import pickle
 import sqlite3
 #import sqlalchemy as sl
-from time import time
+from time import time, sleep
 
 #import OCD_modeling
 # import most relevant environment and project variable
@@ -257,6 +257,10 @@ if __name__=='__main__':
     kdes,cols = compute_kdes(histories, args=args)
 
     test_param = get_test_param(args)
+
+    # delay start randomly by up to 2 min to avoid large batches of simulations writting
+    # concurrently to DB 
+    sleep(np.random.randint(0,120))
     
     launch_sims_parallel(kdes, cols, test_param, args=args)
 

@@ -8,7 +8,7 @@ import itertools
 import joblib
 #import nilearn
 #from nilearn.input_data import NiftiMasker, NiftiLabelsMasker, NiftiSpheresMasker
-from nilearn.maskers import NiftiMasker
+from nilearn.input_data import NiftiMasker
 #import matplotlib
 from matplotlib import pyplot as plt
 import nibabel as nib
@@ -256,7 +256,7 @@ def compute_distances(df_rois_corr):
         # compute euclidian distances to mean controls
         ref = df_con[pathways].apply(np.mean, axis=0)
         def dist(x):
-            return np.sqrt(np.sum(np.array(x)-np.array(ref)**2))
+            return np.sqrt(np.sum((np.array(x)-np.array(ref))**2))
         
         # format outputs into dataframe
         df_con['dist'] = df_con[pathways].apply(dist, axis=1)

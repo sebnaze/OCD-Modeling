@@ -24,11 +24,10 @@ from sklearn.model_selection import KFold, RepeatedKFold, ShuffleSplit, LeaveOne
 from sklearn.metrics import make_scorer, r2_score
 from sklearn.inspection import permutation_importance
 import sqlite3 as sl
-import statsmodels
-#import statsmodels.stats.weightstats
+from statsmodels.stats.weightstats import ztest
 
 # import most relevant environment and project variable
-from OCD_modeling.utils.utils import proj_dir, today, rmse, emd
+from OCD_modeling.utils.utils import proj_dir, today, rmse, emd, cohen_d, paired_euclidian
 from OCD_modeling.mcmc.history_analysis import import_results, compute_kdes
 from OCD_modeling.analysis.fc_data_analysis import drop_single_session
 
@@ -37,7 +36,7 @@ param_mapping = {'C_12':'C_OL', 'C_13':'C_OA', 'C_21':'C_LO', 'C_24':'C_LP', 'C_
                  'eta_C_13':'eta_OA', 'eta_C_24':'eta_LP', 'sigma_C_13':'sigma_OA', 'sigma_C_24':'sigma_LP', 'sigma':'sigma', 'G':'G',
                  'patients':'patients', 'controls':'controls'}
 
-metric = {'rmse': rmse, 'emd':emd}
+metric = {'rmse': rmse, 'emd': emd}
 
 def load_df_sims(args):
     """ Load infered simulations from database """
@@ -64,7 +63,8 @@ def load_df_data(args):
 
 def load_kdes(args):
     """ Load Kernel Density Estimates from Optimization outcomes (see history_analysis.py) """
-    fname = 'kdes_rww4D_OU_HPC_20230510_rww4D_OU_HPC_20230605_20230919.pkl'
+    #fname = 'kdes_rww4D_OU_HPC_20230510_rww4D_OU_HPC_20230605_20230919.pkl' # <-- compatible scikit-learn v0.24.3
+    fname = 'kdes_rww4D_OU_HPC_20230510_rww4D_OU_HPC_20230605_20240417.pkl'  # <-- compatible scikit-learn v1.1.3
     with open(os.path.join(proj_dir, 'postprocessing', fname), 'rb') as f:
         kdes = pickle.load(f)
     return kdes
@@ -72,8 +72,9 @@ def load_kdes(args):
 
 def load_dist_to_FC_controls(args):
     """ Load distances in FC space of data (control & patients) to controls from clinical trial (PRE and POST) """ 
-    #fname = fname= os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls_20230907.pkl')
-    fname = fname= os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls_20240305.pkl')
+    #fname = os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls_20230907.pkl')
+    #fname = os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls_20240305.pkl')
+    fname = os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls_20240418.pkl')
     with open(fname, 'rb') as f:
         distances = pickle.load(f)
         df_fc_pre_post = distances['indiv']
@@ -150,7 +151,7 @@ def compute_distances(df_data, df_sims, ses, args):
         if len(args.db_names)==1:
             fname = os.path.join(proj_dir, 'postprocessing', args.db_names[0]+'_distances100eps'+str(int(args.tolerance*100))+"_"+ses+today()+".pkl")
         else:
-            fname = os.path.join(proj_dir, 'postprocessing', 'assoc_distances100eps'+str(int(args.tolerance*100))+"_"+ses+today()+".pkl")
+            fname = os.path.join(proj_dir, 'postprocessing', 'assoc_digital_twins_distances100eps'+str(int(args.tolerance*100))+"_"+ses+today()+".pkl")
         with open(fname, 'wb') as f:
             pickle.dump(assoc, f)
     return assoc
@@ -599,8 +600,12 @@ def print_ANOVA(df_sim_pat, behavs, params):
 
 def get_df_base(args):
     """ Import simulations from infered parameters for controls and patients without restoration """
+    if args.use_optim_params:
+        fname = 'sim_base_optim_20240326.db'
+    else:
+        fname = 'sim_base_20240320.db'
     #with sl.connect(os.path.join(proj_dir, 'postprocessing', 'sim_test_20230614.db')) as conn:
-    with sl.connect(os.path.join(proj_dir, 'postprocessing', 'sim_base_20240320.db')) as conn:
+    with sl.connect(os.path.join(proj_dir, 'postprocessing', fname)) as conn:
         #df = pd.read_sql("SELECT * FROM SIMTEST WHERE test_param='None'", conn)
         df = pd.read_sql("SELECT * FROM SIMTEST", conn)
         df.test_param = 'None'
@@ -610,14 +615,27 @@ def get_df_base(args):
 def get_df_other_base(args):
     """ Import simulations from infered parameters for controls and patients without restoration 
     (2nd batch to be able to compare cntrols to controls and patients to patients with same n) """
+    if args.use_optim_params:
+        fname = 'sim_base_optim_20240327.db'
+    else:
+        fname = 'sim_base_20240321.db'
     #with sl.connect(os.path.join(proj_dir, 'postprocessing', 'sim_test_20230614.db')) as conn:
-    with sl.connect(os.path.join(proj_dir, 'postprocessing', 'sim_base_20240321.db')) as conn:
+    with sl.connect(os.path.join(proj_dir, 'postprocessing', fname)) as conn:
         #df = pd.read_sql("SELECT * FROM SIMTEST WHERE test_param='None'", conn)
         df = pd.read_sql("SELECT * FROM SIMTEST", conn)
         df.test_param = 'None'
     conn.close()
     return df
 
+def get_df_3rd_base(args):
+    """ Import simulations from infered parameters for controls and patients without restoration 
+    (2nd batch to be able to compare cntrols to controls and patients to patients with same n) """
+    fname = 'sim_base_optim_20240328.db'
+    with sl.connect(os.path.join(proj_dir, 'postprocessing', fname)) as conn:
+        df = pd.read_sql("SELECT * FROM SIMTEST", conn)
+        df.test_param = 'None'
+    conn.close()
+    return df
 
 def fix_df_base(df_base):
     """ fix duplicate entries in df_base """
@@ -632,6 +650,13 @@ def fix_df_base(df_base):
     new_df = pd.concat(new_rows).reset_index().drop(columns=['index', 'level_0', 'pathway', 'corr'])
     new_df['subj'] = new_df.apply(lambda row: "sim-test{:06d}".format(int(row.name)+1), axis=1)
     return new_df
+
+def get_restoration_suffix(args):
+    suffix = '_'+args.distance_metric
+    if args.use_optim_params:
+        suffix += '_optim'
+    suffix += '_'+args.efficacy_base
+    return suffix
 
 
 def compute_rmse_restore_data(df_data, df_sims, args):
@@ -669,33 +694,50 @@ def compute_distance_restore_sims(df_base, df_sims, args):
             Distances between simulated interventions and healthy controls cohorts, 
             with normalized parameters values w.r.t original OCD parameter posterior distribution.
 
-     """
+    """
     max_len = np.min([len(df_sims), len(df_base[df_base.base_cohort=='controls'])])
     n_folds = int(np.floor(max_len/ args.n_sims))
-    n_pathways = len(args.pathways)
     i_s = np.arange(0,n_folds*args.n_sims, args.n_sims)
     outputs = []
-    for i,j in itertools.product(i_s, i_s):
+    indices = itertools.product(i_s, i_s)
+    df_other_base = get_df_other_base(args)
+    if args.use_optim_params:
+        indices = zip(i_s, i_s)
+    for i,j in indices:
         # get FC distance from controls or patients FC  
         sim = df_sims.iloc[i:i+args.n_sims]
         base_cons = df_base[df_base.base_cohort=='controls'].iloc[j:j+args.n_sims]
         base_pats = df_base[df_base.base_cohort=='patients'].iloc[j:j+args.n_sims]
+        base_ocons = df_other_base[df_other_base.base_cohort=='controls'].iloc[i:i+args.n_sims]
+        base_opats = df_other_base[df_other_base.base_cohort=='patients'].iloc[i:i+args.n_sims]
 
         #distance = metric[args.distance_metric](sim[args.pathways], base_cons[args.pathways])
         distance_post_pre = metric[args.distance_metric](sim[args.pathways], base_pats[args.pathways])
         distance_pre_hc = metric[args.distance_metric](base_cons[args.pathways], base_pats[args.pathways])
         distance_post_hc = metric[args.distance_metric](sim[args.pathways], base_cons[args.pathways])
+        distance_hc_hc = metric[args.distance_metric](base_ocons[args.pathways], base_cons[args.pathways])
+        distance_pre_pre = metric[args.distance_metric](base_opats[args.pathways], base_pats[args.pathways])
 
         # get parameter difference from patients parameters
-        output = dict(('z_'+param, statsmodels.stats.weightstats.ztest(x1=sim[param], 
-                                                                       x2=base_pats[param])[0]) 
+        output = dict(('z_'+param, ztest(x1=sim[param], x2=base_pats[param])[0]) 
                       for param in args.params)
         
         
         output['dist'] = distance_post_hc
         output['dist_pre_hc'] = distance_pre_hc
         output['dist_post_pre'] = distance_post_pre
-        output['efficacy'] = distance_post_pre/distance_pre_hc
+        output['dist_pre_pre'] = distance_pre_pre
+        output['dist_hc_hc'] = distance_hc_hc
+        #output['efficacy'] = distance_post_pre/distance_pre_hc
+
+        if args.use_optim_params:
+            euclidian_post_hc = paired_euclidian(sim[args.pathways], base_cons[args.pathways])
+            euclidian_hc_hc = paired_euclidian(base_ocons[args.pathways], base_cons[args.pathways])
+            euclidian_pre_hc = paired_euclidian(base_pats[args.pathways], base_cons[args.pathways])
+            #output['paired_tstat_T'], output['paired_tstat_pval'] = scipy.stats.ttest_rel(euclidian_post_hc, euclidian_hc_hc)
+            #output['paired_wilcoxon'], output['paired_wilcoxon_pval'] = scipy.stats.wilcoxon(euclidian_post_hc, euclidian_hc_hc)
+            output['paired_tstat_T'], output['paired_tstat_pval'] = scipy.stats.ttest_rel(euclidian_pre_hc, euclidian_post_hc)
+            output['paired_wilcoxon'], output['paired_wilcoxon_pval'] = scipy.stats.wilcoxon(euclidian_pre_hc, euclidian_post_hc)
         outputs.append(output)
     return outputs
 
@@ -724,7 +766,7 @@ def compute_distance_restore(df_sims, args):
     df_base = get_df_base(args)
     #df_base = fix_df_base(df_base)
 
-    distance_outputs = Parallel(n_jobs=args.n_jobs, verbose=3)(delayed(compute_distance_restore_sims)
+    distance_outputs = Parallel(n_jobs=args.n_jobs, backend='loky',verbose=3)(delayed(compute_distance_restore_sims)
                                         (df_base=df_base, 
                                         df_sims=df_sims[(df_sims.base_cohort=='patients') 
                                                          & (df_sims.test_cohort=='controls') 
@@ -741,6 +783,19 @@ def compute_distance_restore(df_sims, args):
         df_test_param['mean'] = np.mean(df_test_param.dist)
         df_test_param['median'] = np.median(df_test_param.dist)
         df_test_param['std'] = np.std(df_test_param.dist)
+        df_test_param['tstat'], df_test_param['pval'] = scipy.stats.ttest_ind(df_test_param.dist_pre_hc, df_test_param.dist)
+        df_test_param['ustat'], df_test_param['upval'] = scipy.stats.mannwhitneyu(np.array(df_test_param.dist_pre_hc), np.array(df_test_param.dist))
+        
+        # non-paramteric effect size (https://aakinshin.net/posts/nonparametric-effect-size/)
+        Q_x = np.median(np.array(df_test_param.dist_pre_hc))
+        n_x = np.array(df_test_param.dist_pre_hc).shape[0]
+        Q_y = np.median(np.array(df_test_param.dist))
+        n_y = np.array(df_test_param.dist).shape[0]
+        MAD_x = scipy.stats.median_abs_deviation(np.array(df_test_param.dist_pre_hc))
+        MAD_y = scipy.stats.median_abs_deviation(np.array(df_test_param.dist))
+        PMAD_xy = np.sqrt(((n_x-1)*MAD_x**2 + (n_y-1)*MAD_y**2) / (n_x + n_y -2))
+        df_test_param['gamma_es'] = (Q_x - Q_y) / PMAD_xy
+
         lines.append(df_test_param)
         
     df_restore = pd.concat(lines, ignore_index=True)
@@ -761,9 +816,9 @@ def get_max_distance_data(args):
     con_ref = cons[args.pathways].apply(np.mean, axis=0)
     pat_ref = pats[args.pathways].apply(np.mean, axis=0)
     def dist_con(x):
-        return np.sqrt(np.sum(np.array(x)-np.array(con_ref))**2)
+        return np.sqrt(np.sum((np.array(x)-np.array(con_ref))**2))
     def dist_pat(x):
-        return np.sqrt(np.sum(np.array(x)-np.array(pat_ref))**2)
+        return np.sqrt(np.sum((np.array(x)-np.array(pat_ref))**2))
     
     distances = {'con':[], 'pat':[], 'con_pat':[]}
     distances['con'] = cons[args.pathways].apply(dist_con, axis=1)
@@ -773,11 +828,18 @@ def get_max_distance_data(args):
 
 
 def get_max_distance_sims(args):
-    """ Compute the distance between controls and patients in simulated dataset """
+    """ Compute the distance between controls and patients in simulated dataset.
+        This function is also used to compute the null distributions.    
+    """
     df_base = get_df_base(args)
+
+    # 2nd base simulation to compute the patients' null 
     df_other_base = get_df_other_base(args)
     #df_base = fix_df_base(df_base)
     #n_pathways = len(df.pathway.unique())
+
+    # 3rd base simulation to compute the controls' null
+    df_3rd_base = get_df_3rd_base(args)
 
     cons = df_base[df_base.base_cohort=='controls']
     pats = df_base[df_base.base_cohort=='patients']
@@ -785,7 +847,16 @@ def get_max_distance_sims(args):
     o_cons = df_other_base[df_other_base.base_cohort=='controls']
     o_pats = df_other_base[df_other_base.base_cohort=='patients']
 
-    distances = {'con':[], 'pat':[], 'con_pat':[], 'con_pat_centroid':0, 'con_con':[], 'pat_pat':[]}
+    oo_cons = df_3rd_base[df_3rd_base.base_cohort=='controls']
+    oo_pats = df_3rd_base[df_3rd_base.base_cohort=='patients']
+
+    distances = {'con':[], 'pat':[], 'con_pat':[], 'con_pat_centroid':0, 'con_con':[], 'pat_pat':[], 'pat_con':[], 'con_ocon':[], \
+                 'conpat':[],'conopat':[], 'oconpat':[], 'conocon':[], 'conoocon':[], 'opatpat':[], 
+                 'tstat':0, 'pval':0, 'tstat_':0, 'pval_':0,
+                 'ustat':0, 'upval':0, 'ustat_':0, 'upval_':0, 'gamma_es':0, 'gamma_es_':0, 
+                 'paired_tstat_T_concon':[], 'paired_tstat_pval_concon':[],
+                 'paired_tstat_T_patpat':[], 'paired_tstat_pval_patpat':[],
+                 'paired_tstat_T_conpat':[], 'paired_tstat_pval_conpat':[]}
     i_s = list(itertools.islice(range(len(cons)), 0, None, args.n_sims))
     
     # within-group distances (using same base)
@@ -802,6 +873,8 @@ def get_max_distance_sims(args):
         pats_i = pats.iloc[i:i+args.n_sims]
         cons_j = cons.iloc[j:j+args.n_sims]
         distances['con_pat'].append(metric[args.distance_metric](pats_i[args.pathways], cons_j[args.pathways]))
+        pats_i = o_pats.iloc[i:i+args.n_sims]
+        distances['pat_con'].append(metric[args.distance_metric](pats_i[args.pathways], cons_j[args.pathways]))
     distances['con_pat_centroid'] = metric[args.distance_metric](cons[args.pathways], pats[args.pathways])
 
     # within-group distances (using other base)
@@ -809,11 +882,64 @@ def get_max_distance_sims(args):
         cons_i = cons.iloc[i:i+args.n_sims]
         cons_j = o_cons.iloc[j:j+args.n_sims]
         distances['con_con'].append(metric[args.distance_metric](cons_i[args.pathways], cons_j[args.pathways]))
+        cons_i = oo_cons.iloc[i:i+args.n_sims]
+        distances['con_ocon'].append(metric[args.distance_metric](cons_i[args.pathways], cons_j[args.pathways]))
         
         pats_i = pats.iloc[i:i+args.n_sims]
         pats_j = o_pats.iloc[j:j+args.n_sims]
         distances['pat_pat'].append(metric[args.distance_metric](pats_i[args.pathways], pats_j[args.pathways]))
 
+    distances['tstat'], distances['pval'] = scipy.stats.ttest_ind(np.array(distances['con_pat']), np.array(distances['con_con']))
+    distances['tstat_'], distances['pval_'] = scipy.stats.ttest_ind(np.array(distances['con_pat']), np.array(distances['pat_con']))
+    distances['ustat'], distances['upval'] = scipy.stats.mannwhitneyu(np.array(distances['con_pat']), np.array(distances['con_con']))
+    distances['ustat_'], distances['upval_'] = scipy.stats.mannwhitneyu(np.array(distances['con_pat']), np.array(distances['pat_con']))
+
+    # non-parametric effect size
+    Q_x = np.median(np.array(distances['con_pat']))
+    n_x = np.array(np.array(distances['con_pat'])).shape[0]
+    Q_y = np.median(np.array(distances['con_con']))
+    n_y = np.array(distances['con_con']).shape[0]
+    MAD_x = scipy.stats.median_abs_deviation(np.array(distances['con_pat']))
+    MAD_y = scipy.stats.median_abs_deviation(np.array(distances['con_con']))
+    PMAD_xy = np.sqrt(((n_x-1)*MAD_x**2 + (n_y-1)*MAD_y**2) / (n_x + n_y -2))
+    distances['gamma_es'] = (Q_y - Q_x) / PMAD_xy
+
+    Q_y = np.median(np.array(distances['pat_con']))
+    n_y = np.array(distances['pat_con']).shape[0]
+    MAD_y = scipy.stats.median_abs_deviation(np.array(distances['pat_con']))
+    PMAD_xy = np.sqrt(((n_x-1)*MAD_x**2 + (n_y-1)*MAD_y**2) / (n_x + n_y -2))
+    distances['gamma_es_'] = (Q_y - Q_x) / PMAD_xy
+
+    # paired distances (optim)
+    for i,j in zip(i_s, i_s):
+        cons_ = cons.iloc[i:i+args.n_sims]
+        pats_ = pats.iloc[i:i+args.n_sims]
+        ocons_ = o_cons.iloc[j:j+args.n_sims]
+        opats_ = o_pats.iloc[j:j+args.n_sims]
+        oocons_ = oo_cons.iloc[j:j+args.n_sims]
+        oopats_ = oo_pats.iloc[j:j+args.n_sims]
+        distances['conpat'].append(metric[args.distance_metric](pats_[args.pathways], cons_[args.pathways]))
+        distances['conopat'].append(metric[args.distance_metric](opats_[args.pathways], cons_[args.pathways]))
+        distances['oconpat'].append(metric[args.distance_metric](pats_[args.pathways], ocons_[args.pathways]))
+        distances['conocon'].append(metric[args.distance_metric](ocons_[args.pathways], cons_[args.pathways]))
+        distances['conoocon'].append(metric[args.distance_metric](oocons_[args.pathways], cons_[args.pathways]))
+        distances['opatpat'].append(metric[args.distance_metric](pats_[args.pathways], opats_[args.pathways]))
+
+        d_conocon = paired_euclidian(ocons_[args.pathways], cons_[args.pathways])
+        d_conoocon = paired_euclidian(oocons_[args.pathways], cons_[args.pathways])
+        T, p = scipy.stats.ttest_rel(d_conocon, d_conoocon)
+        distances['paired_tstat_T_concon'].append(T) 
+        distances['paired_tstat_pval_concon'].append(p)
+        d_patopat = paired_euclidian(opats_[args.pathways], pats_[args.pathways])
+        d_patoopat = paired_euclidian(oopats_[args.pathways], pats_[args.pathways])
+        T, p = scipy.stats.ttest_rel(d_patopat, d_patoopat)
+        distances['paired_tstat_T_patpat'].append(T) 
+        distances['paired_tstat_pval_patpat'].append(p)
+        d_conpat = paired_euclidian(pats_[args.pathways], cons_[args.pathways], )
+        T, p = scipy.stats.ttest_rel(d_conpat, d_patopat)
+        distances['paired_tstat_T_conpat'].append(T) 
+        distances['paired_tstat_pval_conpat'].append(p) 
+    
     return distances
 
 
@@ -954,10 +1080,6 @@ def compute_efficacy(df_restore, args=None):
     ----------
         df_restore: pandas.DataFrame
             Virtual intervention simulation outputs with distance precomputed. 
-        base: string
-            Whether to use simulated or empirical data as reference. Note that because there is only 50-ish subjects in 
-            empirical data, the metric is computed differently and is statistically less robust. 
-            (default: 'sims', any other value would compute using empirical data).
         args: argparse.Namespace
             Extra arguments with options.
 
@@ -1000,7 +1122,10 @@ def compute_efficacy(df_restore, args=None):
         distances = get_max_distance_sims(args)
         for test_param in df_restore.test_param.unique():
                 ids = df_restore[df_restore.test_param==test_param].index
-                df_restore.loc[ids, 'efficacy'] = 1-np.divide(df_restore.loc[ids].dist, distances['con_pat'])
+                if args.use_optim_params:
+                    df_restore.loc[ids, 'efficacy'] = 1-np.divide(df_restore.loc[ids].dist, distances['conpat'])
+                else:
+                    df_restore.loc[ids, 'efficacy'] = 1-np.divide(df_restore.loc[ids].dist, distances['con_pat'])
 
     elif args.efficacy_base=='paired_D':
         distances = get_max_distance_sims(args)
@@ -1015,19 +1140,45 @@ def compute_efficacy(df_restore, args=None):
         distances = get_max_distance_sims(args)
         for test_param in df_restore.test_param.unique():
                 ids = df_restore[df_restore.test_param==test_param].index
-                df_restore.loc[ids, 'efficacy'] = df_restore.loc[ids].dist_post_pre
+                df_restore.loc[ids, 'efficacy'] = df_restore.loc[ids].dist
 
     elif args.efficacy_base=='paired_F':
         distances = get_max_distance_sims(args)
         for test_param in df_restore.test_param.unique():
                 ids = df_restore[df_restore.test_param==test_param].index
-                df_restore.loc[ids, 'efficacy'] = np.divide(distances['con_pat'] - df_restore.loc[ids].dist, distances['con_pat'])
+                if args.use_optim_params:
+                    df_restore.loc[ids, 'efficacy'] = np.divide(distances['conpat'] - df_restore.loc[ids].dist, distances['conpat'])
+                else:
+                    df_restore.loc[ids, 'efficacy'] = np.divide(distances['con_pat'] - df_restore.loc[ids].dist, distances['con_pat'])
 
     elif args.efficacy_base=='paired_G':
         distances = get_max_distance_sims(args)
         for test_param in df_restore.test_param.unique():
                 ids = df_restore[df_restore.test_param==test_param].index
-                df_restore.loc[ids, 'efficacy'] = np.divide(distances['con_pat_centroid'] - df_restore.loc[ids].dist, distances['con_pat_centroid'])
+                if args.use_optim_params:
+                    df_restore.loc[ids, 'efficacy'] = np.divide(np.mean(distances['conpat']) - df_restore.loc[ids].dist, np.mean(distances['conpat']))
+                else:
+                    df_restore.loc[ids, 'efficacy'] = np.divide(distances['con_pat_centroid'] - df_restore.loc[ids].dist, distances['con_pat_centroid'])
+
+    # using T stat
+    elif args.efficacy_base=='paired_H':
+        distances = get_max_distance_sims(args)
+        for test_param in df_restore.test_param.unique():
+                ids = df_restore[df_restore.test_param==test_param].index
+                if args.use_optim_params:
+                    df_restore.loc[ids, 'efficacy'] = df_restore.loc[ids, 'paired_tstat_T']
+
+    elif args.efficacy_base=='tstat':
+        distances = get_max_distance_sims(args)
+        for test_param in df_restore.test_param.unique():
+                ids = df_restore[df_restore.test_param==test_param].index
+                df_restore.loc[ids, 'efficacy'] = df_restore.loc[ids, 'tstat']
+
+    elif args.efficacy_base=='ustat':
+        distances = get_max_distance_sims(args)
+        for test_param in df_restore.test_param.unique():
+                ids = df_restore[df_restore.test_param==test_param].index
+                df_restore.loc[ids, 'efficacy'] = df_restore.loc[ids, 'ustat']
 
     else:
         distances = get_max_distance_data(args)
@@ -1044,11 +1195,20 @@ def get_df_top(sub_df_restore, args):
     # get top parameters that restore FC
     top_params = dict()
     top_params['all'] = sub_df_restore.sort_values('mean').test_param.unique()[:args.n_restore]
-    top_params['by_n'] = [sub_df_restore[sub_df_restore.n_test_params==n].sort_values('median').test_param.unique()[:args.n_tops]
-                          for n in np.arange(1,args.n_test_params+1)]
+    if args.efficacy_base in ['paired_D', 'paired_E']:
+        top_params['by_n'] = [sub_df_restore[sub_df_restore.n_test_params==n].sort_values('median').test_param.unique()[:args.n_tops]
+                              for n in np.arange(1,args.n_test_params+1)]
+    else:
+        top_params['by_n'] = []
+        for n in np.arange(1,args.n_test_params+1):
+            for test_param in sub_df_restore[sub_df_restore.n_test_params==n].test_param.unique():
+                inds = sub_df_restore[sub_df_restore.test_param==test_param].index
+                sub_df_restore.loc[inds, 'median_Eff'] = np.median(sub_df_restore.iloc[inds]['efficacy'])
+            top_params['by_n'].append(sub_df_restore[sub_df_restore.n_test_params==n].sort_values('median_Eff', ascending=False).test_param.unique()[:args.n_tops])
     top_params['by_n'] = np.concatenate(top_params['by_n'])
     df_top = sub_df_restore[sub_df_restore.test_param.apply(lambda x: x in top_params[args.sort_style])]   
     return df_top, top_params
+
 
 def plot_distance_restore(df_restore, args, gs=None):
     """ Plot horizontal box plot of best virtual interventions outcomes, sorted by number of target points.
@@ -1084,20 +1244,51 @@ def plot_distance_restore(df_restore, args, gs=None):
     df_pat = pd.DataFrame({'dist': distances['con_pat'], 'test_param':'patients', 'n_test_params': 0}) 
     n = int(np.sqrt(len(distances['con_pat'])))
     inds, = np.where(np.tril(np.ones((n,n)), k=-1).ravel())
-    if args.efficacy_base=='paired_D':
+    if args.efficacy_base=='paired_C':
+        if args.use_optim_params:
+            df_pat = pd.DataFrame({'dist': distances['conpat'], 'test_param':'patients', 'n_test_params': 0}) 
+            df_pat['efficacy'] = 1 - np.divide(np.array(distances['conopat']), np.array(distances['conpat']))
+        else:
+            # get the con_pat matrice shifted so different patient to same control 
+            con_pat = np.roll(np.array(distances['con_pat']).reshape(n,n), 1, axis=0).ravel()
+            df_pat['efficacy'] = np.divide(df_pat['dist'] - con_pat, df_pat['dist'])
+    elif args.efficacy_base=='paired_D':
         df_pat = pd.DataFrame({'dist': distances['pat'], 'test_param':'patients', 'n_test_params': 0}) 
         df_pat['efficacy'] = np.divide(df_pat['dist'], np.array(distances['con_pat'])[inds])
     elif args.efficacy_base=='paired_E':
         df_pat = pd.DataFrame({'dist': distances['con_pat'], 'test_param':'patients', 'n_test_params': 0}) 
         df_pat['efficacy'] = df_pat['dist']
     elif args.efficacy_base=='paired_F':
-        # get the con_pat matrice shifted so different patient to same control 
-        con_pat = np.roll(np.array(distances['con_pat']).reshape(n,n), 1, axis=0).ravel()
-        df_pat['efficacy'] = np.divide(df_pat['dist'] - con_pat, df_pat['dist'])
+        if args.use_optim_params:
+            df_pat = pd.DataFrame({'dist': distances['conpat'], 'test_param':'patients', 'n_test_params': 0}) 
+            df_pat['efficacy'] = np.divide(np.array(distances['conpat']) - np.array(distances['conopat']), np.array(distances['conpat']))
+        else:
+            # get the con_pat matrice shifted so different patient to same control 
+            con_pat = np.roll(np.array(distances['con_pat']).reshape(n,n), 1, axis=0).ravel()
+            #df_pat['efficacy'] = np.divide(df_pat['dist'] - con_pat, df_pat['dist'])
+            df_pat['efficacy'] = np.divide(np.array(distances['con_pat']) - np.array(distances['pat_con']), np.array(distances['con_pat']))
     elif args.efficacy_base=='paired_G':
-        df_pat = pd.DataFrame({'dist': distances['con_pat'], 'test_param':'patients', 'n_test_params': 0}) 
-        # get the con_pat matrice shifted so different patient to same control 
-        df_pat['efficacy'] = np.divide(distances['con_pat_centroid'] - df_pat['dist'], distances['con_pat_centroid'])
+        if args.use_optim_params:
+            df_pat = pd.DataFrame({'dist': distances['conpat'], 'test_param':'patients', 'n_test_params': 0}) 
+            df_pat['efficacy'] = np.divide(np.mean(distances['conpat']) - distances['conpat'], np.mean(distances['conpat']))
+        else:
+            df_pat = pd.DataFrame({'dist': distances['con_pat'], 'test_param':'patients', 'n_test_params': 0}) 
+            # get the con_pat matrice shifted so different patient to same control 
+            df_pat['efficacy'] = np.divide(distances['con_pat_centroid'] - df_pat['dist'], distances['con_pat_centroid'])
+    
+    elif args.efficacy_base=='paired_H':
+        if args.use_optim_params:
+            df_pat = pd.DataFrame({'dist': distances['conpat'], 'test_param':'patients', 'n_test_params': 0}) 
+            df_pat['efficacy'] = distances['paired_tstat_T_patpat']
+    
+    elif args.efficacy_base=='tstat':
+            df_pat = pd.DataFrame({'dist': np.unique(distances['tstat_']), 'test_param':'patients', 'n_test_params': 0}) 
+            df_pat['efficacy'] = np.unique(distances['tstat_'])
+    
+    elif args.efficacy_base=='ustat':
+            df_pat = pd.DataFrame({'dist': np.unique(distances['ustat_']), 'test_param':'patients', 'n_test_params': 0}) 
+            df_pat['efficacy'] = np.unique(distances['ustat_'])
+    
     else:
         df_pat['test_param'] = 'None'
         df_pat = compute_efficacy(df_pat, args=args)
@@ -1111,24 +1302,59 @@ def plot_distance_restore(df_restore, args, gs=None):
     elif args.efficacy_base=='paired_B':
         df_con['efficacy'] = np.divide(np.array(distances['con_pat'])[inds], df_con['dist'])
     elif args.efficacy_base=='paired_C':
-        df_con['efficacy'] = 1-np.divide(df_con['dist'], np.array(distances['con_pat'])[inds])
+        if args.use_optim_params:
+            df_con = pd.DataFrame({'dist': distances['conpat'], 'test_param':'controls', 'n_test_params': 0})
+            df_con['efficacy'] = 1-np.divide(distances['conocon'], np.array(distances['conpat']))
+        else:
+            df_con['efficacy'] = 1-np.divide(df_con['dist'], np.array(distances['con_pat'])[inds])
     elif args.efficacy_base=='paired_D':
         df_con = pd.DataFrame({'dist': distances['con_pat'], 'test_param':'controls', 'n_test_params': 0}) 
         df_con['efficacy'] = np.divide(np.roll(np.array(distances['con_pat']).reshape(n,n),1).ravel(), df_con['dist'])
     elif args.efficacy_base=='paired_E':
-        df_con = pd.DataFrame({'dist': distances['con'], 'test_param':'controls', 'n_test_params': 0}) 
-        df_con['efficacy'] = df_con['dist']
+        df_con = pd.DataFrame({'dist': distances['conocon'], 'test_param':'controls', 'n_test_params': 0}) 
+        df_con['efficacy'] = distances['conocon']
     elif args.efficacy_base=='paired_F':
-        df_con = pd.DataFrame({'dist': distances['con_con'], 'test_param':'controls', 'n_test_params': 0})
-        # get the con matrice shifted so different control to same control
-        #cons = np.roll(distances['con'], 1).ravel()
-        #inds, = np.where(np.roll(np.triu(np.ones((n,n)), k=1),1).ravel())
-        #df_con['efficacy'] = np.divide(np.array(distances['con_pat'])[inds] - np.roll(np.array(distances['con_pat'])[inds],1), np.array(distances['con_pat'])[inds])
-        #df_con['efficacy'] = np.divide(df_con['dist'] - cons, np.array())
-        df_con['efficacy'] = 1 - np.array(distances['con_con'])
+        if args.use_optim_params:
+            df_con = pd.DataFrame({'dist': distances['conocon'], 'test_param':'controls', 'n_test_params': 0})
+            #df_con['efficacy'] = 1 - np.array(distances['conocon']) #np.divide(np.array(distances['conpat']) - np.array(distances['conopat']), np.array(distances['conpat'])) 
+            df_con['efficacy'] = 1 - np.divide(np.array(distances['conpat']) - np.array(distances['oconpat']), np.array(distances['conpat'])) 
+        else:
+            df_con = pd.DataFrame({'dist': distances['con_con'], 'test_param':'controls', 'n_test_params': 0})
+            # get the con matrice shifted so different control to same control
+            #cons = np.roll(distances['con'], 1).ravel()
+            #inds, = np.where(np.roll(np.triu(np.ones((n,n)), k=1),1).ravel())
+            #df_con['efficacy'] = np.divide(np.array(distances['con_pat'])[inds] - np.roll(np.array(distances['con_pat'])[inds],1), np.array(distances['con_pat'])[inds])
+            #df_con['efficacy'] = np.divide(df_con['dist'] - cons, np.array())
+            #df_con['efficacy'] = 1 - np.array(distances['con_con']) #np.divide(np.array(distances['con_pat']), np.array(distances['pat_con']))#, np.array(distances['con_pat']))
+            df_con['efficacy'] = 1 - np.divide(np.array(distances['con_pat']) - np.array(distances['con_con']), np.array(distances['con_pat']) )
     elif args.efficacy_base=='paired_G':
-        # get the con matrice shifted so different control to same control
-        df_con['efficacy'] = np.divide(distances['con_pat_centroid'] - df_con['dist'], distances['con_pat_centroid'])
+        if args.use_optim_params:
+            df_con = pd.DataFrame({'dist': distances['conpat'], 'test_param':'controls', 'n_test_params': 0}) 
+            df_con['efficacy'] = np.divide(np.mean(distances['conocon']) - distances['conocon'], np.mean(distances['conocon']))
+        else:
+            # get the con matrice shifted so different control to same control
+            df_con['efficacy'] = np.divide(distances['con_pat_centroid'] - df_con['dist'], distances['con_pat_centroid'])
+    
+    elif args.efficacy_base=='paired_H':
+        if args.use_optim_params:
+            df_con = pd.DataFrame({'dist': distances['conocon'], 'test_param':'controls', 'n_test_params': 0}) 
+            df_con['efficacy'] = distances['paired_tstat_T_conpat']
+
+    elif args.efficacy_base=='tstat':
+        df_con = pd.DataFrame({'dist': np.unique(distances['tstat']), 'test_param':'controls', 'n_test_params': 0}) 
+        df_con['efficacy'] = np.unique(distances['tstat'])
+
+        # check for normality
+        for test_param in df_top.test_param.unique():
+            df_ = df_top[df_top.test_param==test_param]
+            stat,p = scipy.stats.normaltest(np.array(df_.dist))
+            if p<0.05:
+                print(test_param+": d(post,hc) is not normally distributed.")
+
+    elif args.efficacy_base=='ustat':
+        df_con = pd.DataFrame({'dist': np.unique(distances['ustat']), 'test_param':'controls', 'n_test_params': 0}) 
+        df_con['efficacy'] = np.unique(distances['ustat'])
+    
 
     # merge base and restore dataframes
     df_top = pd.concat([df_pat, df_con, df_top], ignore_index=True)
@@ -1138,7 +1364,7 @@ def plot_distance_restore(df_restore, args, gs=None):
     palette = {0: 'white', 1: 'lightpink', 2: 'plum', 3: 'mediumpurple', 4: 'lightsteelblue', 5:'skyblue', 6:'royalblue'}
     plt.rcParams.update({'mathtext.default': 'regular', 'font.size':10})
     plt.rcParams.update({'text.usetex': False})
-    lw=1
+    lw=1.5
     if gs==None:
         if args.sort_style == 'all':
             fig = plt.figure(figsize=[5, int(args.n_restore/3)])
@@ -1149,7 +1375,12 @@ def plot_distance_restore(df_restore, args, gs=None):
     else:
         ax = plt.subplot(gs)
 
-    sbn.boxplot(data=df_top, x='efficacy', y='test_param', order=top_params[args.sort_style], hue='n_test_params', orient='h', 
+    if 'stat' in args.efficacy_base:
+        sbn.boxplot(data=df_top, x='efficacy', y='test_param', order=top_params[args.sort_style], hue='n_test_params', orient='h', 
+                saturation=3, width=0.5, whis=2, palette=palette, dodge=False, linewidth=lw, fliersize=2, ax=ax) #fliersize=2
+
+    else:
+        sbn.boxplot(data=df_top, x='efficacy', y='test_param', order=top_params[args.sort_style], hue='n_test_params', orient='h', 
                 saturation=3, width=0.5, whis=2, palette=palette, dodge=False, linewidth=lw, fliersize=2, ax=ax) #fliersize=2
     
     # data and simulated references
@@ -1238,6 +1469,14 @@ def plot_distance_restore(df_restore, args, gs=None):
                 ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.25, linewidth=lw) 
         plt.vlines((1-(np.mean(distances['con_pat'])-2*np.std(distances['con_pat']))/np.mean(distances['con_pat'])), 
                 ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.25, linewidth=lw) 
+    
+    elif args.efficacy_base=='tstat':
+        plt.vlines(5, ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.75, linewidth=lw) 
+
+    elif args.efficacy_base=='ustat':
+        sig_ustats = df_restore[(df_restore.upval*1485<0.0011) & (df_restore.upval*1485>0.0009)].ustat.unique()
+        plt.vlines(np.abs(sig_ustats).mean(), ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.75, linewidth=lw) 
+
     else:
         plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.75, linewidth=lw) 
     
@@ -1248,6 +1487,12 @@ def plot_distance_restore(df_restore, args, gs=None):
     ax.spines.top.set_visible(False)
     ax.spines.right.set_visible(False)
     ax.set_xlabel("$Efficacy \quad (E_{ff}, \\ \%)$", fontsize=10)
+    if 'tstat' in args.efficacy_base:
+            ax.set_xlabel("$T \, statistic$", fontsize=10)
+    if 'ustat' in args.efficacy_base:
+            ax.set_xlabel("$U \; statistic \; ( x 10^5)$", fontsize=10)
+            ticks = ax.get_xticks()
+            ax.set_xticklabels(labels=["{:.1f}".format(i/100000) for i in ticks])
     ax.set_ylabel("Target points", fontsize=10)
     
     sbn.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
@@ -1288,14 +1533,20 @@ def plot_efficacy_by_number_of_target(df_top, gs=None, args=None):
 
     plt.sca(ax1)
     plt.tight_layout()
-    sbn.swarmplot(data=df_top, x='n_test_params', y='efficacy', ax=ax1, size=0.6, palette=palette, alpha=0.6)
-    sbn.boxplot(data=df_top, x='n_test_params', y='efficacy', ax=ax1, width=0.1, palette=palette, fliersize=0, linewidth=1.5, showcaps=False)
+    #if args.use_optim_params:
+    #    sbn.swarmplot(data=df_top, x='n_test_params', y='efficacy', ax=ax1, size=2, palette=palette, alpha=0.6)
+    #else:
+    #    sbn.swarmplot(data=df_top, x='n_test_params', y='efficacy', ax=ax1, size=0.6, palette=palette, alpha=0.6)
+    #sbn.boxplot(data=df_top, x='n_test_params', y='efficacy', ax=ax1, width=0.1, palette=palette, fliersize=0, linewidth=1.5, showcaps=False)
 
     ax1.spines.top.set_visible(False)
     ax1.spines.right.set_visible(False)
 
-    plt.xlabel("Number of targets ($n_t$)", fontsize=10)
-    plt.ylabel("$E_{ff}, \\ (\%)$", fontsize=10)
+    plt.xlabel("$n_t$", fontsize=10)
+
+    ticks = ax1.get_yticks()
+    ax1.set_yticklabels(labels=["{:.1f}".format(i/100000) for i in ticks])
+    plt.ylabel("$U \; statistic \; ( x 10^5)$", fontsize=10)
 
 
     plt.sca(ax2)
@@ -1310,7 +1561,7 @@ def plot_efficacy_by_number_of_target(df_top, gs=None, args=None):
         #plt.plot(j, np.log(mu_t1-mu_t0), 'o', color=palette[j], ms=9)
         #lines.append({'x':j, 'y':np.log(mu_t1-mu_t0)})
         #plt.plot(j, np.log10(mu_t1), 'o', color=palette[j], ms=9)
-        plt.plot(np.log(j), mu_t1, 'o', color=palette[j], ms=9)
+        plt.plot(np.log(j), mu_t1, 'o', color=palette[j], ms=6)
         lines.append({'x':np.log(j), 'y':mu_t1})
     sbn.regplot(data=pd.DataFrame(lines), x='x', y='y', ci=95, color='gray', ax=ax2)
     ax2.spines.top.set_visible(False)
@@ -1320,9 +1571,12 @@ def plot_efficacy_by_number_of_target(df_top, gs=None, args=None):
     #ax.set_xlim([0.5,6.5])
     #ax.set_xscale('log')
     plt.xlabel("$n_t$", fontsize=10)
-    plt.ylabel("$E_{ff}\\ (\%)$", fontsize=10)
+    ticks = ax2.get_yticks()
+    ax2.set_yticklabels(labels=["{:.1f}".format(i/100000) for i in ticks]) 
+    plt.ylabel("$U \; statistic \; ( x 10^5)$", fontsize=10)
 
     if gs==None:
+        plt.tight_layout()
         if args.save_figs:
             fname = 'avg_efficacy_by_n_targets_'+args.distance_metric+'_'+args.efficacy_base+today()+'.svg'
             plt.savefig(os.path.join(proj_dir, 'img', fname))
@@ -1622,14 +1876,55 @@ def compute_scaled_feature_score(df_top, params, kdes, scaling='contribution', a
     for n_test_params in np.arange(args.n_test_params)+1:
         df_ = df_top[df_top.n_test_params==n_test_params]
         print("Compute param sensitivity for n_test_params={}".format(n_test_params))
-        rows = []
-        for i,row in df_.iterrows():
-            new_row = scale_efficacy_to_kdes(row, params, kdes, scaling)
-            rows.append(new_row)
-        #rows = Parallel(n_jobs=args.n_jobs, verbose=5)(delayed(scale_efficacy_to_kdes)(row,params,kdes) for _,row in df_.iterrows())
-        line = pd.DataFrame(rows).mean(axis=0).to_frame().transpose()
-        line['n_test_params'] = n_test_params
-        lines.append(line)
+        if 'correlation' not in scaling:
+            rows = []
+            for i,row in df_.iterrows():
+                new_row = scale_efficacy_to_kdes(row, params, kdes, scaling)
+                rows.append(new_row)
+            #rows = Parallel(n_jobs=args.n_jobs, verbose=5)(delayed(scale_efficacy_to_kdes)(row,params,kdes) for _,row in df_.iterrows())
+            line = pd.DataFrame(rows).mean(axis=0).to_frame().transpose()
+            line['n_test_params'] = n_test_params
+            lines.append(line)
+        else:
+            line = dict()
+            line['n_test_params'] = n_test_params
+            #inds, = np.where((df_.dist<df_.dist_pre_hc) & [param in test_param.split(' ') for test_param in df_.test_param])
+            #inds, = np.where(df_.dist<df_.dist_pre_hc)
+            #df__ = df_.iloc[inds]
+            diff_fc = np.array(df_['dist_pre_hc']) - np.array(df_['dist'])
+            for param in params:
+                inds, = np.where([param in test_param.split(' ') for test_param in df_.test_param])
+                if scaling=='pearson_correlation':
+                    #R,p = scipy.stats.pearsonr(np.array(df_['dist']), np.array(df_['z_'+param]))
+                    R,p = scipy.stats.pearsonr(diff_fc, np.array(df_['z_'+param]))
+                    line[param] = R
+                    line['p_'+param] = p
+                elif scaling=='spearman_correlation':
+                    #R,p = scipy.stats.spearmanr(np.array(df_['dist']), np.array(df_['z_'+param]))
+                    R,p = scipy.stats.spearmanr(diff_fc, np.array(df_['z_'+param]))
+                    line[param] = R
+                    line['p_'+param] = p    
+                elif scaling == 'covariance_correlation':
+                    R = np.cov(diff_fc, np.array(df_['z_'+param]))[0,1]
+                    line[param] = R
+                    line['p_'+param] = None
+                elif scaling == 'cross_correlation':
+                    R = np.correlate(diff_fc, np.array(df_['z_'+param]))[0]
+                    line[param] = R
+                    R = R / (np.std(diff_fc)*np.std(df_['z_'+param])) / len(diff_fc)
+                    line['R_'+param] = R
+                    # ad-hoc p-value
+                    line['p_'+param] = 0
+                    for _ in range(10000):
+                        R_ = np.correlate(np.random.permutation(diff_fc), np.random.permutation(np.array(df_['z_'+param])))[0]
+                        R_ = R_ / (np.std(diff_fc)*np.std(df_['z_'+param])) / len(diff_fc)
+                        if np.abs(R_) > np.abs(R):
+                            line['p_'+param] += .0001
+                    #line['R_'+param], line['p_'+param] = scipy.stats.pearsonr(diff_fc, np.array(df_['z_'+param]))
+                    #line['p_'+param] = line['p_'+param]*len(params)*6
+                    
+            line['n'] = len(df_)
+            lines.append(pd.DataFrame([line]))
     df_kdes_scaled_feats = pd.concat(lines, ignore_index=True)
     return df_kdes_scaled_feats
 
@@ -1720,10 +2015,13 @@ def plot_single_contribution_windrose(df, params, theta, palette, ax):
     new_lbls = format_labels(lbls)
     ax.set_xticklabels(new_lbls, fontsize=10)
     
+    #r_max = np.max([np.abs(r).max(), 1])
+    #ax.set_yticks(np.arange(0,r_max, 1))
     #r_max = np.max([np.abs(r).max(), 101])
     #ax.set_yticks(np.arange(0,r_max, 100))
-    r_max = np.max([np.abs(r).max(), 1.1])
-    ax.set_yticks(np.arange(0,r_max, 1))
+    #r_max = np.max([np.abs(r).max(), 1.1])
+    #ax.set_yticks(np.arange(0,r_max, 1))
+    ax.set_yticks([])
     ax.set_yticklabels([])
     #ax.set_rmax(2.2)
     ax.grid(zorder=0)
@@ -1755,12 +2053,12 @@ def plot_parameters_contribution(df_params_contribution, params, gs=None, args=N
 
     if gs==None:
         #fig, axes = plt.subplots(3,2, subplot_kw={'projection': 'polar'}, figsize=[4,6])
-        fig = plt.figure(figsize=[2,12])
-        gs = plt.GridSpec(nrows=6, ncols=1)
+        fig = plt.figure(figsize=[4,6])
+        gs = plt.GridSpec(nrows=3, ncols=2)
 
     for i,n_test_params in enumerate(np.sort((df_params_contribution.n_test_params.unique()))):
         df = df_params_contribution[df_params_contribution.n_test_params==n_test_params]
-        ax = plt.subplot(gs[i,:], polar=True)
+        ax = plt.subplot(gs[i//2,i%2], polar=True)
         plot_single_contribution_windrose(df, params, theta, palette, ax=ax)
 
     plt.tight_layout()
@@ -2032,15 +2330,15 @@ def plot_restoration_figure_paper(df_restore, df_top, df_params_contribution, ar
     plt.tight_layout()
 
     # top 5 efficacy by targets 
-    plot_distance_restore(df_restore, args, gs[:9, 6:10])
+    plot_distance_restore(df_restore, args, gs[:9, 3:9])
     
     # efficacy by number of targets + log scaling
     sub_gs = gs[10:,:10].subgridspec(nrows=1, ncols=5)
-    plot_efficacy_by_number_of_target(df_top, sub_gs)
+    plot_efficacy_by_number_of_target(df_top, sub_gs, args=args)
 
     # parameters' contribution
     params = args.params
-    sub_gs = gs[:,11:].subgridspec(nrows=6, ncols=1)
+    sub_gs = gs[:9,10:].subgridspec(nrows=3, ncols=2)
     plot_parameters_contribution(df_params_contribution, params, sub_gs, args)
 
     if args.save_figs:
@@ -2062,7 +2360,7 @@ def get_param_zscore(df, params, kdes):
         score.append(zpar)
     return np.array(score)
 
-def score_improvement(df, params, kdes):
+def score_improvement(df, params, kdes, behav='YBOCS_Total'):
     """ Score parameters based on improvement they induce in functional connectivity (FC) space across virtual interventions. 
     
     Parameters
@@ -2089,10 +2387,25 @@ def score_improvement(df, params, kdes):
         post = get_param_zscore(df_subj[df_subj.ses=='ses-post'], params, kdes)
         diff_params = post-pre
         
+        pre = df_subj[df_subj.ses=='ses-pre'][behav]
+        post = df_subj[df_subj.ses=='ses-post'][behav]
+        diff_behav = np.array(pre) - np.array(post) # we want behavioral improvements to be postive
+
+        pre = df_subj[df_subj.ses=='ses-pre']['dist']
+        post = df_subj[df_subj.ses=='ses-post']['dist']
+        diff_fc = pre.iloc[0] - post.iloc[0]   # we want functional improvements to be positive
+
         score = diff_params
         score_dict = dict((par,val) for par,val in zip(params,score))
         score_dict['subj'] = subj
         score_dict['group'] = df_subj.group.unique()[0]
+        score_dict['diff_behav'] = diff_behav[0]
+        score_dict['diff_fc'] = diff_fc
+        for param in params:
+            pre = df_subj[df_subj.ses=='ses-pre'][param].iloc[0]
+            post = df_subj[df_subj.ses=='ses-post'][param].iloc[0]
+            score_dict['diff_'+param] = post - pre
+        #[score_dict['behav_'+par] = np.abs(diff_behav*val) for par,val in zip(params,score)]
         lines.append(score_dict)
     df_improvement = pd.DataFrame(lines)
     return df_improvement
@@ -2128,22 +2441,89 @@ def plot_improvement_windrose(df_improvement, params, gs=None, args=None):
     #for i,group in enumerate(df_improvement.group.unique()):
     sub_df = df_improvement#[df_improvement.group==group]
 
+    line = dict()
+    for param in params:
+        df_tmp = df_improvement#[df_improvement['diff_behav']>0]
+        #line[param], p = scipy.stats.spearmanr(np.array(df_tmp['diff_'+param]), np.array(df_tmp['diff_behav']))
+        #print("{:15}  R={:.2f}  p={:.3f}".format(param, line[param], p))
+        #line[param] = np.mean(df_tmp[param])
+        line[param]= np.correlate(np.array(df_tmp['diff_'+param]), np.array(df_tmp['diff_behav']))[0]
+    sub_df = pd.DataFrame([line])    
+
+
     # mean improvemet across subjects
     r = np.array(sub_df[params].sum(axis=0))/len(sub_df)
-    
     r = np.append(r, r[0]) 
-    
+
     #axes[0,i].plot(theta, r, label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5)
     #ax.bar(theta, r, label=group, color=palette[group], lw=5, width=0.5, alpha=0.3)
     for theta_, r_ in zip(theta, r):
         if r_ > 0:
             # increase of parameter due to treatment 
             #ax.bar(theta_, np.abs(r_), color='red', lw=5, width=0.5, alpha=0.2+np.abs(r_)/2)
-            ax.bar(theta_, np.abs(r_), color='gray', width=0.5, alpha=0.2+np.abs(r_)/2, lw=1, edgecolor='k', linestyle='-')
+            ax.bar(theta_, np.abs(r_), color='goldenrod', width=0.5, alpha=0.2+np.abs(r_)/100, lw=1, edgecolor='k', linestyle='-')
         else:
             # decreae of paramter due to treatment
             #ax.bar(theta_, np.abs(r_), color='blue', lw=5, width=0.5, alpha=0.2+np.abs(r_)/2)
-            ax.bar(theta_, np.abs(r_), color='gray', width=0.5, alpha=0.2+np.abs(r_)/2, lw=1, edgecolor='k', linestyle='--')
+            ax.bar(theta_, np.abs(r_), color='goldenrod', width=0.5, alpha=0.2+np.abs(r_)/100, lw=1, edgecolor='k', linestyle='--')
+
+    #axes[i].fill_between(theta, rmin, rmax)
+    ax.set_xticks(theta[:-1])
+    ax.set_xticklabels(params)
+    lbls = ax.get_xticklabels()
+    new_lbls = format_labels(lbls)
+    ax.set_xticklabels(new_lbls)
+    #axes[i].set_rticks([0.1], labels=[])
+    ax.set_yticklabels([])
+    ax.set_yticks([1])
+    #ax.set_rmin(-1)
+    #ax.set_rmax(1)
+    ax.spines.polar.set_visible(False)
+    ax.xaxis.grid(linewidth=0.5, linestyle='--')
+
+    if gs==None:
+        plt.tight_layout()
+        if args.save_figs:
+            #plt.rcParams['svg.fonttype'] = 'none'
+            fname = 'improvement_params_'+args.distance_metric+'_'+args.efficacy_base+today()+'.svg'
+            plt.savefig(os.path.join(proj_dir, 'img', fname))
+        plt.show()
+
+
+def plot_improvement_bars(df_improvement, params, gs=None, args=None):
+    """ Make barplot vizualisation of improvements in parameter space.
+    
+    Parameters
+    ----------
+        df_improvement: pandas.DataFrame
+            Z-score normalized differences between initial (pre) and follow-up (post) parameters of digital twins
+            for number of targets in virtual interventions. 
+        params: list
+            Individual intervention targets (i.e. model parameters).
+        gs: matplotlib.Gridspec
+            (optional) A GridSpec object that can be used to embbed axes when this figure is a subplot 
+            of a larger figure.  
+        args: argparse.Namespace
+            Extra arguments with options. 
+    
+    """
+
+    if gs==None:
+        fig, ax = plt.subplots(1,1, figsize=[3,6])
+    else:
+        ax = plt.subplot(gs)
+    
+    # 1) behavioral improvement during treatment
+    sub_df = df_improvement[sub_df.diff_behav>0] #[df_improvement.group==group]
+
+    for i,param in enumerate(params):
+        mean_param_diff = sub_df[param].mean()
+        # increased params 
+        if mean_param_diff>0:
+            ax.bar(i, np.abs(mean_param_diff)*sub_df['diff_behav'], color='goldenrod', width=0.5, alpha=0.3, lw=1, edgecolor='k', linestyle='-')
+        # behavioral recession during treatment
+        else:
+            ax.bar(i, np.abs(mean_param_diff)*sub_df['diff_behav'], color='goldenrod', width=0.5, alpha=0.3, lw=1, edgecolor='k', linestyle='-')
 
     #axes[i].fill_between(theta, rmin, rmax)
     ax.set_xticks(theta[:-1])
@@ -2220,7 +2600,9 @@ def plot_improvement_pre_post_params(df_summary, params, args):
         d = cohen_d(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
         t,pt = scipy.stats.ttest_rel(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
         T,pT = scipy.stats.wilcoxon(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
-        print("{:15}: normality={:1}/{:1}   d={: 1.2}    u={:5}  p={:.4f}    t={: .2f}  p={:.4f}   T={: }  p={:.4f}".format(param, p_pre>0.05, p_post>0.05,d, int(u), p, t, pt,int(T), pT))
+        KS,pKS = scipy.stats.ks_2samp(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
+        ES,pES = scipy.stats.epps_singleton_2samp(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
+        print("{:15}: normality={:1}/{:1}   d={: 1.2}    u={:5}  p={:.4f}    t={: .2f}  p={:.4f}   T={}  p={:.4f}  KS={:.3f}  p={:.4f}  ES={:.3f}  p={:.4f}".format(param, p_pre>0.05, p_post>0.05,d, int(u), p, t, pt,int(T), pT, KS, pKS, ES, pES))
         #plt.title("u={}  p={:.3f}".format(int(u),p))
         ttl = ''
         #if ((p_pre>0.05) and (p_post>0.05)):
@@ -2288,6 +2670,8 @@ def plot_improvement_pre_post_params_paper(df_summary, params, gs=None, args=Non
     """
     #i_params = [1,2,5,7] # indices of params to plot
     i_params = [1,3,5] # indices of params to plot
+    #i_params = [1,2,3,5] # indices of params to plot
+    #i_params = [1,3,5,8] # indices of params to plot
     
 
     if gs==None:
@@ -2300,7 +2684,7 @@ def plot_improvement_pre_post_params_paper(df_summary, params, gs=None, args=Non
     for i,i_param in enumerate(i_params):
         param = params[i_param]
         #plt.subplot(1, 4, i+1)
-        if param.startswith('eta_'):
+        if (param.startswith('eta_') | param.startswith('sigma')):
             ax = plt.subplot(sub_gs[0,i+1])
         else:
             ax = plt.subplot(sub_gs[0,i])
@@ -2318,11 +2702,11 @@ def plot_improvement_pre_post_params_paper(df_summary, params, gs=None, args=Non
         kde_post_x, kde_post_logdensity, kde_post_exp_mu = get_kde(np.array(df_sum[df_sum.ses=='ses-post'].value),
                                                                    mn=df_sum.value.min(), mx=df_sum.value.max())
         
-        ax.fill(-kde_pre_logdensity/kde_pre_logdensity.std()*kde_scale,kde_pre_x, color='gray', alpha=0.2)
+        ax.fill(-kde_pre_logdensity/kde_pre_logdensity.std()*kde_scale,kde_pre_x, color='goldenrod', alpha=0.2)
         #ax.plot([-kde_pre_exp_mu/kde_pre_logdensity.std()*kde_scale,0],[df_sum[df_sum.ses=='ses-pre'].value.mean(), df_sum[df_sum.ses=='ses-pre'].value.mean()],
         #         '-', color='gray')
         
-        ax.fill(1+kde_post_logdensity/kde_post_logdensity.std()*kde_scale,kde_post_x, color='gray', alpha=0.2)
+        ax.fill(1+kde_post_logdensity/kde_post_logdensity.std()*kde_scale,kde_post_x, color='goldenrod', alpha=0.2)
         #ax.plot([1+kde_post_exp_mu/kde_post_logdensity.std()*kde_scale,0],[df_sum[df_sum.ses=='ses-post'].value.mean(), df_sum[df_sum.ses=='ses-post'].value.mean()],
         #         '-', color='gray')
 
@@ -2337,14 +2721,21 @@ def plot_improvement_pre_post_params_paper(df_summary, params, gs=None, args=Non
         d = cohen_d(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
         t,pt = scipy.stats.ttest_rel(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
         T,pT = scipy.stats.wilcoxon(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
-        print("{:15}: d={: 1.2}    u={:5}  p={:.4f}    t={: .2f}  p={:.4f}   T={: }  p={:.4f}".format(param, d, int(u), p, t, pt,int(T), pT))
+        ES,pES = scipy.stats.epps_singleton_2samp(df_sum[df_sum.ses=='ses-pre'].sort_values('subj').value, df_sum[df_sum.ses=='ses-post'].sort_values('subj').value)
+        print("{:15}: d={: 1.2}    u={:5}  p={:.4f}    t={: .2f}  p={:.4f}   T={: }  p={:.4f}  ES={:.3f}  pES={:.4f}".format(param, d, int(u), p, t, pt,int(T), pT, ES, pES))
         #plt.title("u={}  p={:.3f}".format(int(u),p))
         ttl = ''
+        ft = 10
         if pT<.05:
             ttl = ttl+'*'
-        if pT*len(params)<0.05:
-            ttl = ttl+'*'
-        ttl = plt.title(ttl, fontsize=14)
+            if pT*len(i_params)<0.05:
+                ttl = ttl+'*'
+            ft=14
+        #if pES<0.05:
+        #    ttl += '#'
+        #    if pES*len(i_params)<0.05:
+        #        ttl += '#'
+        ttl = plt.title(ttl, fontsize=ft)
         x,y = ttl.get_position()
         ttl.set_position([x,y-0.2])
         #plt.ylabel("${}$".format(format_param(param)), fontsize=12)
@@ -2366,6 +2757,11 @@ def plot_improvement_pre_post_params_paper(df_summary, params, gs=None, args=Non
             ax.set_ylim([-0.01, 0.11])
             #ax.set_ylim([-0.03, 0.13])
             plt.yticks([0, 0.05, 0.1])
+            plt.subplots_adjust(left=0.2, right=1)
+        elif param.startswith('sigma'):
+            ax.set_ylim([0.05, 0.1])
+            #ax.set_ylim([-0.03, 0.13])
+            plt.yticks([0.06, 0.08])
             plt.subplots_adjust(left=0.2, right=1)
     plt.tight_layout()
     
@@ -2410,7 +2806,7 @@ def plot_summary_improvement(df_summary, df_improvement, params, feature=None, a
     fig = plt.figure(figsize=[6,5])
     gs = plt.GridSpec(nrows=2,ncols=4, height_ratios=[1,1])
 
-    df_summary, df_improvement = drop_unimproved(df_summary, df_improvement, threshold=args.fc_thresh)
+    #df_summary, df_improvement = drop_unimproved(df_summary, df_improvement, threshold=args.fc_thresh)
 
     # FC - YBOCS scatter + regrression plot
     plot_pre_post_dist_ybocs(df_summary, gs=gs[0,0:2], args=args)
@@ -2432,10 +2828,63 @@ def plot_summary_improvement(df_summary, df_improvement, params, feature=None, a
     plt.show()
 
 
+def linear_regression_sims(df_restore, params):
+    """ Linear model between change in parameters and change in distance to healthy controls """ 
+    df_rest = df_restore[(df_restore.ustat>96200)]# & (df_restore.dist<df_restore.dist_pre_hc)]
+    #df_rest = df_restore
+    #df_rest = df_rest.reset_index()
+
+    X = []
+    inds = dict((i,[]) for i in np.arange(0,7))
+    y = []
+    for j,row in df_rest.iterrows():
+        x = np.zeros(len(params),)
+        for i,par in enumerate(params):
+            #if par in tp.split(' '):
+            x[i] = row['z_'+par]
+        X.append(x)
+        inds[row.n_test_params].append(j)
+        #y.append(row['ustat'])
+        y.append(row['dist_pre_hc'] - row['dist'])
+
+    X = np.array(X)
+    y = np.array(y)
+
+    model = sklearn.linear_model.LinearRegression(positive=True)
+    model.fit(X,y)
+
+    score = model.score(X,y)
+
+    return model, score
+
+
+def plot_regression_coefs(model, score, params):
+    plt.bar(np.arange(1,12), model.coef_)
+    plt.xticks(np.arange(1,12), labels=params, rotation=60)
+    plt.title('$R^2={:.2f}$'.format(score))
+
+
+def linear_regression_digital_twins(df_improvement, params):
+    """ Linear model between change in parameters and improvement in YBOCS """ 
+    df_imp = df_improvement[df_improvement['diff_behav']>0]
+    #df_imp = df_improvement#[df_improvement['diff_fc']>0]
+    X = np.array(df_imp[params])
+    y = np.array(df_imp['diff_behav'])
+    #y = np.array(df_imp['diff_fc'])
+
+    model = sklearn.linear_model.LinearRegression(positive=True)
+    mdoel.fit(X,y)
+
+    score = model.score(X,y)
+
+    return model
+
 
 def parse_arguments():
     " Script arguments when ran as main " 
     parser = argparse.ArgumentParser()
+
+    # global parameters
     parser.add_argument('--save_figs', default=False, action='store_true', help='save figures')
     parser.add_argument('--save_outputs', default=False, action='store_true', help='save outputs')
     parser.add_argument('--save_summary', default=False, action='store_true', help='save output summary')
@@ -2444,28 +2893,29 @@ def parse_arguments():
     parser.add_argument('--n_batch', type=int, default=10, action='store', help="batch size")
     parser.add_argument('--plot_figs', default=False, action='store_true', help='plot figures')
     
+    # loading parameters
     parser.add_argument('--db_names', type=str, nargs='+', default=["sim_pat_20230628", "sim_pat_20230721"], help="identifier of the sqlite3 database (use sim_pat_20230628 for digital twin, sim_pat_20230721 for restoration analysis")
     parser.add_argument('--load_sims', default=False, action='store_true', help='Load simulations based on db_names')
-    
-    parser.add_argument('--base_cohort', type=str, default='controls', help="Cohort from which to infer posterior as default")
-    parser.add_argument('--test_cohort', type=str, default='patients', help="Cohort from which to infer posterior of individual params")
-    parser.add_argument('--test_params', nargs='+', default=[], help="posterior parameter to swap between base and test cohort, if empty list then all params are tested")
+
+    # digital twin  
     parser.add_argument('--tolerance', type=float, default=0.05, action='store', help="maximal distance allow to take into consideration 'digital sigling'")
     parser.add_argument('--tolerance_plot', type=float, default=0.3, action='store', help="maximal distance allow to take into consideration 'digital sigling' (for plotting) ")
     parser.add_argument('--save_distances', default=False, action='store_true', help='save distances between patients and simulations')
     parser.add_argument('--load_distances', default=False, action='store_true', help='load distances between patients and simulations from previously saved')
     parser.add_argument('--compute_distances', default=False, action='store_true', help='compute distances between patients and simulations')
+    parser.add_argument('--compute_post_distances', default=False, action='store_true', help='Compute distances for digital twins analysis using post-TMS FC')
     parser.add_argument('--n_closest', type=int, default=1, action='store', help="number of digital twins to retain sorted by increasing distance")
     parser.add_argument('--plot_param_behav', default=False, action='store_true', help='plot param-behavioral relationship')
     parser.add_argument('--verbose', default=False, action='store_true', help='print extra processing info')
     parser.add_argument('--session', default=None, action='store', help='which session (ses-pre or ses-post) for behavioral scores (default:None => both are used')
-    parser.add_argument('--plot_efficacy_transform', default=False, action='store_true', help='plot the transformation from distance from controls to efficacy')
     
+    # multivariate analysis (not reported in paper)
     parser.add_argument('--multivariate_analysis', default=False, action='store_true', help='perform multivariate analysis on simulations parameters')
     parser.add_argument('--multivar_fc', default=False, action='store_true', help='perform multivariate analysis on FC variables')
     parser.add_argument('--cv_type', type=str, default='LeaveOneOut', help="which cross-validation scheme to apply (KFold, RepeatedKFold, ShuffleSplit, LeaveOneOut)")
     parser.add_argument('--n_splits', type=int, default=10, help="number of splits used for cross-validation")
     parser.add_argument('--n_repeats', type=int, default=5, help="number of repetitions for the RepeatedKFold cross-validation")
+    parser.add_argument('--max_depth', type=int, default=3, action='store', help="max depth of the decision tree")
     parser.add_argument('--test_size', type=float, default=0.3, help="ratio of test data (over all data) used for ShuffleSplit cross-validation")
     parser.add_argument('--plot_cv_regression', default=False, action='store_true', help='plot cross validation regression scatters')
     parser.add_argument('--plot_multivar_svd', default=False, action='store_true', help='plot dimensionality reduction on regression coefficients')
@@ -2478,27 +2928,31 @@ def parse_arguments():
     
     parser.add_argument('--print_ANOVA', default=False, action='store_true', help='print stats for mixed and multiple one-way ANOVAs')
     
+    # restoration analysis parameters
     parser.add_argument('--restore_analysis', default=False, action='store_true', help='perform retoration analys of test parameters to move from patient to controls FC')
+    parser.add_argument('--base_cohort', type=str, default='controls', help="Cohort from which to infer posterior as default")
+    parser.add_argument('--test_cohort', type=str, default='patients', help="Cohort from which to infer posterior of individual params")
+    parser.add_argument('--plot_efficacy_transform', default=False, action='store_true', help='plot the transformation from distance from controls to efficacy')
     parser.add_argument('--n_restore', type=int, default=10, action='store', help="number of best restorations for plotting")
     parser.add_argument('--n_tops', type=int, default=5, action='store', help="number of best restorations for each n_test_param for plotting")
     parser.add_argument('--n_test_params', type=int, default=6, action='store', help="max number of parameter combinations for plotting restoration outputs")
     parser.add_argument('--distance_metric', type=str, default='rmse', help="distance used in restoration metric (rmse or emd)")
     parser.add_argument('--efficacy_base', type=str, default='sims', help="use simulated centroid (sims) or paired (paired) or data (anything else) group difference in efficacy denominator")
+    parser.add_argument('--use_optim_params', default=False, action='store_true', help='flag if using best optimization outputs directly (default: No, i.e. draw new params from posteriors.')
     parser.add_argument('--sort_style', type=str, default='by_n', help="how to sort distances for visualization: 'by_n' or 'all' (default)")
-    parser.add_argument('--max_depth', type=int, default=3, action='store', help="max depth of the decision tree")
-    parser.add_argument('--plot_distance_restore', default=False, action='store_true', help='plot efficacy horizontal box plots')
     parser.add_argument('--save_restoration', default=False, action='store_true', help='save outputs of the restoration analysis (df_restore)')
     parser.add_argument('--load_restoration', default=False, action='store_true', help='load outputs from previously saved restoration analysis (df_restore)')
+    parser.add_argument('--plot_distance_restore', default=False, action='store_true', help='plot efficacy horizontal box plots')
     parser.add_argument('--plot_restoration_figure_paper', default=False, action='store_true', help='plot figure for paper with layout containing sub-figures')
     
-    parser.add_argument('--contribution_sensitivity_analysis', default=False, action='store_true', help='run ontribution and sensitivity analysis')
+    parser.add_argument('--contribution_analysis', default=False, action='store_true', help='run parameter contribution analysis')
+    parser.add_argument('--sensitivity_analysis', default=False, action='store_true', help='run paramater sensitivity analysis')
     parser.add_argument('--load_param_contribution', default=False, action='store_true', help='load parameter contributions from previously computed restoration analysis')
     parser.add_argument('--load_param_sensitivity', default=False, action='store_true', help='load parameter sensitivity from previously computed restoration analysis')
     parser.add_argument('--plot_params_contribution_sensitivity', default=False, action='store_true', help='plot contribution and sensitivity of parameters in restoration analysis')
 
     parser.add_argument('--predictive_analysis', default=False, action='store_true', help='Analyse predictive power of model based on distance to controls FC')
     parser.add_argument('--plot_fc_dist_pre_post_behav', default=False, action='store_true', help='plot FC distance to controls in pre-post TMS data')
-    parser.add_argument('--compute_post_distances', default=False, action='store_true', help='Compute distances for digital twins analysis using post-TMS FC')
     parser.add_argument('--compute_sim_vecs', default=False, action='store_true', help='Compute simulation vectors in FC space (otherwise load pre-computed)')
     parser.add_argument('--save_sim_vecs', default=False, action='store_true', help='Save simulation vectors in FC space after being computed')
     parser.add_argument('--load_sim_vecs', default=False, action='store_true', help='Load simulation vectors in FC space')
@@ -2559,7 +3013,8 @@ if __name__=='__main__':
     if args.load_distances:
         print("Loading distances...")
         #fname = os.path.join(proj_dir, 'postprocessing', args.db_names[0]+'_distances100eps'+str(int(args.tolerance*100))+".pkl")
-        fname = os.path.join(proj_dir, 'postprocessing', 'assoc_distances100eps'+str(int(args.tolerance*100))+"_pre_20230918.pkl")
+        #fname = os.path.join(proj_dir, 'postprocessing', 'assoc_distances100eps'+str(int(args.tolerance*100))+"_pre_20230918.pkl")
+        fname = os.path.join(proj_dir, 'postprocessing', 'assoc_digital_twins_distances100eps'+str(int(args.tolerance*100))+"_pre_20240329.pkl")
         with open(fname, 'rb') as f:
             assoc = pickle.load(f)
         df_sim_pre = merge_data_sim_dfs(df_pat[df_pat.ses=='ses-pre'], df_sims, assoc, args)
@@ -2622,9 +3077,15 @@ if __name__=='__main__':
             plot_efficacy_transform(args)
 
         if args.load_restoration:
-            #restoration_file = 'df_restore_20240125.pkl'
+            optim=''
+            date = '_20240326'
+            if args.use_optim_params:
+                optim += '_optim'
+                date = '_20240329'
+                
             if 'paired' in args.efficacy_base:
-                restoration_file = 'df_restore_'+args.distance_metric+'_paired_20240309.pkl'
+                #restoration_file = 'df_restore_'+args.distance_metric+'_paired_20240309.pkl'
+                restoration_file = 'df_restore_'+args.distance_metric+optim+'_'+args.efficacy_base+date+'.pkl'
             else:
                 restoration_file = 'df_restore_'+args.distance_metric+'_20240313.pkl'
             
@@ -2634,7 +3095,8 @@ if __name__=='__main__':
             df_restore = compute_distance_restore(df_sims[df_sims.test_param!='None'], args)
             
             if args.save_restoration:
-                with open(os.path.join(proj_dir, 'postprocessing', 'df_restore_'+args.distance_metric+'_'+args.efficacy_base+today()+'.pkl'), 'wb') as f:
+                fname = 'df_restore'+ get_restoration_suffix(args) + today() + '.pkl'
+                with open(os.path.join(proj_dir, 'postprocessing', fname), 'wb') as f:
                     pickle.dump(df_restore, f)
             
         df_restore = compute_efficacy(df_restore, args=args)
@@ -2655,18 +3117,24 @@ if __name__=='__main__':
         #plot_contribution_windrose(df_scaled_efficacy, params, args=args)
 
         # Parameters contribution
-        if args.contribution_sensitivity_analysis:
+        if args.contribution_analysis:
             if args.load_param_contribution:
                 with open(os.path.join(proj_dir, 'postprocessing', 'df_param_contribution.pkl'), 'rb') as f:
                     df_params_contribution = pickle.load(f)
             else:
                 df_params_contribution = compute_scaled_feature_score(df_restore[df_restore.efficacy>0], params, kdes, scaling='contribution', args=args)
+                #df_params_contribution = compute_scaled_feature_score(df_restore, params, kdes, scaling='contribution', args=args)
                 if args.save_outputs:
                     with open(os.path.join(proj_dir, 'postprocessing', 'df_param_contribution_'+args.distance_metric+'_'+args.efficacy_base+today()+'.pkl'), 'wb') as f:
                         pickle.dump(df_params_contribution, f)        
             if args.plot_params_contribution_sensitivity:
                 plot_contribution_windrose(df_params_contribution, params, args=args)
+            
+            if args.plot_restoration_figure_paper:
+                plot_restoration_figure_paper(df_restore, df_top, df_params_contribution, args)
 
+        # Parameter sensitivity (deprecated alternative to contribution)
+        if args.sensitivity_analysis:
             # Parameters sensitivity
             if args.load_param_sensitivity:
                 with open(os.path.join(proj_dir, 'postprocessing', 'df_param_sensitivity.pkl'), 'rb') as f:
@@ -2679,8 +3147,7 @@ if __name__=='__main__':
             if args.plot_params_contribution_sensitivity:
                 plot_sensitivity_windrose(df_param_sensitivity, params, args=args)
         
-        if args.plot_restoration_figure_paper:
-            plot_restoration_figure_paper(df_restore, df_top, df_params_contribution, args)
+        
 
 
     # prediction 
@@ -2706,7 +3173,8 @@ if __name__=='__main__':
         elif args.load_post_distances:
             print("Loading functional distances (post)...")
             #fname = os.path.join(proj_dir, 'postprocessing', args.db_names[0]+'_distances100eps'+str(int(args.tolerance*100))+"_post.pkl")
-            fname = os.path.join(proj_dir, 'postprocessing', 'assoc_distances100eps'+str(int(args.tolerance*100))+"_post_20230918.pkl")
+            #fname = os.path.join(proj_dir, 'postprocessing', 'assoc_distances100eps'+str(int(args.tolerance*100))+"_post_20230918.pkl")
+            fname = os.path.join(proj_dir, 'postprocessing', 'assoc_digital_twins_distances100eps'+str(int(args.tolerance*100))+"_post_20240329.pkl")
             with open(fname, 'rb') as f:
                 assoc_post = pickle.load(f) 
         
@@ -2721,9 +3189,6 @@ if __name__=='__main__':
                           on=['subj', 'ses', 'group'], how='outer', suffixes=[None, '_sim'])
         
         df_summary = df_post[df_post.cohort=='patients'].merge(df_pre[df_pre.cohort=='patients'], how='outer')
-        
-        # remove patients with only one session and those with NaNs 
-        df_summary = drop_single_session(df_summary.dropna())
         
 
         if args.save_summary:
