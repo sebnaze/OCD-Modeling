@@ -784,7 +784,9 @@ def compute_distance_restore(df_sims, args):
         df_test_param['median'] = np.median(df_test_param.dist)
         df_test_param['std'] = np.std(df_test_param.dist)
         df_test_param['tstat'], df_test_param['pval'] = scipy.stats.ttest_ind(df_test_param.dist_pre_hc, df_test_param.dist)
-        df_test_param['ustat'], df_test_param['upval'] = scipy.stats.mannwhitneyu(np.array(df_test_param.dist_pre_hc), np.array(df_test_param.dist))
+        df_test_param['ustat'], df_test_param['upval'] = scipy.stats.mannwhitneyu(  np.array(df_test_param.dist_pre_hc), 
+                                                                                    np.array(df_test_param.dist),
+                                                                                    alternative='greater')
         
         # non-paramteric effect size (https://aakinshin.net/posts/nonparametric-effect-size/)
         Q_x = np.median(np.array(df_test_param.dist_pre_hc))
@@ -891,8 +893,8 @@ def get_max_distance_sims(args):
 
     distances['tstat'], distances['pval'] = scipy.stats.ttest_ind(np.array(distances['con_pat']), np.array(distances['con_con']))
     distances['tstat_'], distances['pval_'] = scipy.stats.ttest_ind(np.array(distances['con_pat']), np.array(distances['pat_con']))
-    distances['ustat'], distances['upval'] = scipy.stats.mannwhitneyu(np.array(distances['con_pat']), np.array(distances['con_con']))
-    distances['ustat_'], distances['upval_'] = scipy.stats.mannwhitneyu(np.array(distances['con_pat']), np.array(distances['pat_con']))
+    distances['ustat'], distances['upval'] = scipy.stats.mannwhitneyu(np.array(distances['con_pat']), np.array(distances['con_con']), alternative='greater')
+    distances['ustat_'], distances['upval_'] = scipy.stats.mannwhitneyu(np.array(distances['con_pat']), np.array(distances['pat_con']), alternative='greater')
 
     # non-parametric effect size
     Q_x = np.median(np.array(distances['con_pat']))
@@ -1178,7 +1180,7 @@ def compute_efficacy(df_restore, args=None):
         distances = get_max_distance_sims(args)
         for test_param in df_restore.test_param.unique():
                 ids = df_restore[df_restore.test_param==test_param].index
-                df_restore.loc[ids, 'efficacy'] = df_restore.loc[ids, 'ustat']
+                df_restore.loc[ids, 'efficacy'] = np.array(df_restore.loc[ids, 'ustat'])/(400*400) # AUC1
 
     else:
         distances = get_max_distance_data(args)
@@ -1287,7 +1289,7 @@ def plot_distance_restore(df_restore, args, gs=None):
     
     elif args.efficacy_base=='ustat':
             df_pat = pd.DataFrame({'dist': np.unique(distances['ustat_']), 'test_param':'patients', 'n_test_params': 0}) 
-            df_pat['efficacy'] = np.unique(distances['ustat_'])
+            df_pat['efficacy'] = np.unique(distances['ustat_']/(400*400)) # AUC
     
     else:
         df_pat['test_param'] = 'None'
@@ -1353,7 +1355,7 @@ def plot_distance_restore(df_restore, args, gs=None):
 
     elif args.efficacy_base=='ustat':
         df_con = pd.DataFrame({'dist': np.unique(distances['ustat']), 'test_param':'controls', 'n_test_params': 0}) 
-        df_con['efficacy'] = np.unique(distances['ustat'])
+        df_con['efficacy'] = np.unique(distances['ustat']/(400*400)) # AUC
     
 
     # merge base and restore dataframes
@@ -1474,8 +1476,8 @@ def plot_distance_restore(df_restore, args, gs=None):
         plt.vlines(5, ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.75, linewidth=lw) 
 
     elif args.efficacy_base=='ustat':
-        sig_ustats = df_restore[(df_restore.upval*1485<0.0011) & (df_restore.upval*1485>0.0009)].ustat.unique()
-        plt.vlines(np.abs(sig_ustats).mean(), ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.75, linewidth=lw) 
+        sig_ustats = df_restore[(df_restore.upval*1485<0.051) & (df_restore.upval*1485>0.049)].ustat.unique()
+        plt.vlines(np.abs(sig_ustats).mean()/(400*400), ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.75, linewidth=lw) 
 
     else:
         plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.75, linewidth=lw) 
@@ -1490,9 +1492,10 @@ def plot_distance_restore(df_restore, args, gs=None):
     if 'tstat' in args.efficacy_base:
             ax.set_xlabel("$T \, statistic$", fontsize=10)
     if 'ustat' in args.efficacy_base:
-            ax.set_xlabel("$U \; statistic \; ( x 10^5)$", fontsize=10)
-            ticks = ax.get_xticks()
-            ax.set_xticklabels(labels=["{:.1f}".format(i/100000) for i in ticks])
+            #ax.set_xlabel("$U \; statistic \; ( x 10^5)$", fontsize=10)
+            ax.set_xlabel("AUC", fontsize=10)
+            #ticks = ax.get_xticks()
+            #ax.set_xticklabels(labels=["{:.1f}".format(i/100000) for i in ticks])
     ax.set_ylabel("Target points", fontsize=10)
     
     sbn.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
@@ -1571,9 +1574,10 @@ def plot_efficacy_by_number_of_target(df_top, gs=None, args=None):
     #ax.set_xlim([0.5,6.5])
     #ax.set_xscale('log')
     plt.xlabel("$n_t$", fontsize=10)
-    ticks = ax2.get_yticks()
-    ax2.set_yticklabels(labels=["{:.1f}".format(i/100000) for i in ticks]) 
-    plt.ylabel("$U \; statistic \; ( x 10^5)$", fontsize=10)
+    #ticks = ax2.get_yticks()
+    #ax2.set_yticklabels(labels=["{:.1f}".format(i/100000) for i in ticks]) 
+    #plt.ylabel("$U \; statistic \; ( x 10^5)$", fontsize=10)
+    plt.ylabel("$\widehat{AUC}$", fontsize=10)
 
     if gs==None:
         plt.tight_layout()
@@ -1914,12 +1918,12 @@ def compute_scaled_feature_score(df_top, params, kdes, scaling='contribution', a
                     R = R / (np.std(diff_fc)*np.std(df_['z_'+param])) / len(diff_fc)
                     line['R_'+param] = R
                     # ad-hoc p-value
-                    line['p_'+param] = 0
-                    for _ in range(10000):
-                        R_ = np.correlate(np.random.permutation(diff_fc), np.random.permutation(np.array(df_['z_'+param])))[0]
-                        R_ = R_ / (np.std(diff_fc)*np.std(df_['z_'+param])) / len(diff_fc)
-                        if np.abs(R_) > np.abs(R):
-                            line['p_'+param] += .0001
+                    #line['p_'+param] = 0
+                    #for _ in range(10000):
+                    #    R_ = np.correlate(np.random.permutation(diff_fc), np.random.permutation(np.array(df_['z_'+param])))[0]
+                    #    R_ = R_ / (np.std(diff_fc)*np.std(df_['z_'+param])) / len(diff_fc)
+                    #    if np.abs(R_) > np.abs(R):
+                    #        line['p_'+param] += .0001
                     #line['R_'+param], line['p_'+param] = scipy.stats.pearsonr(diff_fc, np.array(df_['z_'+param]))
                     #line['p_'+param] = line['p_'+param]*len(params)*6
                     
@@ -2739,7 +2743,7 @@ def plot_improvement_pre_post_params_paper(df_summary, params, gs=None, args=Non
         x,y = ttl.get_position()
         ttl.set_position([x,y-0.2])
         #plt.ylabel("${}$".format(format_param(param)), fontsize=12)
-        plt.xticks([0,1], labels=['pre', 'post'])
+        plt.xticks([0,1], labels=['baseline', 'post'])
         plt.xlabel("${}$".format(format_param(param)), fontsize=12)
         if i==0:
             plt.ylabel('value')
@@ -3122,7 +3126,7 @@ if __name__=='__main__':
                 with open(os.path.join(proj_dir, 'postprocessing', 'df_param_contribution.pkl'), 'rb') as f:
                     df_params_contribution = pickle.load(f)
             else:
-                df_params_contribution = compute_scaled_feature_score(df_restore[df_restore.efficacy>0], params, kdes, scaling='contribution', args=args)
+                df_params_contribution = compute_scaled_feature_score(df_restore[df_restore.efficacy>0.5], params, kdes, scaling='cross_correlation', args=args)
                 #df_params_contribution = compute_scaled_feature_score(df_restore, params, kdes, scaling='contribution', args=args)
                 if args.save_outputs:
                     with open(os.path.join(proj_dir, 'postprocessing', 'df_param_contribution_'+args.distance_metric+'_'+args.efficacy_base+today()+'.pkl'), 'wb') as f:

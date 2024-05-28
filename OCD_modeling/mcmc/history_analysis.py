@@ -99,7 +99,7 @@ def plot_weights(histories, gs=None, nrows=None, ncols=None, row_offset=None, co
     n_gen = np.max([h.max_t for h in histories.values()])
     
     if gs==None:
-        fig = plt.figure(figsize=[20, 5])
+        fig = plt.figure(figsize=[15, 4])
         nrows,ncols, row_offset, col_offset = 0,0,0,0
         gs = plt.GridSpec(nrows=nrows, ncols=ncols)
         
@@ -112,16 +112,20 @@ def plot_weights(histories, gs=None, nrows=None, ncols=None, row_offset=None, co
             ax = plt.subplot(gs[x,y])
             df,w  = history.get_distribution(t=j)
             
-            plt.scatter(np.arange(len(w)), w, s=10, alpha=0.2)
+            plt.scatter(np.arange(len(w)), w, s=10, alpha=0.1)
             plt.title(f"t={j}", fontsize=10)
             plt.yscale('log')
             #if x==nrows-1:
             plt.xlabel('particle', fontsize=10)
             if (((y==col_offset) and (x<row_offset)) or (y==0)):
-                plt.ylabel('$\omega$', fontsize=12)
+                plt.ylabel('$\omega$', fontsize=10)
             #plt.legend(args.history_names)
             ax.spines.top.set_visible(False)
             ax.spines.right.set_visible(False)
+            #xtl = ax.get_xticklabels()
+            #ax.set_xticklabels(xtl, fontsize=12)
+            #ytl = ax.get_yticklabels()
+            #ax.set_yticklabels(ytl, fontsize=12)
     plt.tight_layout()
 
 
@@ -240,7 +244,7 @@ def compute_kdes(histories, n_pts = 100, args=None):
 
 def custom_plot_epsilons(histories, ax, n_gens=11):
     colors = ['lightblue', 'orange']
-    labels = ['healthy', 'OCD']#list(histories.keys())
+    labels = ['controls', 'OCD']#list(histories.keys())
     for i,(name,history) in enumerate(histories.items()):
         # extract epsilons
         # note: first entry is from calibration and thus translates to inf,
@@ -252,12 +256,14 @@ def custom_plot_epsilons(histories, ax, n_gens=11):
         
     plt.xticks(np.arange(0,n_gens,2), labels=np.arange(0,n_gens,2))
     plt.yscale('log')
-    plt.ylabel('$\epsilon$', fontsize=12)
-    plt.xlabel('$t$', fontsize=12)
+    plt.ylabel('$\epsilon$', fontsize=10)
+    plt.xlabel('$t$', fontsize=10)
     ax.spines.top.set_visible(False)
     ax.spines.right.set_visible(False)
-    plt.legend(labels)
-
+    plt.legend(labels, fontsize=10)
+    #xtl = ax.get_xticklabels()
+    #ax.set_xticklabels(xtl, fontsize=12)
+    #ax.set_yticklabels(ax.get_yticklabels(), fontsize=12)
 
 # -------------------------------------
 # Observed vs simulated stats and plots
@@ -514,7 +520,7 @@ def simulate_posterior_modes(peaks, args):
 
 def plot_epsilons_weights(histories, args):
     """ Combine the epsilons tolerances and the optimization weights """
-    fig = plt.figure(figsize=[15,5])
+    fig = plt.figure(figsize=[12,4])
     nrows, ncols = 2,5
     row_offset, col_offset = 1,1
     gs = plt.GridSpec(nrows=nrows, ncols=ncols)
