@@ -1083,7 +1083,8 @@ def compute_efficacy(df_restore, args=None):
         df_restore: pandas.DataFrame
             Virtual intervention simulation outputs with distance precomputed. 
         args: argparse.Namespace
-            Extra arguments with options.
+            Extra arguments with options. Important option in this function is `args.efficacy_base` which informs 
+            how treatment efficacy is computed (e.g. retained was "ustat")
 
     Returns
     -------
@@ -1236,13 +1237,7 @@ def plot_distance_restore(df_restore, args, gs=None):
     # normalize distances to get efficacy 
     distances = get_max_distance_sims(args)
     
-    # create dfs for base distances (controls and patient with interventions)
-    #df_pat = pd.DataFrame({'dist': distances['pat']-np.mean(distances['pat']), 'test_param':'patients', 'n_test_params': 0}) # test_param=patients for legend label
-    #df_pat['efficacy'] = ((df_pat['dist']/np.mean(distances['con_pat'])))*100 # make % of restoration
-
-    #df_con = pd.DataFrame({'dist': distances['con']-np.mean(distances['con']), 'test_param':'controls', 'n_test_params': 0}) # test_param=controls for legend label
-    #df_con['efficacy'] = ((df_con['dist']/np.mean(distances['con_pat']))+1)*100 # make % of restoration
-    
+    # Patients "NULLS"
     df_pat = pd.DataFrame({'dist': distances['con_pat'], 'test_param':'patients', 'n_test_params': 0}) 
     n = int(np.sqrt(len(distances['con_pat'])))
     inds, = np.where(np.tril(np.ones((n,n)), k=-1).ravel())
@@ -1296,6 +1291,7 @@ def plot_distance_restore(df_restore, args, gs=None):
         df_pat = compute_efficacy(df_pat, args=args)
         df_pat['test_param'] = 'patients'
 
+    # Controls' NULLS
     df_con = pd.DataFrame({'dist': distances['con'], 'test_param':'controls', 'n_test_params': 0}) # test_param=controls for legend label
     n = int(np.sqrt(len(distances['con_pat'])))
     inds, = np.where(np.triu(np.ones((n,n)), k=1).ravel())
@@ -1322,12 +1318,6 @@ def plot_distance_restore(df_restore, args, gs=None):
             df_con['efficacy'] = 1 - np.divide(np.array(distances['conpat']) - np.array(distances['oconpat']), np.array(distances['conpat'])) 
         else:
             df_con = pd.DataFrame({'dist': distances['con_con'], 'test_param':'controls', 'n_test_params': 0})
-            # get the con matrice shifted so different control to same control
-            #cons = np.roll(distances['con'], 1).ravel()
-            #inds, = np.where(np.roll(np.triu(np.ones((n,n)), k=1),1).ravel())
-            #df_con['efficacy'] = np.divide(np.array(distances['con_pat'])[inds] - np.roll(np.array(distances['con_pat'])[inds],1), np.array(distances['con_pat'])[inds])
-            #df_con['efficacy'] = np.divide(df_con['dist'] - cons, np.array())
-            #df_con['efficacy'] = 1 - np.array(distances['con_con']) #np.divide(np.array(distances['con_pat']), np.array(distances['pat_con']))#, np.array(distances['con_pat']))
             df_con['efficacy'] = 1 - np.divide(np.array(distances['con_pat']) - np.array(distances['con_con']), np.array(distances['con_pat']) )
     elif args.efficacy_base=='paired_G':
         if args.use_optim_params:
@@ -1389,20 +1379,8 @@ def plot_distance_restore(df_restore, args, gs=None):
     xmin,xmax = ax.get_xlim()
     ymin,ymax = ax.get_ylim()
     
-    # original (keep for legacy) 
-    #plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.75, linewidth=lw) 
-    #plt.vlines(100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.75, linewidth=lw) 
 
-    #plt.vlines((np.std(distances['con_pat'])/np.mean(distances['con_pat']))*100, ymin=ymin, ymax=ymax, 
-    #            linestyle='dashed', color='red', alpha=0.5, linewidth=lw)
-    #plt.vlines((2*np.std(distances['con_pat'])/np.mean(distances['con_pat']))*100, ymin=ymin, ymax=ymax, 
-    #            linestyle='dashed', color='red', alpha=0.25, linewidth=lw)
-
-    #plt.vlines((1 - (np.std(distances['con'])/np.mean(distances['con_pat'])))*100, ymin=ymin, ymax=ymax, 
-    #            linestyle='dashed', color='blue', alpha=0.5, linewidth=lw)
-    #plt.vlines((1 - (2*np.std(distances['con'])/np.mean(distances['con_pat'])))*100, ymin=ymin, ymax=ymax, 
-    #            linestyle='dashed', color='blue', alpha=0.25, linewidth=lw)
-
+    # Vertical lines for visual indication
     if args.efficacy_base=='sims':
         plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='red', alpha=0.75, linewidth=lw) 
         plt.vlines(100, ymin=ymin, ymax=ymax, linestyle='dashed', color='blue', alpha=0.75, linewidth=lw) 
@@ -1482,7 +1460,7 @@ def plot_distance_restore(df_restore, args, gs=None):
     else:
         plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.75, linewidth=lw) 
     
-
+    # legends and labels 
     labels = plt.gca().get_yticklabels()
     new_labels = format_labels(labels)
     ax.set_yticklabels(new_labels)
@@ -1492,7 +1470,6 @@ def plot_distance_restore(df_restore, args, gs=None):
     if 'tstat' in args.efficacy_base:
             ax.set_xlabel("$T \, statistic$", fontsize=10)
     if 'ustat' in args.efficacy_base:
-            #ax.set_xlabel("$U \; statistic \; ( x 10^5)$", fontsize=10)
             ax.set_xlabel("AUC", fontsize=10)
             #ticks = ax.get_xticks()
             #ax.set_xticklabels(labels=["{:.1f}".format(i/100000) for i in ticks])
@@ -1509,7 +1486,7 @@ def plot_distance_restore(df_restore, args, gs=None):
 
 
 def plot_efficacy_by_number_of_target(df_top, gs=None, args=None):
-    """ Swarm plots of efficacy score (y-axis) by number of targets (x-axis), with means projected in log-linear sacle. 
+    """ Swarm plots of efficacy score (y-axis) by number of targets (x-axis), with means projected in log-linear scale. 
     
     Parameters
     ----------
@@ -1518,7 +1495,7 @@ def plot_efficacy_by_number_of_target(df_top, gs=None, args=None):
         gs: matplotlib.GridSpec
             (optional) A GridSpec object that can be used to embbed axes when this figure is a subplot 
             of a larger figure. 
-        args: (argparse.Namespace)
+        args: argparse.Namespace
             Extra arguments with options. 
 
     """
@@ -1536,11 +1513,11 @@ def plot_efficacy_by_number_of_target(df_top, gs=None, args=None):
 
     plt.sca(ax1)
     plt.tight_layout()
-    #if args.use_optim_params:
-    #    sbn.swarmplot(data=df_top, x='n_test_params', y='efficacy', ax=ax1, size=2, palette=palette, alpha=0.6)
+    if args.use_optim_params:
+        sbn.swarmplot(data=df_top, x='n_test_params', y='efficacy', ax=ax1, size=2, palette=palette, alpha=0.6)
     #else:
-    #    sbn.swarmplot(data=df_top, x='n_test_params', y='efficacy', ax=ax1, size=0.6, palette=palette, alpha=0.6)
-    #sbn.boxplot(data=df_top, x='n_test_params', y='efficacy', ax=ax1, width=0.1, palette=palette, fliersize=0, linewidth=1.5, showcaps=False)
+        #sbn.stripplot(data=df_top, x='n_test_params', y='efficacy', ax=ax1, size=0.5, palette=palette, alpha=0.6)
+    sbn.boxplot(data=df_top, x='n_test_params', y='efficacy', ax=ax1, width=0.1, palette=palette, fliersize=0, linewidth=1.5, showcaps=False)
 
     ax1.spines.top.set_visible(False)
     ax1.spines.right.set_visible(False)
@@ -1548,8 +1525,8 @@ def plot_efficacy_by_number_of_target(df_top, gs=None, args=None):
     plt.xlabel("$n_t$", fontsize=10)
 
     ticks = ax1.get_yticks()
-    ax1.set_yticklabels(labels=["{:.1f}".format(i/100000) for i in ticks])
-    plt.ylabel("$U \; statistic \; ( x 10^5)$", fontsize=10)
+    #ax1.set_yticklabels(labels=["{:.1f}".format(i/100000) for i in ticks])
+    plt.ylabel("AUC", fontsize=10)
 
 
     plt.sca(ax2)
@@ -1857,22 +1834,27 @@ def scale_efficacy_to_kdes(df_row, params, kdes, scaling):
     return normalized
 
 
-def compute_scaled_feature_score(df_top, params, kdes, scaling='contribution', args=None):
-    """ Compute feature scores scaled by their location on the KDEs distribution using z-statistic. 
+def compute_scaled_feature_score(df_top, params, kdes, scaling='dot_product_correlation', args=None):
+    """ Compute feature scores (i.e. parameter contribution) as the dot-product between their normalized location on the 
+    KDEs distribution (using z-statistic) and their resultng efficacy (AUC). 
     
     Parameters
     ----------
         df_top: pandas.DataFrame
-            Subset of df_restore with only virtual intervention resulting in positive outcomes.
+            Subset of df_restore with significantly positive virtual interventions
         params: list
             Individual intervention targets (i.e. model parameters).
         kdes: dict
             Kernel Density Estimates of posterior distributions of OCD subjects and healthy controls.
         scaling: string
             How to scale the efficacy of the virtual intervention by the z-score normalized parameter. 
-            "contribution" (default) multiplies the normalized parameter by the efficacy. Any other value
-            divides the normalized parameter by the efficacy (giving a sense of "sensitivity"). 
-        args: (argparse.Namespace)
+            "dot_product_correlation" (default) multiplies the normalized parameter by the efficacy (AUC). 
+            Other values can be "pearson_correlation", "spearman_correlation" and "covariance_correlation" 
+            but those measures distort the results and interpretation due to the mean-centering of variable.
+            Other legacy values are "contribution" (same as dot-product) and "sensitivity" which divides the 
+            normalized parameter by the AUC efficacy (giving a sense of "sensitivity" of the parameter). 
+
+        args: argparse.Namespace
             (optional) Extra arguments with options. 
 
     """
@@ -1885,26 +1867,20 @@ def compute_scaled_feature_score(df_top, params, kdes, scaling='contribution', a
             for i,row in df_.iterrows():
                 new_row = scale_efficacy_to_kdes(row, params, kdes, scaling)
                 rows.append(new_row)
-            #rows = Parallel(n_jobs=args.n_jobs, verbose=5)(delayed(scale_efficacy_to_kdes)(row,params,kdes) for _,row in df_.iterrows())
             line = pd.DataFrame(rows).mean(axis=0).to_frame().transpose()
             line['n_test_params'] = n_test_params
             lines.append(line)
         else:
             line = dict()
             line['n_test_params'] = n_test_params
-            #inds, = np.where((df_.dist<df_.dist_pre_hc) & [param in test_param.split(' ') for test_param in df_.test_param])
-            #inds, = np.where(df_.dist<df_.dist_pre_hc)
-            #df__ = df_.iloc[inds]
             diff_fc = np.array(df_['dist_pre_hc']) - np.array(df_['dist'])
             for param in params:
                 inds, = np.where([param in test_param.split(' ') for test_param in df_.test_param])
                 if scaling=='pearson_correlation':
-                    #R,p = scipy.stats.pearsonr(np.array(df_['dist']), np.array(df_['z_'+param]))
                     R,p = scipy.stats.pearsonr(diff_fc, np.array(df_['z_'+param]))
                     line[param] = R
                     line['p_'+param] = p
                 elif scaling=='spearman_correlation':
-                    #R,p = scipy.stats.spearmanr(np.array(df_['dist']), np.array(df_['z_'+param]))
                     R,p = scipy.stats.spearmanr(diff_fc, np.array(df_['z_'+param]))
                     line[param] = R
                     line['p_'+param] = p    
@@ -1917,15 +1893,6 @@ def compute_scaled_feature_score(df_top, params, kdes, scaling='contribution', a
                     line[param] = R
                     R = R / (np.std(diff_fc)*np.std(df_['z_'+param])) / len(diff_fc)
                     line['R_'+param] = R
-                    # ad-hoc p-value
-                    #line['p_'+param] = 0
-                    #for _ in range(10000):
-                    #    R_ = np.correlate(np.random.permutation(diff_fc), np.random.permutation(np.array(df_['z_'+param])))[0]
-                    #    R_ = R_ / (np.std(diff_fc)*np.std(df_['z_'+param])) / len(diff_fc)
-                    #    if np.abs(R_) > np.abs(R):
-                    #        line['p_'+param] += .0001
-                    #line['R_'+param], line['p_'+param] = scipy.stats.pearsonr(diff_fc, np.array(df_['z_'+param]))
-                    #line['p_'+param] = line['p_'+param]*len(params)*6
                     
             line['n'] = len(df_)
             lines.append(pd.DataFrame([line]))
@@ -2035,8 +2002,8 @@ def plot_single_contribution_windrose(df, params, theta, palette, ax):
 
 
 def plot_parameters_contribution(df_params_contribution, params, gs=None, args=None):
-    """ Polar plots of parameters contribution across virtual interventions, colorcoded by number of intervention targets ::math::`n_t`.
-    Each polar plot corresponds to a number of target ::math::`n_t`. 
+    """ Polar plots of parameters contribution across virtual interventions, colorcoded by number of intervention targets :math:`n_t`.
+    Each polar plot corresponds to a number of target :math:`n_t`. 
     
     Parameters
     ----------
@@ -2046,7 +2013,7 @@ def plot_parameters_contribution(df_params_contribution, params, gs=None, args=N
             Individual intervention targets (i.e. model parameters).
         gs: matplotlib.GridSpec
             (optional) A GridSpec object that can be used to embbed axes when this figure is a subplot of a larger figure.
-        args: (argparse.Namespace)
+        args: argparse.Namespace
             (optional) Extra arguments with options. 
     
     """ 
@@ -2259,8 +2226,8 @@ def plot_pre_post_params_behavs(df_summary, args=None):
 
 
 def plot_pre_post_dist_ybocs(df_summary, gs=None, args=None):
-    """ Plot behavioral measure of symptoms severity (Y-BOCS) of subjects by their distance to healthy 
-    functional connectivity.
+    """ Plot improvement in behavioral measure of symptoms severity (Y-BOCS) of subjects, and their association to 
+    functional improvement (via their distance to healthy functional connectivity).
     
     Parameters
     ----------
@@ -2295,16 +2262,13 @@ def plot_pre_post_dist_ybocs(df_summary, gs=None, args=None):
         param_diffs[group].append(param_diff)
         behav_diffs['both'].append(behav_diff)
         param_diffs['both'].append(param_diff)
-        #if param_diff < 0:
-        #if behav_diff < 0:
-        #plt.scatter(behav_diff, param_diff, color='gray', alpha=0.5)
+        
         responders['behav'][group].append(behav_diff)
         responders['param'][group].append(param_diff)
         responders['behav']['both'].append(behav_diff)
         responders['param']['both'].append(param_diff)
         lines.append({'subj':subj, 'group':group, 'param':param, 'behav':behav, 'param_diff':param_diff, 'behav_diff':behav_diff})
-        #else:
-            #plt.scatter(param_diff, behav_diff, color=colors[group], alpha=0.2)
+        
 
     rr,pr = scipy.stats.pearsonr(responders['behav']['both'], responders['param']['both'])
 
@@ -2375,12 +2339,14 @@ def score_improvement(df, params, kdes, behav='YBOCS_Total'):
             Individual intervention targets (i.e. model parameters).
         kdes: dict
             Kernel Density Estimates of posterior distributions of OCD subjects and healthy controls.
+        behav: string
+            Behavioral measure. Default: Y-BOCS score.
         
     Results
     -------
         df_improvement: pandas.DataFrame
-            Z-score normalized differences between initial (pre) and follow-up (post) parameters of digital twins
-            for number of targets in virtual interventions. 
+            Normalized differences between initial (pre) and follow-up (post) parameters of digital twins
+            for each number of targets in virtual interventions. 
     
     """
     lines = []
@@ -2656,8 +2622,8 @@ def get_kde(data, mn, mx, smoothing_factor=10):
 
 
 def plot_improvement_pre_post_params_paper(df_summary, params, gs=None, args=None):
-    """ Plot initial (pre) and follow-up (post) distributions of parameters from digital twin analysis 
-    (only significant ones are shown for manuscript). 
+    """ Plot initial (pre) and follow-up (post) distributions of parameters from digital twin analysis. 
+    (only relevant parameters are shown for manuscript). 
     
     Parameters
     ----------
