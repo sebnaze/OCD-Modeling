@@ -64,12 +64,12 @@ the optimization is still progressing or plateauing.
 
 .. autofunction:: OCD_modeling.mcmc.plot_epsilons
 
-.. figure:: img/weights_epsilons_20231020.png
+.. figure:: img/epsilons_weights_log_20240524-01.png
   :width: 800
   :name: weights
   :align: center
 
-  [A] Error rates (:math:`\epsilon`) and [B] Weights of the optimization (blue: contols; orange:OCD).
+  [A] Error rates (:math:`\epsilon`) and [B] Weights :math:`\omega` of the optimization (blue: contols; orange:OCD).
 
 
 Synthetic dataset
@@ -89,7 +89,7 @@ empirical (observed) and simulated data.
   :name: FC_sim_vs_data
   :align: center
 
-  Functional connectivity patterns across the frontostriatal system in OCD subjects vs healthy controls, 
+  Functional connectivity patterns across the frontostriatal system in OCD subjects (orange) vs healthy controls (blue), 
   from empirical (observed) and simulated data.
 
 

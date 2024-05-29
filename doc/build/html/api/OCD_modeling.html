@@ -124,7 +124,7 @@ v_i: gaussian noise (n/a); default=0</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="OCD_modeling.ReducedWongWangND.prepare_auxiliary_variables">
 <span class="sig-name descname"><span class="pre">prepare_auxiliary_variables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rec_vars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_rec</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/models/ReducedWongWang.html#ReducedWongWangND.prepare_auxiliary_variables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.ReducedWongWangND.prepare_auxiliary_variables" title="Link to this definition"></a></dt>
-<dd><p>creates dtata structures to recored supplementary variables</p>
+<dd><p>creates dtata structures to recorded supplementary variables</p>
 </dd></dl>
 
 <dl class="py method">
@@ -223,7 +223,7 @@ calculating distances in parallel.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df_sims</strong> (<em>pandas.DataFrame</em>) – Simulation outputs loaded from the database.</p></li>
-<li><p><strong>args</strong> (<em>(</em><em>argparse.Namespace</em><em>)</em>) – Extra arguments with options.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -363,14 +363,14 @@ between controls and patients.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.launch_sims_parallel">
-<span class="sig-prename descclassname"><span class="pre">OCD_modeling.</span></span><span class="sig-name descname"><span class="pre">launch_sims_parallel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/simulate_inference.html#launch_sims_parallel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.launch_sims_parallel" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.</span></span><span class="sig-name descname"><span class="pre">launch_sims_parallel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_param</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/simulate_inference.html#launch_sims_parallel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.launch_sims_parallel" title="Link to this definition"></a></dt>
 <dd><p>Run batched simulations from posterior inference in parallel:</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>kdes</strong> (<em>dict</em>) – Kernel Density Estimates from optimization (structured as kdes[cohort][param])</p></li>
+<li><p><strong>kdes</strong> (<em>dict</em>) – Kernel Density Estimates from optimization (structured as kdes[group][param])</p></li>
 <li><p><strong>cols</strong> (<em>list</em>) – Parameters (columns) which draw samples from KDEs (otherwise default values are used)</p></li>
-<li><p><strong>test_params</strong> (<em>list</em>) – Parameters for which the posterior is permuted for the virtual interventions.</p></li>
+<li><p><strong>test_param</strong> (<em>list</em>) – Parameters for which the posterior is permuted for the virtual interventions.</p></li>
 <li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options.</p></li>
 </ul>
 </dd>
@@ -390,7 +390,7 @@ between controls and patients.</p>
 <dt class="sig sig-object py" id="OCD_modeling.rmse">
 <span class="sig-prename descclassname"><span class="pre">OCD_modeling.</span></span><span class="sig-name descname"><span class="pre">rmse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/utils/utils.html#rmse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.rmse" title="Link to this definition"></a></dt>
 <dd><p>compute the root mean squared error of correlation accross pathways P between u and v as
-<span class="math notranslate nohighlight">\(d = \sqrt{ \sum_{p \in P} (\mu_u^p - \mu_v^p)^2 + (\sigma_u_p - \sigma_v^p)^2}\)</span></p>
+<span class="math notranslate nohighlight">\(d = \sqrt{ \sum_{p \in P} (\mu_u^p - \mu_v^p)^2}\)</span></p>
 <section id="parameters">
 <h2>Parameters:<a class="headerlink" href="#parameters" title="Link to this heading"></a></h2>
 <dl class="simple">

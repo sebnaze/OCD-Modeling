@@ -17,6 +17,8 @@
         <script src="../_static/doctools.js?v=888ff710"></script>
         <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" /> 
@@ -87,7 +89,7 @@ calculating distances in parallel.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df_sims</strong> (<em>pandas.DataFrame</em>) – Simulation outputs loaded from the database.</p></li>
-<li><p><strong>args</strong> (<em>(</em><em>argparse.Namespace</em><em>)</em>) – Extra arguments with options.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -147,22 +149,20 @@ with normalized parameters values w.r.t original OCD parameter posterior distrib
 
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.compute_efficacy">
-<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">compute_efficacy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_restore</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sims'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/inference_analysis.html#compute_efficacy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.compute_efficacy" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">compute_efficacy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_restore</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/inference_analysis.html#compute_efficacy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.compute_efficacy" title="Link to this definition"></a></dt>
 <dd><p>Add new column to input DataFrame with treatment efficacy based on distance to healthy controls
 in functional connectivity space.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Simulation metric is the Wassertein distance and the data metric is the Euclidiean distance.
-Comparision in FC space is automatically performed using the correct metric (default: Wassertein).</p>
+<p>Simulation metric is the Wasserstein distance and the data metric is the Euclidean distance.
+Comparision in FC space is automatically performed using the correct metric (default: Wasserstein).</p>
 </div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df_restore</strong> (<em>pandas.DataFrame</em>) – Virtual intervention simulation outputs with distance precomputed.</p></li>
-<li><p><strong>base</strong> (<em>string</em>) – Whether to use simulated or empirical data as reference. Note that because there is only 50ish subjects in
-empirical data, the metric is computed differently and is statisticallt less robust.
-(default: ‘sims’, anyother value would compute using empirical data).</p></li>
-<li><p><strong>args</strong> (<em>(</em><em>argparse.Namespace</em><em>)</em>) – Extra arguments with options.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options. Important option in this function is <cite>args.efficacy_base</cite> which informs
+how treatment efficacy is computed (e.g. retained was “ustat”)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -196,18 +196,22 @@ empirical data, the metric is computed differently and is statisticallt less rob
 
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.compute_scaled_feature_score">
-<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">compute_scaled_feature_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_top</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scaling</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'contribution'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/inference_analysis.html#compute_scaled_feature_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.compute_scaled_feature_score" title="Link to this definition"></a></dt>
-<dd><p>Compute feature scores scaled by their location on the KDEs distribution using z-statistic.</p>
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">compute_scaled_feature_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_top</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scaling</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dot_product_correlation'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/inference_analysis.html#compute_scaled_feature_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.compute_scaled_feature_score" title="Link to this definition"></a></dt>
+<dd><p>Compute feature scores (i.e. parameter contribution) as the dot-product between their normalized location on the
+KDEs distribution (using z-statistic) and their resultng efficacy (AUC).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df_top</strong> (<em>pandas.DataFrame</em>) – Subset of df_restore with only virtual intervention resulting in positive outcomes.</p></li>
+<li><p><strong>df_top</strong> (<em>pandas.DataFrame</em>) – Subset of df_restore with significantly positive virtual interventions</p></li>
 <li><p><strong>params</strong> (<em>list</em>) – Individual intervention targets (i.e. model parameters).</p></li>
 <li><p><strong>kdes</strong> (<em>dict</em>) – Kernel Density Estimates of posterior distributions of OCD subjects and healthy controls.</p></li>
 <li><p><strong>scaling</strong> (<em>string</em>) – How to scale the efficacy of the virtual intervention by the z-score normalized parameter.
-“contribution” (default) multiplies the normalized parameter by the efficacy. Any other value
-divides the normalized parameter by the efficacy (giving a sense of “sensitivity”).</p></li>
-<li><p><strong>args</strong> (<em>(</em><em>argparse.Namespace</em><em>)</em>) – (optional) Extra arguments with options.</p></li>
+“dot_product_correlation” (default) multiplies the normalized parameter by the efficacy (AUC).
+Other values can be “pearson_correlation”, “spearman_correlation” and “covariance_correlation”
+but those measures distort the results and interpretation due to the mean-centering of variable.
+Other legacy values are “contribution” (same as dot-product) and “sensitivity” which divides the
+normalized parameter by the AUC efficacy (giving a sense of “sensitivity” of the parameter).</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – (optional) Extra arguments with options.</p></li>
 </ul>
 </dd>
 </dl>
@@ -239,7 +243,7 @@ between controls and patients.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.create_params">
-<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">create_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/simulate_inference.html#create_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.create_params" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">create_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_param</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/simulate_inference.html#create_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.create_params" title="Link to this definition"></a></dt>
 <dd><p>creates n_sims new parameters from posetrior distribution of base cohort</p>
 </dd></dl>
 
@@ -311,14 +315,14 @@ between controls and patients.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.launch_sims_parallel">
-<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">launch_sims_parallel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/simulate_inference.html#launch_sims_parallel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.launch_sims_parallel" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">launch_sims_parallel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_param</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/simulate_inference.html#launch_sims_parallel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.launch_sims_parallel" title="Link to this definition"></a></dt>
 <dd><p>Run batched simulations from posterior inference in parallel:</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>kdes</strong> (<em>dict</em>) – Kernel Density Estimates from optimization (structured as kdes[cohort][param])</p></li>
+<li><p><strong>kdes</strong> (<em>dict</em>) – Kernel Density Estimates from optimization (structured as kdes[group][param])</p></li>
 <li><p><strong>cols</strong> (<em>list</em>) – Parameters (columns) which draw samples from KDEs (otherwise default values are used)</p></li>
-<li><p><strong>test_params</strong> (<em>list</em>) – Parameters for which the posterior is permuted for the virtual interventions.</p></li>
+<li><p><strong>test_param</strong> (<em>list</em>) – Parameters for which the posterior is permuted for the virtual interventions.</p></li>
 <li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options.</p></li>
 </ul>
 </dd>
@@ -366,14 +370,14 @@ of a larger figure.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_efficacy_by_number_of_target">
 <span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_efficacy_by_number_of_target</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_top</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/inference_analysis.html#plot_efficacy_by_number_of_target"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_efficacy_by_number_of_target" title="Link to this definition"></a></dt>
-<dd><p>Swarm plots of efficacy score (y-axis) by number of targets (x-axis), with means projected in log-linear sacle.</p>
+<dd><p>Swarm plots of efficacy score (y-axis) by number of targets (x-axis), with means projected in log-linear scale.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df_top</strong> (<em>pandas.DataFrame</em>) – Subset of df_restore with only virtual intervention resulting in positive outcomes.</p></li>
 <li><p><strong>gs</strong> (<em>matplotlib.GridSpec</em>) – (optional) A GridSpec object that can be used to embbed axes when this figure is a subplot
 of a larger figure.</p></li>
-<li><p><strong>args</strong> (<em>(</em><em>argparse.Namespace</em><em>)</em>) – Extra arguments with options.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options.</p></li>
 </ul>
 </dd>
 </dl>
@@ -417,8 +421,8 @@ since now stats are directly computed within plotting function).</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_improvement_pre_post_params_paper">
 <span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_improvement_pre_post_params_paper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_summary</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/inference_analysis.html#plot_improvement_pre_post_params_paper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_improvement_pre_post_params_paper" title="Link to this definition"></a></dt>
-<dd><p>Plot initial (pre) and follow-up (post) distributions of parameters from digital twin analysis
-(only significant ones are shown for manuscript).</p>
+<dd><p>Plot initial (pre) and follow-up (post) distributions of parameters from digital twin analysis.
+(only relevant parameters are shown for manuscript).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -484,15 +488,15 @@ of a larger figure.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_parameters_contribution">
 <span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_parameters_contribution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_params_contribution</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/inference_analysis.html#plot_parameters_contribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_parameters_contribution" title="Link to this definition"></a></dt>
-<dd><p>Polar plots of parameters contribution across virtual interventions, colorcoded by number of intervention targets ::math::<cite>n_t</cite>.
-Each polar plot corresponds to a number of target ::math::<cite>n_t</cite>.</p>
+<dd><p>Polar plots of parameters contribution across virtual interventions, colorcoded by number of intervention targets <span class="math notranslate nohighlight">\(n_t\)</span>.
+Each polar plot corresponds to a number of target <span class="math notranslate nohighlight">\(n_t\)</span>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df_params_contribution</strong> (<em>pandas.DataFrame</em>) – Contribution of parameters (z-score normalized parameters times efficacies of virtual interventions).</p></li>
 <li><p><strong>params</strong> (<em>list</em>) – Individual intervention targets (i.e. model parameters).</p></li>
 <li><p><strong>gs</strong> (<em>matplotlib.GridSpec</em>) – (optional) A GridSpec object that can be used to embbed axes when this figure is a subplot of a larger figure.</p></li>
-<li><p><strong>args</strong> (<em>(</em><em>argparse.Namespace</em><em>)</em>) – (optional) Extra arguments with options.</p></li>
+<li><p><strong>args</strong> (<em>argparse.Namespace</em>) – (optional) Extra arguments with options.</p></li>
 </ul>
 </dd>
 </dl>
@@ -501,8 +505,8 @@ Each polar plot corresponds to a number of target ::math::<cite>n_t</cite>.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_pre_post_dist_ybocs">
 <span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_pre_post_dist_ybocs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_summary</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/inference_analysis.html#plot_pre_post_dist_ybocs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_pre_post_dist_ybocs" title="Link to this definition"></a></dt>
-<dd><p>Plot behavioral measure of symptoms severity (Y-BOCS) of subjects by their distance to healthy
-functional connectivity.</p>
+<dd><p>Plot improvement in behavioral measure of symptoms severity (Y-BOCS) of subjects, and their association to
+functional improvement (via their distance to healthy functional connectivity).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -579,7 +583,7 @@ of a larger figure.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.score_improvement">
-<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">score_improvement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/inference_analysis.html#score_improvement"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.score_improvement" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">score_improvement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">behav</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'YBOCS_Total'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/inference_analysis.html#score_improvement"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.score_improvement" title="Link to this definition"></a></dt>
 <dd><p>Score parameters based on improvement they induce in functional connectivity (FC) space across virtual interventions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -587,6 +591,7 @@ of a larger figure.</p></li>
 <li><p><strong>df</strong> (<em>pandas.DataFrame</em>) – Summary data (empirical data paired with digital twins)</p></li>
 <li><p><strong>params</strong> (<em>list</em>) – Individual intervention targets (i.e. model parameters).</p></li>
 <li><p><strong>kdes</strong> (<em>dict</em>) – Kernel Density Estimates of posterior distributions of OCD subjects and healthy controls.</p></li>
+<li><p><strong>behav</strong> (<em>string</em>) – Behavioral measure. Default: Y-BOCS score.</p></li>
 </ul>
 </dd>
 </dl>
@@ -594,8 +599,8 @@ of a larger figure.</p></li>
 <h2>Results<a class="headerlink" href="#results" title="Link to this heading"></a></h2>
 <blockquote>
 <div><dl class="simple">
-<dt>df_improvement: pandas.DataFrame</dt><dd><p>Z-score normalized differences between initial (pre) and follow-up (post) parameters of digital twins
-for number of targets in virtual interventions.</p>
+<dt>df_improvement: pandas.DataFrame</dt><dd><p>Normalized differences between initial (pre) and follow-up (post) parameters of digital twins
+for each number of targets in virtual interventions.</p>
 </dd>
 </dl>
 </div></blockquote>
@@ -632,7 +637,7 @@ and the real data (either “controls” or “patients”).</p>
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.unpack_params">
 <span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">unpack_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/abc_hpc.html#unpack_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.unpack_params" title="Link to this definition"></a></dt>
 <dd><p>Unpack parameters to be given to model and simulation.</p>
-<p>All type of input parameter can be given, it will be unpacked and atrributed to the correct parameter dictrionnary.
+<p>All type of input parameter can be given, it will be unpacked and atrributed to the correct parameter dictionnary.
 If the parameter is not recognized, a warning will be displayed and the input parameters will be ignored.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -652,7 +657,7 @@ If the parameter is not recognized, a warning will be displayed and the input pa
 
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.write_outputs_to_db">
-<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">write_outputs_to_db</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/simulate_inference.html#write_outputs_to_db"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.write_outputs_to_db" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">write_outputs_to_db</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_param</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">paired_ids</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/OCD_modeling/mcmc/simulate_inference.html#write_outputs_to_db"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.write_outputs_to_db" title="Link to this definition"></a></dt>
 <dd><p>Write output of simulation inference into SQLite database</p>
 </dd></dl>
 

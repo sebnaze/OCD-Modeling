@@ -96,6 +96,14 @@
 
 
 
+<div class="viewcode-block" id="paired_euclidian">
+<a class="viewcode-back" href="../../../api/OCD_modeling.utils.html#OCD_modeling.paired_euclidian">[docs]</a>
+<span class="k">def</span> <span class="nf">paired_euclidian</span><span class="p">(</span><span class="n">u</span><span class="p">,</span><span class="n">v</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Euclidian distance between paired simulations &quot;&quot;&quot;</span> 
+    <span class="n">u</span><span class="p">,</span><span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">u</span> <span class="o">-</span> <span class="n">v</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span></div>
+
+
 <div class="viewcode-block" id="emd">
 <a class="viewcode-back" href="../../../api/OCD_modeling.utils.html#OCD_modeling.emd">[docs]</a>
 <span class="k">def</span> <span class="nf">emd</span><span class="p">(</span><span class="n">u</span><span class="p">,</span><span class="n">v</span><span class="p">):</span>
@@ -111,7 +119,7 @@
 <a class="viewcode-back" href="../../../api/OCD_modeling.utils.html#OCD_modeling.rmse">[docs]</a>
 <span class="k">def</span> <span class="nf">rmse</span><span class="p">(</span><span class="n">u</span><span class="p">,</span><span class="n">v</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; compute the root mean squared error of correlation accross pathways P between u and v as </span>
-<span class="sd">    :math:`d = \sqrt{ \sum_{p \in P} (\mu_u^p - \mu_v^p)^2 + (\sigma_u_p - \sigma_v^p)^2}` </span>
+<span class="sd">    :math:`d = \sqrt{ \sum_{p \in P} (\mu_u^p - \mu_v^p)^2}` </span>
 <span class="sd">    </span>
 <span class="sd">    Parameters:</span>
 <span class="sd">    -----------</span>
@@ -123,9 +131,9 @@
 <span class="sd">    d</span>
 <span class="sd">        Root Mean Squared Error </span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">u_</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">apply</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">])</span>
-    <span class="n">v_</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">apply</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">])</span>
-    <span class="n">mse</span> <span class="o">=</span> <span class="n">u_</span><span class="o">.</span><span class="n">combine</span><span class="p">(</span><span class="n">v_</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">subtract</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="s1">&#39;square&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="s1">&#39;sum&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">u_</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">)</span>
+    <span class="n">v_</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">)</span>
+    <span class="n">mse</span> <span class="o">=</span> <span class="n">u_</span><span class="o">.</span><span class="n">combine</span><span class="p">(</span><span class="n">v_</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">subtract</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="s1">&#39;square&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mse</span><span class="p">)</span></div>
 
 

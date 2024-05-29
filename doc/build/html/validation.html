@@ -49,7 +49,7 @@
 <li class="toctree-l1"><a class="reference internal" href="optimization.html">Simulation-based inference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="restoration.html">Restoration analysis</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Digital twins validation</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#behavioral-relationship-to-healthy-functional-connectivity-in-empirical-data">Behavioral relationship to healthy functional connectivity in empirical data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#behavioral-vs-functional-improvement-in-empirical-data">Behavioral <em>vs</em> functional improvement in empirical data</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.mcmc.plot_pre_post_dist_ybocs"><code class="docutils literal notranslate"><span class="pre">plot_pre_post_dist_ybocs()</span></code></a></li>
 </ul>
 </li>
@@ -97,17 +97,18 @@
   <section id="digital-twins-validation">
 <h1>Digital twins validation<a class="headerlink" href="#digital-twins-validation" title="Link to this heading"></a></h1>
 <p>Our restoration analysis predicted which intervention targets (i.e. model parameters) contribute
-the most to restore healthy frontostriatal functional dynamics, through an efficacy measure derived from
-frontostriatal functional connectivity.</p>
-<section id="behavioral-relationship-to-healthy-functional-connectivity-in-empirical-data">
-<h2>Behavioral relationship to healthy functional connectivity in empirical data<a class="headerlink" href="#behavioral-relationship-to-healthy-functional-connectivity-in-empirical-data" title="Link to this heading"></a></h2>
-<p>First, we test this efficacy measure on our empirical dataset of OCD subjects to see if symptoms improvement over time
-correlate to the restoration of frontostriatal functional connectivity closer to healthy controls.</p>
+the most to restore healthy frontostriatal functional dynamics, through an efficacy measure (AUC).
+We test those predictions in the empirical dataset of longitudinal changes in OCD subjects.</p>
+<section id="behavioral-vs-functional-improvement-in-empirical-data">
+<h2>Behavioral <em>vs</em> functional improvement in empirical data<a class="headerlink" href="#behavioral-vs-functional-improvement-in-empirical-data" title="Link to this heading"></a></h2>
+<p>First, we assess whether symptoms improvement over time correlate to the restoration of frontostriatal
+functional connectivity on our empirical dataset of OCD subjects. As in the virtual intervention case,
+changes in functional connectivity are computed w.r.t. distance to healthy controls connectivity.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_pre_post_dist_ybocs">
 <span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_pre_post_dist_ybocs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_summary</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#plot_pre_post_dist_ybocs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_pre_post_dist_ybocs" title="Link to this definition"></a></dt>
-<dd><p>Plot behavioral measure of symptoms severity (Y-BOCS) of subjects by their distance to healthy
-functional connectivity.</p>
+<dd><p>Plot improvement in behavioral measure of symptoms severity (Y-BOCS) of subjects, and their association to
+functional improvement (via their distance to healthy functional connectivity).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -122,17 +123,18 @@ of a larger figure.</p></li>
 </dd></dl>
 
 <figure class="align-center" id="plot-pre-post-dist-ybocs">
-<a class="reference internal image-reference" href="_images/fc_ybocs-01.svg"><img alt="_images/fc_ybocs-01.svg" src="_images/fc_ybocs-01.svg" width="250" /></a>
+<a class="reference internal image-reference" href="_images/YBOCS_FC_corr-01.png"><img alt="_images/YBOCS_FC_corr-01.png" src="_images/YBOCS_FC_corr-01.png" style="width: 250px;" /></a>
 <figcaption>
-<p><span class="caption-text">Relation between functional connectivity distance to healthy controls and symptom severity (Y-BOCS score) in empirical data.</span><a class="headerlink" href="#plot-pre-post-dist-ybocs" title="Link to this image"></a></p>
+<p><span class="caption-text">Relation between improvement of functional connectivity distance to healthy controls and
+symptom severity (Y-BOCS score) in empirical data.</span><a class="headerlink" href="#plot-pre-post-dist-ybocs" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </section>
 <section id="digital-pairing">
 <h2>Digital pairing<a class="headerlink" href="#digital-pairing" title="Link to this heading"></a></h2>
-<p>Then, we paired the initial and follow-up functional connectivity patterns of OCD subjects to the closest baseline and post-intervention
-simulations. The pairing was based on the Euclidian distance between the empirical functional connectivity value of OCD subjects
-and their closest simulated connectivity value (i.e. <strong>digital twins</strong>).</p>
+<p>Then, we paired the initial and follow-up functional connectivity patterns of OCD subjects to the closest baseline
+and post-intervention simulations. The pairing was based on the Euclidian distance between the empirical functional
+connectivity value of OCD subjects and their closest simulated connectivity value (i.e. <strong>digital twins</strong>).</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.compute_distances">
 <span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">compute_distances</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_sims</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ses</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#compute_distances"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.compute_distances" title="Link to this definition"></a></dt>
@@ -158,9 +160,12 @@ and their closest simulated connectivity value (i.e. <strong>digital twins</stro
 </section>
 <section id="improvement-analysis">
 <h2>Improvement analysis<a class="headerlink" href="#improvement-analysis" title="Link to this heading"></a></h2>
+<p>Once the digital pairing is performed, and we can associate digital twins parameters to empirical subjects
+improvements in symptoms. We then score which parameter changes covary with improvement in symptoms in our
+longitudinal dataset of OCD subjetcs, using a dot-product between the two variables.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.score_improvement">
-<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">score_improvement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#score_improvement"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.score_improvement" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">score_improvement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">behav</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'YBOCS_Total'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#score_improvement"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.score_improvement" title="Link to this definition"></a></dt>
 <dd><p>Score parameters based on improvement they induce in functional connectivity (FC) space across virtual interventions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -168,6 +173,7 @@ and their closest simulated connectivity value (i.e. <strong>digital twins</stro
 <li><p><strong>df</strong> (<em>pandas.DataFrame</em>) – Summary data (empirical data paired with digital twins)</p></li>
 <li><p><strong>params</strong> (<em>list</em>) – Individual intervention targets (i.e. model parameters).</p></li>
 <li><p><strong>kdes</strong> (<em>dict</em>) – Kernel Density Estimates of posterior distributions of OCD subjects and healthy controls.</p></li>
+<li><p><strong>behav</strong> (<em>string</em>) – Behavioral measure. Default: Y-BOCS score.</p></li>
 </ul>
 </dd>
 </dl>
@@ -175,8 +181,8 @@ and their closest simulated connectivity value (i.e. <strong>digital twins</stro
 <h3>Results<a class="headerlink" href="#results" title="Link to this heading"></a></h3>
 <blockquote>
 <div><dl class="simple">
-<dt>df_improvement: pandas.DataFrame</dt><dd><p>Z-score normalized differences between initial (pre) and follow-up (post) parameters of digital twins
-for number of targets in virtual interventions.</p>
+<dt>df_improvement: pandas.DataFrame</dt><dd><p>Normalized differences between initial (pre) and follow-up (post) parameters of digital twins
+for each number of targets in virtual interventions.</p>
 </dd>
 </dl>
 </div></blockquote>
@@ -202,16 +208,17 @@ of a larger figure.</p></li>
 </dd></dl>
 
 <figure class="align-center" id="id1">
-<a class="reference internal image-reference" href="_images/improvement_windrose-01.svg"><img alt="_images/improvement_windrose-01.svg" src="_images/improvement_windrose-01.svg" width="250" /></a>
+<a class="reference internal image-reference" href="_images/empirical_params_contrib-01.png"><img alt="_images/empirical_params_contrib-01.png" src="_images/empirical_params_contrib-01.png" style="width: 250px;" /></a>
 <figcaption>
-<p><span class="caption-text">Mean change of parameters between initial (pre) and follow-up (post) in digital twins of OCD subjects.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+<p><span class="caption-text">Normalized changes of parameters between initial (pre) and follow-up (post), scaled by symptoms improvement
+in digital twins of OCD subjects.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.plot_improvement_pre_post_params_paper">
 <span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">plot_improvement_pre_post_params_paper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_summary</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/inference_analysis.html#plot_improvement_pre_post_params_paper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.plot_improvement_pre_post_params_paper" title="Link to this definition"></a></dt>
-<dd><p>Plot initial (pre) and follow-up (post) distributions of parameters from digital twin analysis
-(only significant ones are shown for manuscript).</p>
+<dd><p>Plot initial (pre) and follow-up (post) distributions of parameters from digital twin analysis.
+(only relevant parameters are shown for manuscript).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -227,9 +234,9 @@ of a larger figure.</p></li>
 </dd></dl>
 
 <figure class="align-center" id="id2">
-<a class="reference internal image-reference" href="_images/improvement_pointplots-01.svg"><img alt="_images/improvement_pointplots-01.svg" src="_images/improvement_pointplots-01.svg" width="500" /></a>
+<a class="reference internal image-reference" href="_images/empirical_params_changes-01.png"><img alt="_images/empirical_params_changes-01.png" src="_images/empirical_params_changes-01.png" style="width: 500px;" /></a>
 <figcaption>
-<p><span class="caption-text">Distributions of parameter evolutions between initial (pre) and follow-up (post) in digital twins of OCD subjects.</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
+<p><span class="caption-text">Distributions of (raw) parameter evolutions between initial (pre) and follow-up (post) in digital twins of OCD subjects.</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </section>
