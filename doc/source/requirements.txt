@@ -7,7 +7,7 @@ nbsphinx == 0.9.*
 neurolib @ https://github.com/sebnaze/neurolib/archive/refs/heads/master.zip
 nilearn == 0.8.*
 numba == 0.56.0
-numpy == 1.21.3
+numpy == 1.23.*
 openpyxl == 3.*
 pathos == 0.2.1
 pandas == 2.0.*
