@@ -2,7 +2,7 @@ dill == 0.3.7
 future == 0.18.3
 ipython == 8.*
 joblib >= 1.2.0
-matplotlib >= 3.4.3
+matplotlib == 3.4.3 
 nbsphinx == 0.9.*
 neurolib @ https://github.com/sebnaze/neurolib/archive/refs/heads/master.zip
 nilearn == 0.8.*
