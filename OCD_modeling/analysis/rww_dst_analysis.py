@@ -34,7 +34,7 @@ from OCD_modeling.models import ReducedWongWang as RWW
 
 rng = np.random.default_rng()
 
-def create_model(params, args):
+def create_model(params, args=None):
     """ Create the Dynamical System in PyDSTool 
     
         .. math:: \dot{S_i} = - \cfrac{S_i}{\\tau_S} + (1 - S_i) \gamma H(x_i) + \sigma v_i

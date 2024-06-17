@@ -121,7 +121,7 @@ It can then be called multiple times to plot grids of phase spaces as in Supplem
   :width: 400
   :align: center
 
-  Timeseries of the model variables S1, S2 and stochastic coupling C_12, with corresponding projections in different state spaces.
+  Timeseries of the model variables :math:`S1`, :math:`S2` and stochastic coupling :math:`C_{12}`, with corresponding projections in different state spaces.
 
 
 .. _`PyDSTool`: https://github.com/robclewley/pydstool 

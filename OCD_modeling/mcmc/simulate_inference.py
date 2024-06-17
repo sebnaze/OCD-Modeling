@@ -258,9 +258,9 @@ if __name__=='__main__':
 
     test_param = get_test_param(args)
 
-    # delay start randomly by up to 2 min to avoid large batches of simulations writting
+    # delay start randomly by up to 3 min to avoid large batches of simulations writting
     # concurrently to DB 
-    sleep(np.random.randint(0,120))
+    sleep(np.random.randint(0,180))
     
     launch_sims_parallel(kdes, cols, test_param, args=args)
 

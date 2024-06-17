@@ -183,7 +183,7 @@ def compute_stats(histories, args=None):
         stat_norm_con,p_norm_con = scipy.stats.normaltest(x)
         stat_norm_pat,p_norm_pat = scipy.stats.normaltest(y)
 
-        t,p_t = scipy.stats.ttest_ind(x,y)
+        t,p_t = scipy.stats.ttest_ind(x,y, permutations=10000)
     
         u,p_u = scipy.stats.mannwhitneyu(x,y)
         
@@ -193,13 +193,13 @@ def compute_stats(histories, args=None):
 
         ks_res = scipy.stats.ks_2samp(x,y)
         
-        line = "{:15}    t={:8.2f}    p={:.4f}    p_bf={:.4f}    normality(con/pat)={}/{}    \
+        line = "{:15}    OCD={:.2f}     controls={:.2f}     t={:8.2f}    p={:.4f}    p_bf={:.4f}    normality(con/pat)={}/{}    \n\
                 U={:8d}    p={:.4f}    p_bf={:.4f}    H={:8.3f}    p={:.4f}    p_bf={:.4f}    \
                 d={:.4f}    ks={:.2f}    p_ks={:.4f}    p_bf={:.4f}".format(
-            col,t,p_t,p_t*mc,p_norm_con>0.05,p_norm_pat>0.05,int(u),p_u, p_u*mc,h,p_h,p_h*mc,d,ks_res.statistic, ks_res.pvalue, ks_res.pvalue*mc)
+            col,y.median(),x.median(),t,p_t,p_t*mc,p_norm_con>0.05,p_norm_pat>0.05,int(u),p_u, p_u*mc,h,p_h,p_h*mc,d,ks_res.statistic, ks_res.pvalue, ks_res.pvalue*mc)
         print(line)
         
-        df_line = {'param':col, 't':t, 'p_t':p_t, 'p_t_bf':p_t/len(cols), 'normality':(p_norm_con>0.05)&(p_norm_pat>0.05), \
+        df_line = {'param':col, 't':t, 'p_t':p_t, 'p_t_bf':p_t*len(cols), 'normality':(p_norm_con>0.05)&(p_norm_pat>0.05), \
                 'u':u, 'p_u':p_u, 'p_u_bf':p_u*len(cols), \
                 'h':h, 'p_h':p_h, 'p_h_bf':p_h*len(cols), 'd':d, 'ks':ks_res.statistic, 'p_ks':ks_res.pvalue}
         stats.append(df_line)
@@ -421,8 +421,25 @@ def plot_fc_sim_vs_data(df_data, df_base, stats, axes=None, args=None):
     
     
 
-def plot_kdes(kdes, cols, df_stats, histories, args=None):
-    """  Plot Kernel Density Estimates of posteriors """
+def plot_kdes(kdes, cols, df_stats, df_real=[], df_pred=[], args=None):
+    """  Plot Kernel Density Estimates of posteriors (controls vs OCD)
+    
+    Parameters
+    ----------
+        kdes: dict
+            Kernel Density Estimates of parameters
+        cols: list
+            Model parameters
+        df_stats: pandas.DataFrame
+            Stastics for each parameter (healthy controls vs OCD patients)
+        df_real: pandas.DataFrame
+            (Optional) Synthetic data (observed)
+        df_pred: pandas.DataFrame
+            (Optional) Synthetic data (predicted)
+        args: argparse.Namespace
+            (Optional) Extra arguments
+
+    """
 
     plt.rcParams.update({'mathtext.default': 'regular', 'font.size':10})
     plt.rcParams.update({'text.usetex': False})
@@ -465,12 +482,18 @@ def plot_kdes(kdes, cols, df_stats, histories, args=None):
         
         ttl=''
         if df_stats[df_stats.param==col]['p_u_bf'].iloc[0]<0.05:
+        #if df_stats[df_stats.param==col]['p_t_bf'].iloc[0]<0.05:
             ttl+='*'
             if np.abs(df_stats[df_stats.param==col]['d'].iloc[0])>0.2:
                 ttl+='*'
                 if np.abs(df_stats[df_stats.param==col]['d'].iloc[0])>0.5:
                     ttl+='*'
         plt.title(ttl, fontsize=14)
+
+        if len(df_real)!=0:
+            plt.vlines(df_real[col], ymin=mn, ymax=mx, color='black')
+        if len(df_pred)!=0:
+            plt.vlines(df_pred[col], ymin=mn, ymax=mx, color='red')
 
     # FC
     #axes = {'data': fig.add_subplot(gs[3:, 0:3]),
@@ -584,10 +607,10 @@ if __name__=='__main__':
     if args.plot_kde_matrix:
         plot_kde_matrix(histories, args)
 
-    if args.plot_stats:
-        # posterior distributions stats
-        df_stats = compute_stats(histories, args)
-    
+
+    # posterior distributions stats
+    df_stats = compute_stats(histories, args)
+
     if args.compute_kdes:
         kdes,cols = compute_kdes(histories, args=args)
     if args.plot_kdes:

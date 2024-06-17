@@ -128,6 +128,8 @@ class ReducedWongWangND:
 
         if C is None:
             self.C = np.random.randn(N,N) * (1-np.eye(N,N))  # connectivity matrix (n/a); default= 0 self, 1 to others
+        elif type(C)==list:
+            self.C = np.array(C)
         else:
             self.C = C
         
@@ -390,6 +392,7 @@ def compute_bold(model, t_range=None, transient=30):
     ts = model.S_rec[inds,:]
     bold_ts, x, f, q, v = simulateBOLD(ts.T, 1./model.sf, voxelCounts=None)
     model.bold_ts = bold_ts[:,int(model.sf*transient):] # discard first 10 sec due to transient
+    model.bold_t = model.t[inds[int(model.sf*transient):]]
     model.bold_fc = np.corrcoef(model.bold_ts)
 
 
@@ -524,8 +527,8 @@ def plot_timeseries(model, t_range=None, labels=['OFC', 'PFC', 'NAcc', 'Put']):
     inds = get_inds(model, t_range)
     plt.plot(model.t[inds],model.S_rec[inds,:])
     #plt.legend([str(i) for i in range(model.N)])
-    plt.legend(labels)
-    plt.title("sigma={:.4f} G={:.1f} C={}".format(model.sigma, model.G, model.C))
+    plt.legend(labels, loc='upper left', bbox_to_anchor=[1,1])
+    #plt.title("sigma={:.4f} G={:.1f} C={}".format(model.sigma, model.G, model.C))
     plt.show()
 
 def plot_control_params(model, t_range=None, labels=[]):
@@ -575,14 +578,20 @@ def plot_bold(model, labels=[]):
     gs = plt.GridSpec(1,2, width_ratios=[4,1])
 
     ax1 = fig.add_subplot(gs[0,0])
-    ax1.plot(model.bold_ts.T)
-    ax1.legend(labels)
+    for i in range(model.N):
+        ax1.plot(model.bold_t, model.bold_ts.T[:,i])
+    ax1.legend(labels, loc='upper right')
+    ax1.spines.top.set_visible(False)
+    ax1.spines.right.set_visible(False)
+    ax1.set_xlabel('time (s)')
+    ax1.set_ylabel('BOLD (a.u.)')
 
     ax2 = fig.add_subplot(gs[0,1])
     img = ax2.imshow(model.bold_fc, vmin=-1, vmax=1, cmap='RdBu_r')
-    plt.colorbar(img)
-    plt.xticks(np.arange(len(labels)), labels)
+    #plt.colorbar(img)
+    plt.xticks(np.arange(len(labels)), labels, rotation=60)
     plt.yticks(np.arange(len(labels)), labels)
+    ax2.set_title('Functional Connectivity')
     plt.show()
 
 

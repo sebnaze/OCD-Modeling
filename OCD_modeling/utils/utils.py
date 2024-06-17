@@ -63,7 +63,7 @@ def get_working_dir():
     elif 'hpcnode' in platform.node():
         working_dir = '/mnt/lustre/working/'
     else:
-        print('Computer unknown! Setting working dir as /working')
+        #print('Setting working dir as /working')
         working_dir = '/working/'
     return working_dir
 
