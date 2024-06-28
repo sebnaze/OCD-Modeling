@@ -197,7 +197,8 @@ def compute_stats(histories, args=None):
                 U={:8d}    p={:.4f}    p_bf={:.4f}    H={:8.3f}    p={:.4f}    p_bf={:.4f}    \
                 d={:.4f}    ks={:.2f}    p_ks={:.4f}    p_bf={:.4f}".format(
             col,y.median(),x.median(),t,p_t,p_t*mc,p_norm_con>0.05,p_norm_pat>0.05,int(u),p_u, p_u*mc,h,p_h,p_h*mc,d,ks_res.statistic, ks_res.pvalue, ks_res.pvalue*mc)
-        print(line)
+        if args.plot_stats:
+            print(line)
         
         df_line = {'param':col, 't':t, 'p_t':p_t, 'p_t_bf':p_t*len(cols), 'normality':(p_norm_con>0.05)&(p_norm_pat>0.05), \
                 'u':u, 'p_u':p_u, 'p_u_bf':p_u*len(cols), \
@@ -614,7 +615,7 @@ if __name__=='__main__':
     if args.compute_kdes:
         kdes,cols = compute_kdes(histories, args=args)
     if args.plot_kdes:
-        plot_kdes(kdes, cols, df_stats, histories=histories, args=args)
+        plot_kdes(kdes, cols, df_stats, args=args)
 
     if args.plot_fc_sim_vs_data:
         # load simulated and observed data
