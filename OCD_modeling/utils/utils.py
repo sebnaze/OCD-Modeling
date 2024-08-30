@@ -64,7 +64,7 @@ def get_working_dir():
         working_dir = '/mnt/lustre/working/'
     else:
         #print('Setting working dir as /working')
-        working_dir = '/working/'
+        working_dir = '/data/working/'
     return working_dir
 
 working_dir = get_working_dir()
