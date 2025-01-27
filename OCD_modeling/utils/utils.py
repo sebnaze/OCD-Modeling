@@ -60,7 +60,7 @@ def get_working_dir():
         working_dir = '/home/sebastin/working/'
     elif platform.node()=='neurosrv01':
         working_dir = '/home/sebastienn/working/'
-    elif 'hpcnode' in platform.node():
+    elif 'hpc' in platform.node():
         working_dir = '/mnt/lustre/working/'
     else:
         #print('Setting working dir as /working')

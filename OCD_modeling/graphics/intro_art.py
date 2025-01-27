@@ -27,11 +27,12 @@ from OCD_baseline.utils import atlaser
 sys.path.insert(0, os.path.join(code_dir, 'graphics'))
 import baseline_visuals
 
+atlases = ['schaefer100_tianS1'] #, 'ocdOFClPFC_ocdAccdPut']
 
 #subcortex = ['Right_Hippocampus', 'Right_Amygdala', 'Right_PosteriorThalamus', 'Right_AnteriorThalamus', 'Right_NucleusAccumbens', 'Right_GlobusPallidus', 'Right_Putamen', 'Right_Caudate']
 #           'Left_Hippocampus', 'Left_Amygdala', 'Left_PosteriorThalamus', 'Left_AnteriorThalamus', 'Left_NucleusAccumbens', 'Left_GlobusPallidus', 'Left_Putamen', 'Left_Caudate']
 
-subcortex = ['Right_NucleusAccumbens', 'Right_Putamen']
+subcortex = [['Right_NucleusAccumbens', 'Right_Putamen'], ['OFC_R', 'lPFC_R', 'AccSPM_R', 'dPutSPM_R']]
 
 opts = {'Putamen': {'color': 'RoyalBlue',
                           'show_edges': False,
@@ -160,11 +161,15 @@ opts = {'Putamen': {'color': 'magenta',
                                       'show_edges': False,
                                       'line_width': 1,
                                       'opacity':1},
-        'OFC': {   'color': 'blue',
+        'OFC_1': {   'color': 'blue',
                                       'show_edges': False,
                                       'line_width': 1,
                                       'opacity':1},
         'PFCl_2': {   'color': 'green',
+                                      'show_edges': False,
+                                      'line_width': 1,
+                                      'opacity':1},
+        'ContA_PFCl_1': {   'color': 'orange',
                                       'show_edges': False,
                                       'line_width': 1,
                                       'opacity':1},
@@ -179,7 +184,23 @@ opts = {'Putamen': {'color': 'magenta',
                             'line_width': 0.1,
                             'opacity': 1,
                             'style': 'surface' 
-                   } 
+                   },
+        'OFC_R': {   'color': 'brown',
+                                      'show_edges': False,
+                                      'line_width': 1,
+                                      'opacity':1},
+        'lPFC_R': {   'color': 'purple',
+                                      'show_edges': False,
+                                      'line_width': 1,
+                                      'opacity':1}, 
+        'AccSPM_R': {   'color': 'blue',
+                                      'show_edges': False,
+                                      'line_width': 1,
+                                      'opacity':1},
+        'dPutSPM_R': {   'color': 'cyan',
+                                      'show_edges': False,
+                                      'line_width': 1,
+                                      'opacity':1}, 
         }
 
 # Figure 2: Two-pathways fronto-striatal system
@@ -249,35 +270,36 @@ def create_region_mesh(region):
 # Additionally, all the modules other than ipygany and pythreejs require a framebuffer, which can be setup on a headless environment with pyvista.start_xvfb().
 pv.start_xvfb()
 
-atlazer = atlaser.Atlaser('schaefer100_tianS1')
-
 pl = pv.Plotter(window_size=[800,600], notebook=True)
 pl.background_color='white'
 
 meshes = dict()
+for i,atlas in enumerate(atlases):
+    atlazer = atlaser.Atlaser(atlas)
 
-# subcortex
-for region in subcortex:
-    # get nifti img from region(s)
-    roi_img = atlazer.create_subatlas_img(region)
-    mesh = create_mesh(roi_img)
-    meshes[region] = mesh
-    
-# cortex
-mshs = Parallel(n_jobs=32)(delayed(create_region_mesh)(region) for region in atlazer.node_names[58:108]) # use :400 for bilateral
-for region,mesh in zip(atlazer.node_names[58:108], mshs):
-    meshes[region] = mesh
+    # subcortex
+    for region in subcortex[i]:
+        # get nifti img from region(s)
+        roi_img = atlazer.create_subatlas_img(region)
+        mesh = create_mesh(roi_img)
+        meshes[region] = mesh
+        
+    # cortex
+    if "schaefer" in atlas:
+        mshs = Parallel(n_jobs=32)(delayed(create_region_mesh)(region) for region in atlazer.node_names[58:108]) # use :400 for bilateral
+        for region,mesh in zip(atlazer.node_names[58:108], mshs):
+            meshes[region] = mesh
 
-# save mesh
-fname = '/home/sebastin/working/lab_lucac/sebastiN/projects/OCD_modeling/postprocessing/mesh_20240222.pkl'
-with open(fname, 'wb') as f:
-    pickle.dump(meshes, f)
+    # save mesh
+    #fname = '/home/sebastin/working/lab_lucac/sebastiN/projects/OCD_modeling/postprocessing/mesh_20240222.pkl'
+    #with open(fname, 'wb') as f:
+    #    pickle.dump(meshes, f)
 
-# plot
-for region,mesh in meshes.items():
-    roi = [key for key in opts.keys() if key in region]
-    roi='cortex_mesh' if roi==[] else roi[0]
-    pl.add_mesh(mesh, **opts[roi])
+    # plot
+    for region,mesh in meshes.items():
+        roi = [key for key in opts.keys() if key in region]
+        roi='cortex_mesh' if roi==[] else roi[0]
+        pl.add_mesh(mesh, **opts[roi])
 
 pl.camera_position = 'yz'
 pl.camera.roll += 10
@@ -309,9 +331,9 @@ pl.screenshot(filename='/home/sebastin/working/lab_lucac/sebastiN/projects/OCD_m
 """
 pl.camera.azimuth += 180
 pl.renderer.reset_camera_clipping_range()
-pl.screenshot(filename='/home/sebastin/working/lab_lucac/sebastiN/projects/OCD_modeling/img/OFC_PFC_NAcc_dPut_medial002_20231129.png',
-              transparent_background=True,
-              return_img=False,
-              )
+#pl.screenshot(filename='/home/sebastin/working/lab_lucac/sebastiN/projects/OCD_modeling/img/OFC_PFC_NAcc_dPut_medial002_20231129.png',
+#              transparent_background=True,
+#              return_img=False,
+#              )
 
 pl.show(jupyter_backend='panel')

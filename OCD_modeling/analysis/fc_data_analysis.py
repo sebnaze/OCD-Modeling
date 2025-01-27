@@ -20,7 +20,7 @@ import seaborn as sbn
 from time import time
 
 
-# /!\ OCD_baseline imports are not kosher, was quick and dirty way to get things done, regretfully
+# /!\ OCD_baseline imports are not propperly implemented, it was done the quick and dirty way to get things running, regretfully
 if platform.node()=='qimr18844':
     import OCD_baseline
     from OCD_baseline.functional.seed_to_voxel_analysis import * 
@@ -78,15 +78,15 @@ def get_subj_rois_corr(subj, sessions=['ses-pre', 'ses-post'], rois=['Acc', 'dPu
     return df_lines
 
 
-def get_rois_corr(subjs, rois=['Acc', 'dPut', 'OFC', 'PFC'], args=None):
+def get_rois_corr(subjs, sessions=['ses-pre', 'ses-post'], rois=['Acc', 'dPut', 'OFC', 'PFC'], args=None):
     """ parallel post-processing of subjects ROIs correlation  """
-    parallel_functions = [joblib.delayed(get_subj_rois_corr)(subj, rois=rois, args=args) for subj in subjs]
+    parallel_functions = [joblib.delayed(get_subj_rois_corr)(subj, sessions=sessions, rois=rois, args=args) for subj in subjs]
     df_lines = joblib.Parallel(n_jobs=args.n_jobs)(parallel_functions)
     df_lines = itertools.chain(*df_lines)
     df_roi_corr = pd.DataFrame(df_lines)
 
     if args.save_outputs:
-        with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_pre-prost_avg_2023.pkl'), 'wb') as f:
+        with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_pre-prost_avg_2024_Thal.pkl'), 'wb') as f:
             pickle.dump(df_roi_corr, f)
 
     return df_roi_corr
@@ -359,6 +359,7 @@ def main(args):
         df_rois_corr = get_rois_corr(subjs, args=args)
                                                                                   
     df_rois_corr = prep_pre_post_df(df_rois_corr)
+
     if args.plot_pre_post_fc_vs_controls:
         plot_pre_post_fc_vs_controls(df_rois_corr, args)
 

@@ -31,6 +31,8 @@ def run_sim(model_pars, sim_pars, control_pars={}, bold_pars={}):
             Control parameters. In case parameters needs to be manually updated throughout the simulation,
             provide the parameters' timeseries here.
         bold_pars: dict
+            BOLD parameters. Dictionary with keys t_range (the time range on which to compute the BOLD signal),
+            and transient (the time to discard due to transient at hthe beginning on the convolution). 
 
     Returns
     -------
@@ -45,6 +47,7 @@ def run_sim(model_pars, sim_pars, control_pars={}, bold_pars={}):
     # analyze traces
     RWW.compute_bold(rww_sim, **bold_pars)
     #RWW.compute_transitions(rww_sim)
+    #RWW.compute_strFr_stats(rww_sim)
 
     return rww_sim
 

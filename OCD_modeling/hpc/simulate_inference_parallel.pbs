@@ -26,4 +26,5 @@ proj_dir=/mnt/lustre/working/lab_lucac/sebastiN/projects/OCD_modeling/
 
 IDX=$((PBS_ARRAY_INDEX-1))  # double parenthesis needed for arithmetic operations
 
-python ${proj_dir}code/OCD_modeling/mcmc/simulate_inference.py --histories 'rww4D_OU_HPC_20230510' 'rww4D_OU_HPC_20230605' --db_name 'sim_interventions_20240323' --n_jobs 20 --n_sims 1000 --n_batch 200 --base_cohort 'patients' --test_cohort 'controls' --test_param_index $IDX
+python ${proj_dir}code/OCD_modeling/mcmc/simulate_inference.py --histories 'rww4D_OU_HPC_20230510' 'rww4D_OU_HPC_20230605' --db_name 'sim_controls_20240613' --n_jobs 20 --n_sims 1000 --n_batch 200 --base_cohort 'controls' --test_cohort 'patients' --test_param 'None' #--test_param_index $IDX
+#python ${proj_dir}code/OCD_modeling/mcmc/simulate_inference.py --histories 'rww4D_OU_HPC_20230510' 'rww4D_OU_HPC_20230605' --db_name 'sim_digital_twins_20240327' --n_jobs 20 --n_sims 1000 --n_batch 200 --base_cohort 'patients' --test_cohort 'controls' --test_param 'None'

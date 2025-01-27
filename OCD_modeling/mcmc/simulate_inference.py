@@ -21,7 +21,7 @@ from time import time, sleep
 # import most relevant environment and project variable
 from OCD_modeling.utils.utils import proj_dir, today
 from OCD_modeling.mcmc.history_analysis import import_results, compute_kdes
-from OCD_modeling.mcmc.abc_hpc import unpack_params, get_prior
+from OCD_modeling.mcmc.abc_hpc import unpack_params, get_prior, get_prior_Thal, get_prior_Thal_fc_weak, get_prior_Thal_hc_weak
 from OCD_modeling.models.ReducedWongWang import create_sim_df
 from OCD_modeling.hpc.parallel_launcher import run_sim
 
@@ -40,11 +40,14 @@ def batched(iterable, n):
             return
         yield batch
 
+
+priorfunc = {4:get_prior, 6:get_prior_Thal_hc_weak} #6:get_prior_Thal_fc_weak  #get_prior_Thal
+
 def create_params(kdes, cols, test_param, args):
     """ creates n_sims new parameters from posetrior distribution of base cohort """
     model_params, sim_params, control_params, bold_params, ids = [],[],[],[],[] # not most elegant but fine for now
     params = [] # to keep formatted parameters easier to convert to DataFrame
-    _,bounds = get_prior()
+    _,bounds = priorfunc[args.N]()
     # create a new dict of params to unpack
     for i in range(args.n_sims):
         param = dict()
@@ -218,6 +221,8 @@ def get_test_param(args):
     if args.test_param_index==None:
         if args.test_param!=[]:
             test_param = ' '.join(args.test_param)
+        else:
+            test_param = 'None'
     else:
         with open(os.path.join(proj_dir, 'postprocessing', 'params_combinations.pkl'), 'rb') as f:
             combinations = pickle.load(f)
@@ -232,9 +237,9 @@ def parse_arguments():
     parser.add_argument('--save_figs', default=False, action='store_true', help='save figures')
     parser.add_argument('--save_outputs', default=False, action='store_true', help='save outputs')
     parser.add_argument('--n_jobs', type=int, default=10, action='store', help="number of parallel processes launched")
-    parser.add_argument('--n_sims', type=int, default=50, action='store', help="number of simulations ran with the same parameters (e.g. to get distribution that can be campared to clinical observations)")
-    parser.add_argument('--n_batch', type=int, default=10, action='store', help="number of simulations ran with the same parameters (e.g. to get distribution that can be campared to clinical observations)")
-    parser.add_argument('--gens', type=list, default=[], action='store', help="generation of the optimization (list, must be same length as histories)")
+    parser.add_argument('--n_sims', type=int, default=50, action='store', help="number of simulations in intervention (e.g. to get distribution that can be campared to clinical observations)")
+    parser.add_argument('--n_batch', type=int, default=10, action='store', help="number of sumluation per batch between saving to DB (to reduce i/o overhead)")
+    parser.add_argument('--gens', nargs='+', default=[], action='store', help="generation of the optimization (list, must be same length as histories)")
     parser.add_argument('--plot_figs', default=False, action='store_true', help='plot figures')
     parser.add_argument('--histories', nargs='+', default=['rww4D_OU_HPC_20230510', 'rww4D_OU_HPC_20230605'], action='store', help="optimizations to analyse and compare")
     parser.add_argument('--history_names', type=list, default=['controls', 'patients'], action='store', help="names given to each otpimization loaded")
@@ -246,7 +251,9 @@ def parse_arguments():
     parser.add_argument('--test_param_index', type=int, default=None, action='store', help='if using a external file for test parameters, use line index ')
     parser.add_argument('--timeout', type=int, default=3600, help="timeout for DB writting in parallel")
     parser.add_argument('--use_optim_params', default=False, action='store_true', help="if flag is on, use parameters from accepted particles of optimization, other draw new params from posterior")
+    parser.add_argument('--N', type=int, default=4, action='store', help="Number of regions in simulations (default=4, could also be 6.")
     args = parser.parse_args()
+    args.gens = np.array(args.gens, dtype=int)
     return args
 
 

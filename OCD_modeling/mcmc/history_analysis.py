@@ -131,6 +131,7 @@ def plot_weights(histories, gs=None, nrows=None, ncols=None, row_offset=None, co
 
 def plot_param_distrib(histories, args):
     """ plot posterior distribution at end of optimization """
+    colors = {'controls':'lightskyblue', 'patients':'orange'}
     n_hist = len(histories)
     n_gen = np.max([h.max_t for h in histories.values()])
     fig = plt.figure(figsize=[40, 20])
@@ -141,7 +142,7 @@ def plot_param_distrib(histories, args):
             n_cols = len(list(df.columns))
             for k,col in enumerate(df.columns):
                 plt.subplot(n_gen+1,n_cols,j*n_cols+k+1)
-                plt.hist(df[col], alpha=0.2)
+                plt.hist(df[col], alpha=0.2, color=colors[args.history_names[i]])
                 plt.xlabel(col)
 
                 # use first generation (prior) to set xlims
@@ -172,8 +173,8 @@ def compute_stats(histories, args=None):
             Statistics.  
 
     """
-    df_post_con,w_con = histories['controls'].get_distribution(t=9)
-    df_post_pat,w_pat = histories['patients'].get_distribution(t=9)
+    df_post_con,w_con = histories['controls'].get_distribution(t=args.gens[0])
+    df_post_pat,w_pat = histories['patients'].get_distribution(t=args.gens[1])
     cols = df_post_con.columns
     mc = len(cols)
     stats = []
@@ -223,9 +224,9 @@ def compute_kdes(histories, n_pts = 100, args=None):
     kdes = dict()
 
     cols = []
-    for cohort,history in histories.items():
+    for i,(cohort,history) in enumerate(histories.items()):
         kdes[cohort] = dict()
-        df,w = history.get_distribution(t=9)
+        df,w = history.get_distribution(t=args.gens[i])
         for col in df.columns:
             cols.append(col)
             vmin, vmax = df[col].min(), df[col].max()
@@ -243,9 +244,14 @@ def compute_kdes(histories, n_pts = 100, args=None):
 
     return kdes, cols
 
-def custom_plot_epsilons(histories, ax, n_gens=11):
+def custom_plot_epsilons(histories, ax=None, n_gens=11):
     colors = ['lightblue', 'orange']
     labels = ['controls', 'OCD']#list(histories.keys())
+
+    if ax==None:
+        fig = plt.figure()
+        ax = plt.subplot(1,1,1)
+
     for i,(name,history) in enumerate(histories.items()):
         # extract epsilons
         # note: first entry is from calibration and thus translates to inf,
@@ -422,7 +428,7 @@ def plot_fc_sim_vs_data(df_data, df_base, stats, axes=None, args=None):
     
     
 
-def plot_kdes(kdes, cols, df_stats, df_real=[], df_pred=[], args=None):
+def plot_kdes(kdes, cols, df_stats, df_real=[], df_pred=[], plot_args={'nrows':4, 'ncols':5, 'row_offset':2, 'col_offset':3, 'figsize':[10,7], 'show_stars':True, 'hist_alpha':0.3, 'kde_alpha':1}, args=None):
     """  Plot Kernel Density Estimates of posteriors (controls vs OCD)
     
     Parameters
@@ -446,15 +452,18 @@ def plot_kdes(kdes, cols, df_stats, df_real=[], df_pred=[], args=None):
     plt.rcParams.update({'text.usetex': False})
     plt.rcParams.update({'figure.constrained_layout.use': False})
 
-    nrows, ncols = 4,5
-    row_offset, col_offset = 2,3
+    nrows, ncols = plot_args['nrows'], plot_args['ncols']
+    row_offset, col_offset = plot_args['row_offset'], plot_args['col_offset']
 
-    fig = plt.figure(figsize=[10,7])
-    gs = plt.GridSpec(nrows=nrows, ncols=ncols)
+    fig = plt.figure(figsize=plot_args['figsize'])
+    gs = plt.GridSpec(nrows=nrows, ncols=ncols, hspace=0.7, wspace=0.25)
     
     # EPSILONS
     #ax = fig.add_subplot(gs[0:row_offset, 0:col_offset])
     #custom_plot_epsilons(histories, ax=ax)
+
+    # subject vertical lines colors:
+    subjs_colors = ['yellowgreen', 'plum']
     
     # KDES
     ax_inds = get_ax_inds(nrows, ncols, row_offset, col_offset)
@@ -464,11 +473,11 @@ def plot_kdes(kdes, cols, df_stats, df_real=[], df_pred=[], args=None):
         ax = fig.add_subplot(gs[i,j])
         vals = np.concatenate([kdes['controls'][col]['vals'], kdes['patients'][col]['vals']])
         bins = np.linspace(vals.min(), vals.max(), 13)
-        plt.hist(kdes['controls'][col]['vals'], color='lightblue', bins=bins, alpha=0.2, density=True, log=False, lw=0.3, ec='gray')
-        plt.hist(kdes['patients'][col]['vals'], color='orange', bins=bins, alpha=0.2, density=True, log=False, lw=0.3, ec='gray')
-        plt.plot(kdes['controls'][col]['X'], np.exp(kdes['controls'][col]['pdf']), 'lightblue', lw=1)
-        plt.plot(kdes['patients'][col]['X'], np.exp(kdes['patients'][col]['pdf']), 'orange', lw=1)
-        xlabl = OCD_modeling.mcmc.inference_analysis.format_labels([matplotlib.text.Text(text=col)])[0]
+        plt.hist(kdes['controls'][col]['vals'], color='lightblue', bins=bins, alpha=plot_args['hist_alpha'], density=True, log=False, lw=0.3, ec='gray')
+        plt.hist(kdes['patients'][col]['vals'], color='orange', bins=bins, alpha=plot_args['hist_alpha'], density=True, log=False, lw=0.3, ec='gray')
+        plt.plot(kdes['controls'][col]['X'], np.exp(kdes['controls'][col]['pdf']), 'lightblue', lw=1, alpha=plot_args['kde_alpha'])
+        plt.plot(kdes['patients'][col]['X'], np.exp(kdes['patients'][col]['pdf']), 'orange', lw=1, alpha=plot_args['kde_alpha'])
+        xlabl = OCD_modeling.mcmc.inference_analysis.format_labels([matplotlib.text.Text(text=col)], args.N)[0]
         plt.xlabel(xlabl, fontsize=12)
         if j==0:
             plt.ylabel("$\\rho$", fontsize=12)
@@ -482,26 +491,52 @@ def plot_kdes(kdes, cols, df_stats, df_real=[], df_pred=[], args=None):
         ax.spines.right.set_visible(False)
         
         ttl=''
-        if df_stats[df_stats.param==col]['p_u_bf'].iloc[0]<0.05:
-        #if df_stats[df_stats.param==col]['p_t_bf'].iloc[0]<0.05:
-            ttl+='*'
-            if np.abs(df_stats[df_stats.param==col]['d'].iloc[0])>0.2:
+        if plot_args['show_stars']:
+            if df_stats[df_stats.param==col]['p_u_bf'].iloc[0]<0.05:
+            #if df_stats[df_stats.param==col]['p_t_bf'].iloc[0]<0.05:
                 ttl+='*'
-                if np.abs(df_stats[df_stats.param==col]['d'].iloc[0])>0.5:
+                if np.abs(df_stats[df_stats.param==col]['d'].iloc[0])>0.2:
                     ttl+='*'
+                    if np.abs(df_stats[df_stats.param==col]['d'].iloc[0])>0.5:
+                        ttl+='*'
         plt.title(ttl, fontsize=14)
 
         if len(df_real)!=0:
-            plt.vlines(df_real[col], ymin=mn, ymax=mx, color='black')
+            for i,subj_df in enumerate(df_real):
+                plt.vlines(subj_df[col], ymin=mn, ymax=mx, color=subjs_colors[i], lw=2)
+                if args.annotate_restore:
+                    ctl_mean = kdes['controls'][col]['vals'].mean()
+                    arrow_height = mx - (i+1)*5*(mx-mn)/100  # 5% below top and by step of 5% for each subjs
+                    plt.vlines(ctl_mean, ymin=mn, ymax=mx, color='black', linewidth=3, alpha=0.5)
+                    arrow = matplotlib.patches.FancyArrowPatch((float(subj_df[col]),arrow_height), (ctl_mean,arrow_height), 
+                                                    arrowstyle='->,head_width=0.1,head_length=0.1', mutation_scale=20, edgecolor=subjs_colors[i], linewidth=2)
+                    ax.add_patch(arrow)
+        
         if len(df_pred)!=0:
             plt.vlines(df_pred[col], ymin=mn, ymax=mx, color='red')
+
 
     # FC
     #axes = {'data': fig.add_subplot(gs[3:, 0:3]),
     #        'sim': fig.add_subplot(gs[3:, 3:])}
     #plot_fc_sim_vs_data()
 
+    if args.annotate_restore:
+        ax = fig.add_subplot(gs[0,0])
+        for i,subj_df in enumerate(df_real):
+            ax.text(0.5,-i*0.5, subj_df.iloc[0]['subj'], backgroundcolor=matplotlib.colors.colorConverter.to_rgba(subjs_colors[i], 0.3), horizontalalignment='center')
+            ax.text(0.5,-i*0.5-0.25, 'vs', horizontalalignment='center')
+        ax.text(0.5,-len(df_real)*0.5, 'Healthy Average', fontweight='bold', horizontalalignment='center')
+        ax.set_ylim([-1,0.2])
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        
     plt.tight_layout(pad=0)
+    
     if args.save_figs:
         today = datetime.now().strftime('_%Y%m%d')
         fname = os.path.join(proj_dir, 'img', 'kdes'+today+'.svg')
@@ -568,7 +603,7 @@ def get_history_parser():
     
     parser.add_argument('--n_jobs', type=int, default=10, action='store', help="number of parallel processes launched")
     parser.add_argument('--n_sims', type=int, default=50, action='store', help="number of simulations ran with the same parameters (e.g. to get distribution that can be campared to clinical observations)")
-    parser.add_argument('--gens', type=list, default=[], action='store', help="generation of the optimization (list, must be same length as histories)")
+    parser.add_argument('--gens', nargs='+', default=[], action='store', help="generation of the optimization (list, must be same length as histories)")
     parser.add_argument('--histories', nargs='+', default=None, action='store', help="optimizations to analyse and compare")
     parser.add_argument('--history_names', type=list, default=['controls', 'patients'], action='store', help="names given to each otpimization loaded")
     parser.add_argument('--compute_kdes', default=False, action='store_true', help='compute KDEs of parameter estimations')
@@ -588,7 +623,10 @@ def get_history_parser():
     parser.add_argument('--plot_kdes', default=False, action='store_true', help='plot KDEs of optimzed params')
     parser.add_argument('--plot_fc_sim_vs_data', default=False, action='store_true', help='plot FC of inference from optimization vs real data')
     parser.add_argument('--simulate_posterior_modes', default=False, action='store_true', help='run simulations with at posterior distributions modes ')
+
+    parser.add_argument('--N', type=int, default=4, action='store', help="number of node in the soumilations (default N=4, i.e. no thalamus, other option is N=6 (with thalamus)")
     
+    parser.add_argument('--annotate_restore', default=False, action='store_true', help='Annotate the plots with arrow between subjects params and the avg controls')
     return parser
 
 
@@ -598,7 +636,8 @@ if __name__=='__main__':
     histories = import_results(args)
     
     if args.plot_epsilons:
-        plot_epsilons(histories, args)
+        #plot_epsilons(histories, args)
+        custom_plot_epsilons(histories, n_gens=np.array(args.gens, dtype=int).max())
     if args.plot_weights:
         plot_weights(histories, args)
     if args.plot_epsilons_weights:
@@ -615,7 +654,9 @@ if __name__=='__main__':
     if args.compute_kdes:
         kdes,cols = compute_kdes(histories, args=args)
     if args.plot_kdes:
-        plot_kdes(kdes, cols, df_stats, args=args)
+        plot_args = {4:{'nrows':4, 'ncols':5, 'row_offset':2, 'col_offset':3, 'figsize':[10,7], 'show_stars':True, 'hist_alpha':0.3, 'kde_alpha':1},
+                     6:{'nrows':6, 'ncols':5, 'row_offset':0, 'col_offset':0, 'figsize':[10,12], 'show_stars':True, 'hist_alpha':0.3, 'kde_alpha':1}}
+        plot_kdes(kdes, cols, df_stats, plot_args=plot_args[args.N], args=args)
 
     if args.plot_fc_sim_vs_data:
         # load simulated and observed data

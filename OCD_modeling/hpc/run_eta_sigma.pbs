@@ -1,0 +1,39 @@
+#!/bin/bash
+
+##########################################################################
+#
+#  Script:    run_eta_sigma.pbs
+#  Author:    Sebastien Naze
+#  Created:   2023-2024
+#
+##########################################################################
+
+#PBS -N OCD_modeling
+#PBS -l ncpus=12,mem=32gb,walltime=02:00:00
+#PBS -m abe
+#PBS -M sebastien.naze@qimrberghofer.edu.au
+#PBS -o /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
+#PBS -e /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
+#
+# Launch parameter analysis on HPC
+#
+
+module load miniconda3/current
+
+source activate bayesenv
+
+proj_dir=/mnt/lustre/working/lab_lucac/sebastiN/projects/OCD_modeling/
+pp_dir=${proj_dir}postprocessing/
+
+# load specific subject from subject list
+
+IDX=$((PBS_ARRAY_INDEX-1))  # double parenthesis needed for arithmetic operations
+#param=${params[$IDX]}
+batchID='eta_sigma_20241029'
+mkdir -p ${proj_dir}log/${batchID}
+
+#echo "Parameters: " ${param}
+echo "UID: ${batchID}"
+
+echo 'Running model...'
+python ${proj_dir}code/OCD_modeling/analysis/ReducedWongWangOU_analysis.py --param_index $IDX --batch_id ${batchID} --n_jobs 12 --save_outputs 
