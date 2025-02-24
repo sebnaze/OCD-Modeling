@@ -449,24 +449,28 @@ def compute_strFr_stats(model, t_range=None, thr=0, rec_vars=['C_12']):
     model.strFr_stats = output
         
 
-def create_sim_df(sim_objs, sim_type = 'sim-con', offset=0):
+def create_sim_df(sim_objs, sim_type = 'sim-con', offset=0, dataset='OCD_baseline'):
     """ Make a pandas DataFrame from list of simulation outputs objects """
-    if sim_objs[0].N == 4:
-        var_names = ['OFC', 'PFC', 'NAcc', 'Put']
-        pathway_map = {'OFC-PFC': 'OFC_PFC', 'OFC-NAcc': 'Acc_OFC', 'OFC-Put':'dPut_OFC', 'PFC-NAcc':'Acc_PFC', 'PFC-Put':'dPut_PFC', 'NAcc-Put':'Acc_dPut'}
-    
-    elif sim_objs[0].N == 6:
-        var_names = ['OFC', 'PFC', 'NAcc', 'Put', 'DP', 'VA']
-        pathway_map = {'OFC-PFC': 'OFC_PFC', 'OFC-NAcc': 'Acc_OFC', 'OFC-Put':'dPut_OFC', 'OFC-DP':'dpThal_OFC', 'OFC-VA':'vaThal_OFC',
-                       'PFC-NAcc':'Acc_PFC', 'PFC-Put':'dPut_PFC', 'PFC-DP':'dpThal_PFC', 'PFC-VA':'vaThal_PFC',
-                       'NAcc-Put':'Acc_dPut', 'NAcc-DP':'Acc_dpThal', 'NAcc-VA':'Acc_vaThal',
-                       'Put-DP':'dPut_dpThal', 'Put-VA':'dPut_vaThal',
-                       'DP-VA': 'vaThal_dpThal'}
-    
-    else:
-        print('Cannot create sim_df if N!=4 or N!=6')
-        return
-    
+    if dataset=='OCD_baseline':
+        if sim_objs[0].N == 4:
+            var_names = ['OFC', 'PFC', 'NAcc', 'Put']
+            pathway_map = {'OFC-PFC': 'OFC_PFC', 'OFC-NAcc': 'Acc_OFC', 'OFC-Put':'dPut_OFC', 'PFC-NAcc':'Acc_PFC', 'PFC-Put':'dPut_PFC', 'NAcc-Put':'Acc_dPut'}
+        
+        elif sim_objs[0].N == 6:
+            var_names = ['OFC', 'PFC', 'NAcc', 'Put', 'DP', 'VA']
+            pathway_map = {'OFC-PFC': 'OFC_PFC', 'OFC-NAcc': 'Acc_OFC', 'OFC-Put':'dPut_OFC', 'OFC-DP':'dpThal_OFC', 'OFC-VA':'vaThal_OFC',
+                        'PFC-NAcc':'Acc_PFC', 'PFC-Put':'dPut_PFC', 'PFC-DP':'dpThal_PFC', 'PFC-VA':'vaThal_PFC',
+                        'NAcc-Put':'Acc_dPut', 'NAcc-DP':'Acc_dpThal', 'NAcc-VA':'Acc_vaThal',
+                        'Put-DP':'dPut_dpThal', 'Put-VA':'dPut_vaThal',
+                        'DP-VA': 'vaThal_dpThal'}
+        else:
+            print('Cannot create sim_df if N!=4 or N!=6')
+            return
+    elif dataset=='OCD_SCAN_CON':
+        if sim_objs[0].N == 4:
+            var_names = ['SCAN', 'CON', 'Acc', 'Put']
+            pathway_map = {'SCAN-CON': 'SCAN_CON', 'SCAN-Acc': 'SCAN_Acc', 'SCAN-Put':'SCAN_Put', 'CON-Acc':'CON_Acc', 'CON-Put':'CON_Put', 'Acc-Put':'Acc_Put'}
+        
     lines = []
     for i,sim in enumerate(sim_objs):
         fc = sim.bold_fc
@@ -490,7 +494,7 @@ def create_sim_df(sim_objs, sim_type = 'sim-con', offset=0):
 def distance(x,y):
     """ distance to minimize based on score """
     #return 1 - x['r'] + x['corr_diff']
-    return x['RMSE']
+    return x['err']
 
 
 def get_inds(model, t_range=None):
@@ -525,31 +529,39 @@ def score_model(rww, coh='con'):
     r,pval = scipy.stats.pearsonr(corrData, corrModel)
     return r, corr_MAE, corr_RMSE
 
-def score_population_models(sim_objs, cohort='controls'):
+def score_population_models(sim_objs, cohort='controls', dataset='OCD_baseline'):
     """ Score a population of simulated model (using a parameter set) against experimental observations.
     Here, the whole distribution of models outputs is scored against the distributions of observations. """
     # load empirical FC
-    if sim_objs[0].N==4:
-        with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2023.pkl'), 'rb') as f:
-            df_roi_corr = pickle.load(f)
-    if sim_objs[0].N==6:
-        with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2024_Thal.pkl'), 'rb') as f:
-            df_roi_corr = pickle.load(f)
+    if dataset=='OCD_baseline':
+        if sim_objs[0].N==4:
+            with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2023.pkl'), 'rb') as f:
+                df_roi_corr = pickle.load(f)
+        if sim_objs[0].N==6:
+            with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2024_Thal.pkl'), 'rb') as f:
+                df_roi_corr = pickle.load(f)
+    elif dataset=='OCD_SCAN_CON':
+        if sim_objs[0].N==4:
+            with open(os.path.join(proj_dir, 'postprocessing', 'df_scan_con_2025.pkl'), 'rb') as f:
+                df_roi_corr = pickle.load(f)
+    else:
+        return NameError('Dataset {} is unknown.')
+
 
     # create simulated FC dataframe
     sim_type = 'sim-'+cohort
-    df_sim_fc = create_sim_df(sim_objs, sim_type=sim_type)
+    df_sim_fc = create_sim_df(sim_objs, sim_type=sim_type, dataset=dataset)
     df = df_roi_corr[df_roi_corr.cohort==cohort].merge(df_sim_fc, how='outer')
     
     # compute root mean square error
-    RMSE = [] 
+    err = [] 
     for pathway in df.pathway.unique():
         obs = df[(df.pathway==pathway) & (df.cohort==cohort)]['corr']
         sim = df[(df.pathway==pathway) & (df.cohort==sim_type)]['corr']
-        RMSE.append((np.mean(obs)-np.mean(sim))**2)
-        RMSE.append((np.std(obs)-np.std(sim))**2)
-    RMSE = np.sqrt(np.sum(RMSE)/len(RMSE))
-    return RMSE
+        err.append((np.mean(obs)-np.mean(sim))**2)
+        err.append((np.std(obs)-np.std(sim))**2)
+    err = np.sqrt(np.sum(err)/len(err))
+    return err
 
 
 #  PLOTTING FUNCTIONS  #

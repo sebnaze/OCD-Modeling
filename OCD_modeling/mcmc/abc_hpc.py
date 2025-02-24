@@ -525,6 +525,96 @@ def get_prior_Thal_fc_weak():
     bounds['sigma_C_64'] = [sigma_C_64_min, sigma_C_64_max]
     return prior, bounds
 
+
+def get_prior_scan_con():
+    """ Create uniform prior distributions of parameters to start Sequential Monte-Carlo.
+    
+    Returns
+    -------
+        prior: pyABC.Distribution
+            Distribution object of priors.
+        bounds: dict
+            Lower and upper bounds of parameters , i.e. bounds['param_name']=[min,max].
+    """
+
+    # PRIORS
+    # lower_bound, upper_bound
+    sigma_min, sigma_max    = 0.05, 0.1     # noise amplitude
+    G_min, G_max            = 2, 3           # global coupling
+    C_12_min, C_12_max      = -0.5, 0.5        # CON -> SCAN
+    C_21_min, C_21_max      = -0.5, 0.5        # SCAN -> CON
+    C_13_min, C_13_max      = -0.1, 0.5      # NAcc -> SCAN
+    C_31_min, C_31_max      = 0, 0.5         # SCAN -> NAcc
+    C_32_min, C_32_max      = 0, 0.5         # CON -> NAcc
+    C_23_min, C_23_max      = -0.1, 0.5         # NAcc -> CON
+    C_24_min, C_24_max      = -0.1, 0.5      # Put -> CON
+    C_42_min, C_42_max      = 0, 0.5         # CON -> Put
+    C_41_min, C_41_max      = 0, 0.5      # SCAN -> Put
+    C_14_min, C_14_max      = -0.1, 0.5      # Put -> SCAN
+    C_34_min, C_34_max      = -0.5, 0.5      # Put -> NAcc
+    C_43_min, C_43_max      = -0.5, 0.5      # Nacc -> Put
+
+    # coupling noises on Ornstein-Uhlenbeck process 
+    sigma_C_13_min, sigma_C_13_max  = 0.1, 0.4
+    sigma_C_23_min, sigma_C_23_max  = 0.1, 0.4
+    sigma_C_24_min, sigma_C_24_max  = 0.1, 0.4
+    sigma_C_14_min, sigma_C_14_max  = 0.1, 0.4
+    eta_C_13_min, eta_C_13_max  = 0, 0.1
+    eta_C_23_min, eta_C_23_max  = 0, 0.1
+    eta_C_24_min, eta_C_24_max  = 0, 0.1
+    eta_C_14_min, eta_C_14_max  = 0, 0.1
+
+
+    prior = pyabc.Distribution(
+        sigma = pyabc.RV("uniform", sigma_min, sigma_max - sigma_min),
+        G = pyabc.RV("uniform", G_min, G_max - G_min),
+        C_12 = pyabc.RV("uniform", C_12_min, C_12_max - C_12_min),
+        C_21 = pyabc.RV("uniform", C_21_min, C_21_max - C_21_min),
+        C_13 = pyabc.RV("uniform", C_13_min, C_13_max - C_13_min),
+        C_23 = pyabc.RV("uniform", C_23_min, C_23_max - C_23_min),
+        C_32 = pyabc.RV("uniform", C_32_min, C_32_max - C_32_min),
+        C_31 = pyabc.RV("uniform", C_31_min, C_31_max - C_31_min),
+        C_41 = pyabc.RV("uniform", C_41_min, C_41_max - C_41_min),
+        C_14 = pyabc.RV("uniform", C_14_min, C_14_max - C_14_min),
+        C_24 = pyabc.RV("uniform", C_24_min, C_24_max - C_24_min),
+        C_42 = pyabc.RV("uniform", C_42_min, C_42_max - C_42_min),
+        C_34 = pyabc.RV("uniform", C_34_min, C_34_max - C_34_min),
+        C_43 = pyabc.RV("uniform", C_43_min, C_43_max - C_43_min),
+        sigma_C_13 = pyabc.RV("uniform", sigma_C_13_min, sigma_C_13_max - sigma_C_13_min),
+        sigma_C_23 = pyabc.RV("uniform", sigma_C_23_min, sigma_C_23_max - sigma_C_23_min),
+        sigma_C_24 = pyabc.RV("uniform", sigma_C_24_min, sigma_C_24_max - sigma_C_24_min),
+        sigma_C_14 = pyabc.RV("uniform", sigma_C_14_min, sigma_C_14_max - sigma_C_14_min),
+        eta_C_13 = pyabc.RV("uniform", eta_C_13_min, eta_C_13_max - eta_C_13_min),
+        eta_C_23 = pyabc.RV("uniform", eta_C_23_min, eta_C_23_max - eta_C_23_min),
+        eta_C_14 = pyabc.RV("uniform", eta_C_14_min, eta_C_14_max - eta_C_14_min),
+        eta_C_24 = pyabc.RV("uniform", eta_C_24_min, eta_C_24_max - eta_C_24_min) )
+
+    bounds = dict()
+    bounds['sigma'] = [sigma_min, sigma_max]
+    bounds['G'] = [G_min, G_max]
+    bounds['C_12'] = [C_12_min, C_12_max]
+    bounds['C_21'] = [C_21_min, C_21_max]
+    bounds['C_13'] = [C_13_min, C_13_max]
+    bounds['C_23'] = [C_23_min, C_23_max]
+    bounds['C_31'] = [C_31_min, C_31_max]
+    bounds['C_32'] = [C_32_min, C_32_max]
+    bounds['C_41'] = [C_41_min, C_41_max]
+    bounds['C_24'] = [C_24_min, C_24_max]
+    bounds['C_42'] = [C_42_min, C_42_max]
+    bounds['C_14'] = [C_14_min, C_14_max]
+    bounds['C_34'] = [C_34_min, C_34_max]
+    bounds['C_43'] = [C_43_min, C_43_max]
+    bounds['eta_C_13'] = [eta_C_13_min, eta_C_13_max]
+    bounds['eta_C_23'] = [eta_C_23_min, eta_C_23_max]
+    bounds['sigma_C_13'] = [sigma_C_13_min, sigma_C_13_max]
+    bounds['sigma_C_23'] = [sigma_C_23_min, sigma_C_23_max]
+    bounds['eta_C_24'] = [eta_C_24_min, eta_C_24_max]
+    bounds['eta_C_14'] = [eta_C_14_min, eta_C_14_max]
+    bounds['sigma_C_24'] = [sigma_C_24_min, sigma_C_24_max]
+    bounds['sigma_C_14'] = [sigma_C_14_min, sigma_C_14_max]
+    return prior, bounds
+
+
 def get_default_args(func):
     """ https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value """
     """ (actually not in use -- deprecated) """ 
@@ -693,7 +783,7 @@ def run_abc(prior, cfg):
             Output of the optimization, i.e. population parameters of accepted particles and summary statistics. 
     """
 
-    trace_name = 'rww4D_OU_HPC'+today()
+    trace_name = 'rww4D_OU_HPC_SCAN_CON'+today()
     #sampler = pyabc.sampler.MulticoreEvalParallelSampler(n_procs=1)  # used for calibrating on local machine before portage to HPC
     sampler = pyabc.sampler.RedisEvalParallelSampler(host=cfg['redis_ip'], port=6379, password=cfg['pssr'])
     sampler.daemon = False
@@ -701,7 +791,7 @@ def run_abc(prior, cfg):
     if args.resume_opt==None:
         abc_id = abc.new(
             "sqlite:///" + os.path.join(proj_dir, 'traces', trace_name+".db"),
-            {"RMSE": 0}  # observation # note: here is dummy, the distance function does not use it.
+            {"err": 0}  # observation # note: here is dummy, the distance function does not use it.
         )
     else:
         abc.load("sqlite:///" + os.path.join(proj_dir, 'traces', args.resume_opt+".db"), abc_id=1)
@@ -712,8 +802,9 @@ def run_abc(prior, cfg):
 if __name__ == '__main__':
     args = parse_args()
     cfg = get_config(args)
-    prior, _ = get_prior()
+    #prior, _ = get_prior()
     #prior, _ = get_prior_Thal()  # <-- hc_strong
     #prior, _ = get_prior_Thal_hc_weak()
     #prior, _ = get_prior_Thal_fc_weak()
+    prior, _ = get_prior_scan_con()
     history = run_abc(prior, cfg)
