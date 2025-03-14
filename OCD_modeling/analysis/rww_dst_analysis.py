@@ -542,7 +542,7 @@ def plot_bifurcation_row(outputs, order_params, rww=None, t_range=None, args=Non
 
 
 def plot_timeseries_phasespace_bif(outputs, rww, df_eta_sigma, args):
-    """ Show S1, S2, C_12 timeseries, S1-S2 phase space with trajectories and C_12 S1/S2 phase space 
+    """ Show :math:`S1`, :math:`S2`, :math:`C_{12}` timeseries, :math:`S1-S2` phase space with trajectories and :math:`C_{12} - S1|S2` phase space. 
     with bifurcation diagram.
     
     Parameters
@@ -551,6 +551,8 @@ def plot_timeseries_phasespace_bif(outputs, rww, df_eta_sigma, args):
             Outputs from stability analysis.
         rww: OCD_modeling.models.ReducedWongWangOU
             Model instance that ran. 
+        df_eta_sigma: pandas.DataFrame
+            Data from the simulations varying eta and sigma parameters.
         args: Argparse.Namespace
             Extra options.        
     """
@@ -724,7 +726,16 @@ def plot_transitions_FC(df_eta_sigma, ax1=None, ax2=None, args=None):
     #    plt.savefig(os.path.join(proj_dir, 'img', 'eta_sigma'+today()+'.svg'))
 
 
-def load_df_eta_sigma(args):
+def load_df_eta_sigma():
+    """ Load pre-computed transitions rates and functional connecticity of the model 
+    along the :math:`\\eta` and :math:`\\sigma`parameter space.
+
+    Returns
+    -------
+        df_eta_sigma: pandas.DataFrame
+            Preprocessed simulated data.
+    """
+
     pth = os.path.join(proj_dir, 'postprocessing', 'eta_sigma_20241029/')
     files = os.listdir(pth)
     lines = []
@@ -811,5 +822,5 @@ if __name__=='__main__':
             rww = pickle.load(f)
             
     if args.plot_timeseries_phasespace_bif:
-        df_eta_sigma = load_df_eta_sigma(args)
+        df_eta_sigma = load_df_eta_sigma()
         plot_timeseries_phasespace_bif(outputs, rww, df_eta_sigma, args)

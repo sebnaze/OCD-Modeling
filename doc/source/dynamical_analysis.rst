@@ -123,7 +123,7 @@ It can then be called multiple times to plot grids of phase spaces as in Supplem
 
   Timeseries of the model variables :math:`S1`, :math:`S2` and stochastic coupling :math:`C_{12}`, with corresponding projections 
   in :math:`S1-S2` state space, bifurcation diagram with free parameter :math:`C_{12}`, transition rates and frontostriatal 
-  functional connectivity (FC) according to :math:`\\eta_{12}` and :math:`\\sigma_{12}` parameters. 
+  functional connectivity (FC) according to :math:`\eta_{12}` and :math:`\sigma_{12}` parameters. 
   *Note that transition rates and FC were precomputed separately and loaded for visualization only.* 
 
 
