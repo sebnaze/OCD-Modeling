@@ -57,8 +57,8 @@ def compute_errors(df_sims, df_data, args):
 
 def plot_errors(df_errors, args):
     """ Box plot of inference error on frontostriatal FC """ 
-    plt.figure(figsize=[np.ceil(len(args.db_names)/2),2])
-    ax = sbn.boxplot(data=df_errors, x='model', y='error', width=0.6, boxprops={'alpha':0.6}, linewidth=1, fliersize=0)
+    plt.figure(figsize=[np.ceil(len(args.db_names))/2,2])
+    ax = sbn.boxplot(data=df_errors, x='model', y='error', width=0.6, boxprops={'alpha':0.6}, linewidth=1, fliersize=3)
     ax.spines.top.set_visible(False)
     ax.spines.right.set_visible(False)
 

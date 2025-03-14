@@ -21,7 +21,7 @@ from time import time, sleep
 # import most relevant environment and project variable
 from OCD_modeling.utils.utils import proj_dir, today
 from OCD_modeling.mcmc.history_analysis import import_results, compute_kdes
-from OCD_modeling.mcmc.abc_hpc import unpack_params, get_prior, get_prior_Thal, get_prior_Thal_fc_weak, get_prior_Thal_hc_weak
+from OCD_modeling.mcmc.abc_hpc import unpack_params, get_prior, get_prior_Thal, get_prior_Thal_fc_weak, get_prior_Thal_hc_weak, get_prior_scan_con, get_prior_scan_con_refined
 from OCD_modeling.models.ReducedWongWang import create_sim_df
 from OCD_modeling.hpc.parallel_launcher import run_sim
 
@@ -42,6 +42,7 @@ def batched(iterable, n):
 
 
 priorfunc = {4:get_prior, 6:get_prior_Thal_hc_weak} #6:get_prior_Thal_fc_weak  #get_prior_Thal
+priorfunc = {4:get_prior_scan_con_refined, 6:get_prior_Thal_hc_weak} #6:get_prior_Thal_fc_weak  #get_prior_Thal
 
 def create_params(kdes, cols, test_param, args):
     """ creates n_sims new parameters from posetrior distribution of base cohort """
@@ -267,7 +268,7 @@ if __name__=='__main__':
 
     # delay start randomly by up to 3 min to avoid large batches of simulations writting
     # concurrently to DB 
-    sleep(np.random.randint(0,180))
+    #sleep(np.random.randint(0,180))
     
     launch_sims_parallel(kdes, cols, test_param, args=args)
 

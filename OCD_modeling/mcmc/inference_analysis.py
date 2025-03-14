@@ -2212,7 +2212,7 @@ def plot_fc_dist_pre_post_params(df_summary, args=None):
 def plot_pre_post_params_behavs(df_summary, args=None):
     """ plot behavioral relationship to distance to FC controls """
 
-    params=['dist', 'efficacy', 'C_12', 'C_13', 'C_24', 'C_31', 'C_34', 'C_42', 'eta_C_13', 'eta_C_24', 'sigma', 'sigma_C_13', 'sigma_C_24']
+    params=['C_12', 'C_13', 'C_31', 'C_24', 'C_42', 'C_34', 'eta_C_13', 'eta_C_24', 'sigma', 'sigma_C_13', 'sigma_C_24'] #'dist', 'efficacy', 
     behavs=['YBOCS_Total', 'OCIR_Total', 'OBQ_Total', 'MADRS_Total', 'HAMA_Total', 'Dep_Total', 'Anx_total']
     colors={'group1':'orange', 'group2':'green'}
 

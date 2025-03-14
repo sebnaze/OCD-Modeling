@@ -174,7 +174,7 @@ def compute_stats(histories, args=None):
 
     """
     df_post_con,w_con = histories['controls'].get_distribution(t=args.gens[0])
-    df_post_pat,w_pat = histories['patients'].get_distribution(t=args.gens[1])
+    #df_post_pat,w_pat = histories['patients'].get_distribution(t=args.gens[1])
     cols = df_post_con.columns
     mc = len(cols)
     stats = []
@@ -474,9 +474,9 @@ def plot_kdes(kdes, cols, df_stats, df_real=[], df_pred=[], plot_args={'nrows':4
         vals = np.concatenate([kdes['controls'][col]['vals'], kdes['patients'][col]['vals']])
         bins = np.linspace(vals.min(), vals.max(), 13)
         plt.hist(kdes['controls'][col]['vals'], color='lightblue', bins=bins, alpha=plot_args['hist_alpha'], density=True, log=False, lw=0.3, ec='gray')
-        plt.hist(kdes['patients'][col]['vals'], color='orange', bins=bins, alpha=plot_args['hist_alpha'], density=True, log=False, lw=0.3, ec='gray')
+        #plt.hist(kdes['patients'][col]['vals'], color='orange', bins=bins, alpha=plot_args['hist_alpha'], density=True, log=False, lw=0.3, ec='gray')
         plt.plot(kdes['controls'][col]['X'], np.exp(kdes['controls'][col]['pdf']), 'lightblue', lw=1, alpha=plot_args['kde_alpha'])
-        plt.plot(kdes['patients'][col]['X'], np.exp(kdes['patients'][col]['pdf']), 'orange', lw=1, alpha=plot_args['kde_alpha'])
+        #plt.plot(kdes['patients'][col]['X'], np.exp(kdes['patients'][col]['pdf']), 'orange', lw=1, alpha=plot_args['kde_alpha'])
         xlabl = OCD_modeling.mcmc.inference_analysis.format_labels([matplotlib.text.Text(text=col)], args.N)[0]
         plt.xlabel(xlabl, fontsize=12)
         if j==0:
@@ -654,7 +654,7 @@ if __name__=='__main__':
     if args.compute_kdes:
         kdes,cols = compute_kdes(histories, args=args)
     if args.plot_kdes:
-        plot_args = {4:{'nrows':4, 'ncols':5, 'row_offset':2, 'col_offset':3, 'figsize':[10,7], 'show_stars':True, 'hist_alpha':0.3, 'kde_alpha':1},
+        plot_args = {4:{'nrows':4, 'ncols':5, 'row_offset':2, 'col_offset':3, 'figsize':[10,7], 'show_stars':False, 'hist_alpha':0.3, 'kde_alpha':1},
                      6:{'nrows':6, 'ncols':5, 'row_offset':0, 'col_offset':0, 'figsize':[10,12], 'show_stars':True, 'hist_alpha':0.3, 'kde_alpha':1}}
         plot_kdes(kdes, cols, df_stats, plot_args=plot_args[args.N], args=args)
 
