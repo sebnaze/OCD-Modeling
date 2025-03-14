@@ -237,8 +237,8 @@ def stability_analysis(order_params, default_params, out_queue, args, pdomain={'
 
 def launch_stability_analysis(order_params, default_params, out_queue, args):
     """ Ghost process that launches the stability analysis for a set of defined order parameter,
-        creating a child process with a set timeout per child process, such that the stbaility analysis
-        does not hang waiting for the continuation to terminate if it does not converge. 
+    creating a child process with a set timeout per child process, such that the stbaility analysis
+    does not hang waiting for the continuation to terminate if it does not converge. 
         
     Parameters
     ----------

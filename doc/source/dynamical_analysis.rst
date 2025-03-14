@@ -118,7 +118,7 @@ It can then be called multiple times to plot grids of phase spaces as in Supplem
 .. autofunction:: OCD_modeling.analysis.plot_timeseries_phasespace_bif
 
 .. figure:: img/single_pathway_model_20241207.svg
-  :width: 600
+  :width: 1000
   :align: center
 
   Timeseries of the model variables :math:`S1`, :math:`S2` and stochastic coupling :math:`C_{12}`, with corresponding projections 
