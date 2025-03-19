@@ -166,6 +166,8 @@ def compute_stats(histories, args=None):
     ---------
         histories: list
             Controls and patient pyABC history objects. 
+        args: argparse.Namespace
+            Extra options
 
     Returns
     -------
@@ -213,11 +215,21 @@ def compute_kdes(histories, n_pts = 100, args=None):
     """ 
     Computes Kernel Density Estimates (KDEs) of the posterior distributions of parameters.
     
-    :param histories: (dict) nested dictionnary of SQL alchemy history objects.
-    :param n_pts: (int) number of points used to estimate the probability density functions (PDFs).
+    Parameters
+    ----------
+        histories: dict
+            Nested dictionnary of SQL alchemy history objects.
+        n_pts: int 
+            Number of points used to estimate the probability density functions (PDFs).
+        args: argparse.Namespace
+            Extra options.
 
-    :returns kdes: (dict) nested dictiorany of KDEs and associated PDFs.
-    :returns cols: (list) list of parameters for which the KDEs were estimated.
+    Returns
+    -------
+        kdes: dict 
+            Nested dictiorany of KDEs and associated PDFs.
+        cols: list 
+            List of parameters for which the KDEs were estimated.
     
     """
 
@@ -443,6 +455,13 @@ def plot_kdes(kdes, cols, df_stats, df_real=[], df_pred=[], plot_args={'nrows':4
             (Optional) Synthetic data (observed)
         df_pred: pandas.DataFrame
             (Optional) Synthetic data (predicted)
+        plot_args: dict
+            Default options for plotting.
+                nrows, ncols: number of rows and columns of the GridSpec object (grid of axes).
+                row_offset, col_offset: shifts in rows and colums to let space for another plot.
+                figsize: figure size.
+                show_stars: show stars for statistical significant between controls and OCD.
+                hist_alpha, kde_alpha: opacity of the histograms and kernel density estimates.
         args: argparse.Namespace
             (Optional) Extra arguments
 

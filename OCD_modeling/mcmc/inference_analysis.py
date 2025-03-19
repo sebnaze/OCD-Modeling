@@ -2375,7 +2375,7 @@ def score_improvement(df, params, kdes, behav='YBOCS_Total'):
         behav: string
             Behavioral measure. Default: Y-BOCS score.
         
-    Results
+    Returns
     -------
         df_improvement: pandas.DataFrame
             Normalized differences between initial (pre) and follow-up (post) parameters of digital twins

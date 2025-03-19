@@ -44,7 +44,7 @@ longitudinal dataset of OCD subjetcs, using a dot-product between the two variab
 
 .. autofunction:: OCD_modeling.mcmc.plot_improvement_windrose
 
-.. figure:: img/empirical_params_contrib-01.png
+.. figure:: img/empirical_params_contrib-02.png
     :width: 250
     :align: center
 
@@ -53,7 +53,7 @@ longitudinal dataset of OCD subjetcs, using a dot-product between the two variab
 
 .. autofunction:: OCD_modeling.mcmc.plot_improvement_pre_post_params_paper
 
-.. figure:: img/empirical_params_changes-01.png
+.. figure:: img/empirical_params_changes-02.png
     :width: 500
     :align: center
 
