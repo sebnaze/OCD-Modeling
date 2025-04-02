@@ -454,6 +454,8 @@ def create_sim_df(sim_objs, sim_type = 'sim-con', offset=0, dataset='OCD_baselin
     if dataset=='OCD_baseline':
         if sim_objs[0].N == 4:
             var_names = ['OFC', 'PFC', 'NAcc', 'Put']
+        if sim_objs[0].N == 4:
+            var_names = ['OFC', 'PFC', 'NAcc', 'Put']
             pathway_map = {'OFC-PFC': 'OFC_PFC', 'OFC-NAcc': 'Acc_OFC', 'OFC-Put':'dPut_OFC', 'PFC-NAcc':'Acc_PFC', 'PFC-Put':'dPut_PFC', 'NAcc-Put':'Acc_dPut'}
         
         elif sim_objs[0].N == 6:
@@ -470,6 +472,9 @@ def create_sim_df(sim_objs, sim_type = 'sim-con', offset=0, dataset='OCD_baselin
         if sim_objs[0].N == 4:
             var_names = ['SCAN', 'CON', 'Acc', 'Put']
             pathway_map = {'SCAN-CON': 'SCAN_CON', 'SCAN-Acc': 'SCAN_Acc', 'SCAN-Put':'SCAN_Put', 'CON-Acc':'CON_Acc', 'CON-Put':'CON_Put', 'Acc-Put':'Acc_Put'}
+        if sim_objs[0].N == 2:
+            var_names = ['SCAN', 'CON']
+            pathway_map = {'SCAN-CON': 'SCAN_CON'}
         
     lines = []
     for i,sim in enumerate(sim_objs):
@@ -544,6 +549,10 @@ def score_population_models(sim_objs, cohort='controls', dataset='OCD_baseline')
         if sim_objs[0].N==4:
             with open(os.path.join(proj_dir, 'postprocessing', 'df_scan_con_2025.pkl'), 'rb') as f:
                 df_roi_corr = pickle.load(f)
+        if sim_objs[0].N==2:
+            with open(os.path.join(proj_dir, 'postprocessing', 'df_scan_con_2025.pkl'), 'rb') as f:
+                df_roi_corr = pickle.load(f)
+            df_roi_corr = df_roi_corr[df_roi_corr.pathway=='SCAN_CON']
     else:
         return NameError('Dataset {} is unknown.')
 

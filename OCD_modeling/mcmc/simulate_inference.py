@@ -21,7 +21,7 @@ from time import time, sleep
 # import most relevant environment and project variable
 from OCD_modeling.utils.utils import proj_dir, today
 from OCD_modeling.mcmc.history_analysis import import_results, compute_kdes
-from OCD_modeling.mcmc.abc_hpc import unpack_params, get_prior, get_prior_Thal, get_prior_Thal_fc_weak, get_prior_Thal_hc_weak, get_prior_scan_con, get_prior_scan_con_refined
+from OCD_modeling.mcmc.abc_hpc import unpack_params, get_prior, get_prior_Thal, get_prior_Thal_fc_weak, get_prior_Thal_hc_weak, get_prior_scan_con, get_prior_scan_con_refined, get_prior_scan_con_2_nodes
 from OCD_modeling.models.ReducedWongWang import create_sim_df
 from OCD_modeling.hpc.parallel_launcher import run_sim
 
@@ -42,7 +42,7 @@ def batched(iterable, n):
 
 
 priorfunc = {4:get_prior, 6:get_prior_Thal_hc_weak} #6:get_prior_Thal_fc_weak  #get_prior_Thal
-priorfunc = {4:get_prior_scan_con_refined, 6:get_prior_Thal_hc_weak} #6:get_prior_Thal_fc_weak  #get_prior_Thal
+priorfunc = {2:get_prior_scan_con_2_nodes, 4:get_prior_scan_con_refined, 6:get_prior_Thal_hc_weak} #6:get_prior_Thal_fc_weak  #get_prior_Thal
 
 def create_params(kdes, cols, test_param, args):
     """ creates n_sims new parameters from posetrior distribution of base cohort """
@@ -135,7 +135,7 @@ def write_outputs_to_db(params, cols, test_param, outputs, paired_ids, args):
             idx = cursor.fetchall()[0][0]
 
         # get FC from simulations
-        df_sims = create_sim_df(outputs, sim_type='sim-'+args.base_cohort[:3], offset=cnt)
+        df_sims = create_sim_df(outputs, sim_type='sim-'+args.base_cohort[:3], offset=cnt, dataset=args.dataset)
         df_sims = df_sims.pivot(index=['subj', 'cohort'], columns='pathway', values='corr').reset_index()
         df_sims['base_cohort'] = args.base_cohort
         df_sims['test_cohort'] = args.test_cohort
@@ -253,6 +253,7 @@ def parse_arguments():
     parser.add_argument('--timeout', type=int, default=3600, help="timeout for DB writting in parallel")
     parser.add_argument('--use_optim_params', default=False, action='store_true', help="if flag is on, use parameters from accepted particles of optimization, other draw new params from posterior")
     parser.add_argument('--N', type=int, default=4, action='store', help="Number of regions in simulations (default=4, could also be 6.")
+    parser.add_argument('--dataset', type=str, default='OCD_baseline', action='store', help="Dataset to compare to. default:OCD_baseline. Other possible:OCD_SCAN_CON")
     args = parser.parse_args()
     args.gens = np.array(args.gens, dtype=int)
     return args

@@ -44,7 +44,7 @@ When changing the number of nodes/regions of the simulation, these edits must be
 
 
 
-def get_default_params(N=4):
+def get_default_params(N=2):
     """ Create a structure with default models, simulation and BOLD parameters
 
     Parameters
@@ -704,6 +704,52 @@ def get_prior_scan_con_refined():
     bounds['sigma_C_14'] = [sigma_C_14_min, sigma_C_14_max]
     return prior, bounds
 
+def get_prior_scan_con_2_nodes():
+    """ Create uniform prior distributions of parameters to start Sequential Monte-Carlo.
+    
+    Returns
+    -------
+        prior: pyABC.Distribution
+            Distribution object of priors.
+        bounds: dict
+            Lower and upper bounds of parameters , i.e. bounds['param_name']=[min,max].
+    """
+
+    # PRIORS
+    # lower_bound, upper_bound
+    sigma_min, sigma_max    = 0.05, 0.1     # noise amplitude
+    G_min, G_max            = 2, 3           # global coupling
+    C_12_min, C_12_max      = 0, 1        # CON -> SCAN
+    C_21_min, C_21_max      = 0, 1        # SCAN -> CON
+
+    # coupling noises on Ornstein-Uhlenbeck process 
+    sigma_C_12_min, sigma_C_12_max  = 0.1, 0.4
+    eta_C_12_min, eta_C_12_max  = 0, 0.1
+    sigma_C_21_min, sigma_C_21_max  = 0.1, 0.4
+    eta_C_21_min, eta_C_21_max  = 0, 0.1
+
+    prior = pyabc.Distribution(
+        sigma = pyabc.RV("uniform", sigma_min, sigma_max - sigma_min),
+        G = pyabc.RV("uniform", G_min, G_max - G_min),
+        C_12 = pyabc.RV("uniform", C_12_min, C_12_max - C_12_min),
+        C_21 = pyabc.RV("uniform", C_21_min, C_21_max - C_21_min),
+        sigma_C_12 = pyabc.RV("uniform", sigma_C_12_min, sigma_C_12_max - sigma_C_12_min),
+        eta_C_12 = pyabc.RV("uniform", eta_C_12_min, eta_C_12_max - eta_C_12_min),
+        sigma_C_21 = pyabc.RV("uniform", sigma_C_21_min, sigma_C_21_max - sigma_C_21_min),
+        eta_C_21 = pyabc.RV("uniform", eta_C_21_min, eta_C_21_max - eta_C_21_min) )
+
+    bounds = dict()
+    bounds['sigma'] = [sigma_min, sigma_max]
+    bounds['G'] = [G_min, G_max]
+    bounds['C_12'] = [C_12_min, C_12_max]
+    bounds['C_21'] = [C_21_min, C_21_max]
+    bounds['eta_C_12'] = [eta_C_12_min, eta_C_12_max]
+    bounds['sigma_C_12'] = [sigma_C_12_min, sigma_C_12_max]
+    bounds['eta_C_21'] = [eta_C_21_min, eta_C_21_max]
+    bounds['sigma_C_21'] = [sigma_C_21_min, sigma_C_21_max]
+    return prior, bounds
+
+
 
 def get_default_args(func):
     """ https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value """
@@ -896,5 +942,6 @@ if __name__ == '__main__':
     #prior, _ = get_prior_Thal()  # <-- hc_strong
     #prior, _ = get_prior_Thal_hc_weak()
     #prior, _ = get_prior_Thal_fc_weak()
-    prior, _ = get_prior_scan_con_refined()
+    #prior, _ = get_prior_scan_con_refined()
+    prior, _ = get_prior_scan_con_2_nodes()
     history = run_abc(prior, cfg)
