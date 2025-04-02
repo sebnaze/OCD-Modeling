@@ -7,7 +7,7 @@ Default parameters are sampled from the OCD posteriors. Permuted parameters are 
 1000 simulations are run in parallel, each with a new draw from posterior distributions, for each virtual intervention.
 
 .. figure:: img/illustration_virtual_interventions_20250305-01.svg
-  :width: 400
+  :width: 800
   :name: illustration_virtual_interventions
   :align: center
 
