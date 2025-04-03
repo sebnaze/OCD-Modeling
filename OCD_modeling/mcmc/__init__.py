@@ -55,3 +55,9 @@ from .simulate_inference import (
     launch_sims_parallel
 )
                                   
+from .model_comparison import (
+    load_empirical_data,
+    load_simulations,
+    compute_errors,
+    plot_errors
+)

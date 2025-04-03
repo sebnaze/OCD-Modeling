@@ -15,13 +15,35 @@ import sqlite3
 from OCD_modeling.utils.utils import *
 
 def load_empirical_data():
+    """ Load empirical dataset that we optimized against. 
+    
+    Returns
+    -------
+        df_data: pandas.DataFrame
+            Empirical dataset with subjects and functional connecticity (Pearson's correlation) in each 
+            frontostriatal pathways. 
+    """ 
     with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2023.pkl'), 'rb') as f:
         df_data = pickle.load(f)
     return df_data
 
 
 def load_simulations(args):
-    """ Load simulated inferences """
+    """ Load simulated inferences.
+    
+    Parameters
+    ----------
+        args: argparse.Namespace
+            Dictionnary-like datastructure containing ``args.db_names`` argument which was enterred
+            in command-line as a list of simulated dataset.
+
+    Returns
+    -------
+        out: list
+            List of ``pandas.DataFrame``, each containing *n* simulations with functional connectivity 
+            in each frontostriatal pathway. (default n=1000)  
+
+    """
     out = []
     for db_name in args.db_names:
         with sqlite3.connect(os.path.join(proj_dir, 'postprocessing', db_name)) as conn:
@@ -31,10 +53,25 @@ def load_simulations(args):
     return out
  
 def compute_errors(df_sims, df_data, args):
-    """ Compute FC errors between empirical and simulated data in frontostriatal pathways.
+    """ Compute root-mean-square errors between empirical and simulated data in frontostriatal pathways 
+    functional connectivity.
 
-        This error takes the form of a distribution, i.e. with 1000 simulations grouped 
-        by cohorts of 50, it makes 20 error values. 
+    This error takes the form of a distribution, i.e. with 1000 simulations grouped 
+    by cohorts of 50, it makes 20 error values.
+
+    Parameters
+    ----------
+        df_sims: pandas.DataFrame
+            Simulated dataset.
+        df_data: pandas.DataFrame
+            Empirical dataset.
+        args: argparse.Namespace
+            Optional arguments.
+    
+    Returns
+    -------
+        pandas.DataFrame
+            Distribution of errors in functinal connectivity space.
     """
     df_data_formatted = df_data.pivot(index=['subj', 'cohort'], columns='pathway', values='corr').reset_index()
     n_sim = 50
@@ -56,7 +93,16 @@ def compute_errors(df_sims, df_data, args):
 
 
 def plot_errors(df_errors, args):
-    """ Box plot of inference error on frontostriatal FC """ 
+    """ Box plot of inference error on frontostriatal functional connectivity 
+    
+    Parameters
+    ----------
+        df_errors: pandas.DataFrame
+            Distributions of errors for each models to compare.
+        args: argparse.Namespace
+            Optional arguments, including ``args.model_tags`` that contains labels of model names for saving.
+    
+    """ 
     plt.figure(figsize=[np.ceil(len(args.db_names)/2),2])
     ax = sbn.boxplot(data=df_errors, x='model', y='error', width=0.6, boxprops={'alpha':0.6}, linewidth=1, fliersize=0)
     ax.spines.top.set_visible(False)
