@@ -2909,6 +2909,90 @@ def plot_hcp_DD(df_sim_hcp, params=['C_13'], gs=None, args=None):
     plt.tight_layout()
 
 
+def plot_param_distance_correlations(df_five_top, color='blue', gs=None, row=None):
+    """ Show association between parameter values and distance to healthy FC, for top parameters of restoration.
+    This function can be called to plot single or multiple intervention. Note that in the Supplementary Figure 4, 
+    we call this function once for each best interventions per number of targets whereby every call uses a different
+    color.    
+    
+    Parameters
+    ----------
+        df_five_top: pandas.DataFrame
+            Best(s) interventions per number of targets :math:`n_t`.
+        color: str
+            Name of color that correspond to number of targets :math:`n_t`.
+        gs: matplotlib.GridSpec
+            GridSpec object if the plot is embedded in another plot.
+        row: int
+            Row of the GridSpec on which to plot the current correlations
+    
+    """
+
+    top_test_params = df_five_top.test_param.unique()
+    ncols = df_five_top.n_test_params.unique()[0]
+
+    if gs==None:
+        fig = plt.figure(figsize=[ncols*2,10])
+        gs = plt.GridSpec(nrows=5, ncols=ncols)
+
+    for i,test_param in enumerate(top_test_params): 
+        pars = test_param.split(' ')
+        df_ = df_five_top[df_five_top.test_param==test_param] #df_restore[df_restore.test_param==test_param]
+
+        for j,par in enumerate(pars):
+            if row==None:
+                ax = plt.subplot(gs[i,j])
+            else:
+                ax = plt.subplot(gs[row,j])
+            df_['pre_post'] = df_['dist_pre_hc'] - df_['dist']
+            data = df_
+            
+            sbn.regplot(data=data, y='pre_post', x='z_'+par, ax=ax, marker='.', scatter_kws={'s':5, 'alpha':0.3}, color=color)
+            ax.set_xlabel('${'+OCD_modeling.mcmc.inference_analysis.format_param(par)+'}^z$', fontsize=14)
+            
+            if j==0:
+                ax.set_ylabel('$\Delta \; FC$', fontsize=12)
+            else:
+                ax.set_ylabel('', visible=False)
+            r,p = scipy.stats.pearsonr(np.array(data['pre_post']), np.array(data['z_'+par]))
+            ax.set_title('r={:.2f}  p={:.3f}'.format(r,p))
+            ax.spines.top.set_visible(False)
+            ax.spines.right.set_visible(False)
+
+
+def plot_five_top_params_distance_correlations(df_top, args):
+    """ Plot intermediate visualization of parameter change correlation to change of distance in FC space.
+    
+    Parameters
+    ----------
+        df_top: pandas.DataFrame
+            Five best parameter combinations (i.e. virtual interventions) per number of target 
+            (number of target :math:`n_t=1 \cdots 6`).
+
+        args: argparse.Namespace
+            Optional arguments. 
+    """ 
+    top_test_params = ['C_42', 'C_12 C_42', 'C_12 C_42 eta_C_13', 'C_12 C_42 eta_C_13 sigma_C_24', 'C_13 C_24 C_31 C_34 C_42', 'C_12 C_13 C_24 C_31 C_34 C_42']
+    palette = {0: 'white', 1: 'lightpink', 2: 'plum', 3: 'mediumpurple', 4: 'lightsteelblue', 5:'skyblue', 6:'royalblue'}
+
+    args.save_figs = True
+    fig = plt.figure(figsize=[12,12])
+    gs = plt.GridSpec(nrows=6, ncols=6)
+
+    for j,n_test_params in enumerate(np.sort(df_top.n_test_params.unique())):
+        df_ = df_top[df_top.n_test_params==n_test_params]
+        df__ = df_[[df_.iloc[i].test_param in top_test_params for i in range(len(df_))]]
+        if len(df__):
+            plot_param_distance_correlations(df__, color=palette[n_test_params], gs=gs, row=j)
+            
+    plt.tight_layout()
+
+    if args.save_figs:
+        fname = 'diff_fc_vs_param_n_test_params_'+today()+'.svg'
+        plt.savefig(os.path.join(proj_dir, 'img', fname))
+
+    plt.show()
+
 def parse_arguments():
     " Script arguments when ran as main " 
     parser = argparse.ArgumentParser()

@@ -3,8 +3,14 @@ Restoration analysis
 
 The restoration analysis uses a combinatorial approach to permute all possible sets of up to six parameters at a time. 
 Such combination of permuted parameters is called a **virtual intervention**. 
+
 Default parameters are sampled from the OCD posteriors. Permuted parameters are sampled from the controls' posteriors. 
 1000 simulations are run in parallel, each with a new draw from posterior distributions, for each virtual intervention.
+Then, simulations are grouped by sets of 50 to get 20 independent cohorts for each virtual intervention.
+The distance between the the virtual intervention and the reference healthy controls' simulations is evaluated 
+as the sum of Wasserstein distances across pathways in frontostriatal functional connectivity space. 
+
+The process is illustrated here:
 
 .. figure:: img/illustration_virtual_interventions_20250305-01.svg
   :width: 800
@@ -25,9 +31,6 @@ Default parameters are sampled from the OCD posteriors. Permuted parameters are 
   functional improvement.
 
 
-Then, simulations are grouped by sets of 50 to get 20 independent cohorts for each virtual intervention.
-The distance between the the virtual intervention and the reference healthy controls' simulations is evaluated 
-as the sum of Wasserstein distances across pathways in frontostriatal functional connectivity space.
 
 
 .. note::
@@ -70,7 +73,6 @@ We run 1000 simulations (20 cohorts of 50 virtual subjects) for each vitual inte
 Intervention improvement measure
 --------------------------------
 
-
 A Mann-Whitney U statistic was computed to quantify the functional improvement (as the distance to healthy controls FC) of the 
 virtual intervention. A normalized measure (the Area Under the receiver operating characteristic Curve -- AUC) of 
 functional improvement is derived from the U statistic, and AUCs are sorted by number of intervention targets. 
@@ -90,7 +92,7 @@ according to their number of targets (colorcode):
 
 
 .. figure:: img/simulated_intervention_outcomes-01.png
-  :width: 400
+  :width: 800
   :name: plot_distance_restore
   :align: center
 
@@ -112,8 +114,29 @@ We also show the log-linear relationship between the efficacy of the five best i
 Parameters contribution measure
 -------------------------------
 
-To relate the contribution of changes in each parameter :math:`\theta` to the interventions' AUC value (using only statistically
-significant AUC, i.e. :math:`p_{FWE}<0.05`) via a dot-product between the two variables.
+We want to relate the contribution of changes in each parameter :math:`\theta` to the interventions' efficacy 
+(i.e. the AUC value) using only statistically significant AUC, i.e. :math:`p_{FWE}<0.05`. 
+
+First, to give an intuition of the final measure let's visualize the Pearson's correlation between the change :math:`\Delta` in models parameters (z-score 
+normalized :math:`\theta^z`) and the change in frontostriatal functional connectivity :math:`\Delta FC`.  
+
+.. autofunction:: OCD_modeling.mcmc.plot_five_top_params_distance_correlations
+
+.. figure:: img/diff_fc_vs_param_n_test_params__20250206.svg
+  :width: 800
+  :name: plot_param_distance_correlation
+  :align: center
+
+Associations between parameter values and intervention efficacies. Z-score normalized parameter values (:math:`\theta^z`, 
+where :math:`\theta` represents the parameter name; x-axis) against intervention efficacy (difference in distance to 
+healthy controls in functional connectivity space, :math:`\Delta FC`; y-axis). Only the best intervention (highest AUC) 
+is shown for each number of targets :math:`n_t`.
+
+
+Then, the metric used is the dot-product between the two variables, that basically summarize the the correlation measure,
+across all significantly positive interventions (per number of targets :math:`n_t`) and not only the best one as above. 
+Because the variables are not zero-centered before applyig the dot-product, the output of this measure carries the sign of 
+the intervention for each target (increase vs. decrease).  
 
 .. autofunction:: OCD_modeling.mcmc.compute_scaled_feature_score
 
@@ -125,4 +148,4 @@ significant AUC, i.e. :math:`p_{FWE}<0.05`) via a dot-product between the two va
   :name: plot_contributions
   :align: center
 
-  Contribution measures for each target colorcoded by number of targets.
+  Contribution measures for each target across all significant positive intervention, colorcoded by number of targets :math:`n_t`.

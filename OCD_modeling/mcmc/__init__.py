@@ -25,6 +25,7 @@ from .inference_analysis import (
     plot_cv_regression,
     plot_distance_restore,
     plot_efficacy_by_number_of_target,
+    plot_five_top_params_distance_correlations,
     plot_improvement_pre_post_params_paper,
     plot_improvement_windrose,
     plot_param_behav,
