@@ -117,19 +117,10 @@ Then, compute and plot errors:
 
 
 .. figure:: img/model_comparison_20250213-01.svg
-  :width: 400
+  :width: 200
   :name: model_comparison
   :align: center
 
   Error between simulated models (without thalamus nodes, N=4; with thalamus nodes, N=6) and empirical 
   frontostriatal connectivity data.
 
-
-#.. argparse::
-#  :module: OCD_modeling.mcmc
-#  :func: get_history_parser
-#  :prog: python history_analysis.py
-#  :nodefaultconst:
-
-
-#.. _`pyABC`: https://pyabc.readthedocs.io/
