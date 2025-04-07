@@ -74,14 +74,16 @@ colorcoded vertical bars, andthe black bar is the target parameter values define
 Interventions could be planned to restore (i.e. increase or decrease) targeted parameters according to the direction of the 
 colorcoded arrows for each OCD subject, such that their frontostriatal functional connectivity tends to the healthy regime.
 
+
 .. figure:: img/kdes_20241112.svg
     :width: 600
     :align: center
 
-  Digital twin parameters (vertical coloured lines; green: OCD \#01, purple: OCD \#31) are displayed alongside the 
-  control group’s average (black vertical line). Arrows indicate the direction (arrowhead) and amplitude (vector length) 
-  of the targeted changes in specific neural parameters to restore healthy neural dynamics at the individual level. 
-  Posteriors distributions of OCD (orange) and controls (blue) are shown in background for reference.
+    Digital twin parameters (vertical coloured lines; green: OCD \#01, purple: OCD \#31) are displayed alongside the 
+    control group’s average (black vertical line). Arrows indicate the direction (arrowhead) and amplitude (vector length) 
+    of the targeted changes in specific neural parameters to restore healthy neural dynamics at the individual level. 
+    Posteriors distributions of OCD (orange) and controls (blue) are shown in background for reference.
+
 
 To get this, we did a special call to the function below, using the individuals' digital twins patients summary row (at baseline) as `df_real`:
 
