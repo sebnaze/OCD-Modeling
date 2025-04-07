@@ -122,8 +122,10 @@ It can then be called multiple times to plot grids of phase spaces as in Supplem
   :width: 1000
   :align: center
 
-  Bifurcation diagrams of the model variables :math:`S1`, :math:`S2` with order parameter :math:`C_{12}`. 
-  Lines denote equilibrium point curves (plain: stable, dash: unstable); BF: saddle-node points (i.e. `BranchPointFold`).
+  Bifurcation diagrams of the model variables :math:`S1`, :math:`S2` with free parameter :math:`C_{12}` and 
+  order parameter :math:`C_{21}`. 
+  Lines denote equilibrium point curves (plain: stable, dash: unstable); LP: saddle-node points (i.e. `LimitPoint`), 
+  B: Boundary point (bound values of the analysis).
 
 
 .. autofunction:: OCD_modeling.analysis.plot_timeseries_phasespace_bif
