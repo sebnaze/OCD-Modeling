@@ -1,7 +1,8 @@
 Dynamical system analysis
 =========================
 
-This section presents the code implemented for the analysis of the Reduced Wong Wang model `(Wong & Wang, 2006)`_ using `PyDSTool`_ `(Clewley et al., 2012)`_.
+This section presents the code implemented for the analysis of the Reduced Wong Wang model `(Wong & Wang, 2006)`_ 
+using `PyDSTool`_ `(Clewley et al., 2012)`_.
 
 Script overview
 ---------------
@@ -113,6 +114,16 @@ It can then be called multiple times to plot grids of phase spaces as in Supplem
   :align: center
 
   Grid of phase space with fixed point, nullclines and trajectories for different values of couplings.
+
+
+.. autofunction:: OCD_modeling.analysis.plot_bifurcation_row
+
+.. figure:: img/bifurcation_diagram_05__20230622.svg
+  :width: 1000
+  :align: center
+
+  Bifurcation diagrams of the model variables :math:`S1`, :math:`S2` with order parameter :math:`C_{12}`. 
+  Lines denote equilibrium point curves (plain: stable, dash: unstable); BF: saddle-node points (i.e. `BranchPointFold`).
 
 
 .. autofunction:: OCD_modeling.analysis.plot_timeseries_phasespace_bif

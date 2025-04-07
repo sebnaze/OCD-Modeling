@@ -483,7 +483,23 @@ def plot_bifurcation_grid(outputs, order_params, args=None):
     plt.show(block=False)
 
 def plot_bifurcation_row(outputs, order_params, rww=None, t_range=None, args=None):
-    """ Plot a row of bifurcation diagrams (ie. a 1 by n grid) """
+    """ Plot a row of bifurcation diagrams (ie. a 1 by n grid). 
+    
+    Parameters
+    ----------
+        outputs: list 
+            Outputs from stability analysis.
+        order_params: dict
+            Order parameters of the analysis in `{'param_name': np.array}` format where `np.array` is the list 
+            of order parameters `param_name`.
+        rww: OCD_modeling.models.ReducedWongWangOU
+            Model instance that ran. 
+        t_range: list
+            [start, stop] timestamp values of the RWW model traces to plot in the diagrams.
+        args: Argparse.Namespace
+            Extra options.        
+
+    """
     plt.rcParams.update({'font.size':10, 'axes.titlesize':'medium'})
     fig = plt.figure(figsize=[15,3])
     p1s = list(order_params.values())[0]

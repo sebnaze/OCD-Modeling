@@ -7,6 +7,8 @@ Parameter optimization
 We perform parameter optimization using Approximate Bayesian Computation with a Sequential Monte-Carlo algorithm (ABC-SMC) \
 implemented in the `pyABC`_ toolbox (Klinger et al., 2022).
 
+.. _`pyABC`: https://pyabc.readthedocs.io/
+
 We exploited the computational power offered by our high-performance computing infrastructure by instanciating a REDIS server, \
 which handled the I/O and provided a lightweight database accessible by the worker nodes. 
 For more information, visit https://pyabc.readthedocs.io/en/latest/api/pyabc.sampler.html#pyabc.sampler.RedisEvalParallelSampler.

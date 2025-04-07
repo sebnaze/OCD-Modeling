@@ -92,7 +92,7 @@ according to their number of targets (colorcode):
 
 
 .. figure:: img/simulated_intervention_outcomes-01.png
-  :width: 800
+  :width: 600
   :name: plot_distance_restore
   :align: center
 
@@ -144,7 +144,7 @@ the intervention for each target (increase vs. decrease).
 
 
 .. figure:: img/simulated_params_contrib-01.png
-  :width: 400
+  :width: 300
   :name: plot_contributions
   :align: center
 
