@@ -58,3 +58,32 @@ longitudinal dataset of OCD subjetcs, using a dot-product between the two variab
     :align: center
 
     Distributions of (raw) parameter evolutions between initial (pre) and follow-up (post) in digital twins of OCD subjects. 
+
+
+
+
+Personalized interventions
+--------------------------
+
+We illustrate how our framework can be used for intervention prognosis using the digital twins.
+Here we have two OCD subjects, patient #1 and patient #31, for whom we computed digital twins (respectively in green and purple).
+Model parameters that can be used as intervention targets are on the x-axis while the y-axis denote density estmates of 
+these parameters (blue: controls, orange: OCD; given as reference). Individual values of the two patients are denoted as
+colorcoded vertical bars, andthe black bar is the target parameter values defined as the avergae healthy parameter value. 
+
+Interventions could be planned to restore (i.e. increase or decrease) targeted parameters according to the direction of the 
+colorcoded arrows for each OCD subject, such that their frontostriatal functional connectivity tends to the healthy regime.
+
+.. figure:: img/kdes_20241112.svg
+    :width: 600
+    :align: center
+
+  Digital twin parameters (vertical coloured lines; green: OCD \#01, purple: OCD \#31) are displayed alongside the 
+  control group’s average (black vertical line). Arrows indicate the direction (arrowhead) and amplitude (vector length) 
+  of the targeted changes in specific neural parameters to restore healthy neural dynamics at the individual level. 
+  Posteriors distributions of OCD (orange) and controls (blue) are shown in background for reference.
+
+To get this, we did a special call to the function below, using the individuals' digital twins patients summary row (at baseline) as `df_real`:
+
+.. autofunction:: OCD_modeling.mcmc.plot_kdes
+
