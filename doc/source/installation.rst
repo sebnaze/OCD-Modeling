@@ -21,10 +21,10 @@ Docker
 
 We created a docker image with all the necessary pre-installed dependencies. ::
 
-    docker pull sebnaze:ocd-modeling:latest
+    docker pull sebnaze/ocd-modeling:0.3
 
 To have the docker container automatically start a Jupyter server and run the demo, 
-you can simply run ``docker run -it -p 8899:8899 sebnaze:ocd-modeling:latest`` and then 
+you can simply run ``docker run -it -p 8899:8899 sebnaze/ocd-modeling:0.3`` and then 
 type ``localhost:8899/`` in your browser address bar.
 
 
