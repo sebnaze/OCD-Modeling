@@ -1,6 +1,25 @@
 Simulation-based inference
 ==========================
 
+After performing the inital dynamical systems analysis of a single frontostriatal circuit (i.e. only one cortex and striatum), \
+we coupled two frontostriatal circuits : the ventromedial circuit  composed of the orbitofrontal cortex (OFC) and the nucleus accumbens (NAcc), \ 
+with the dorsolateral circuit composed of the lateral prefrontal cortex (LPFC) and the dorsal putamen (dPut).
+
+.. figure:: img/coupled_frontostriatal_circuits.svg
+    :width: 400
+    :name: coupled_circuits
+    :align: center
+
+    Illustration of the coupled ventromedial and dorsolateral frontostriatal circuits.
+
+
+The dynamical systems analysis of this coupled system becomes untractable without making considerable simplifications \
+or unreasonnable assumptions.
+
+Instead, we exploited an optimization framework to find the parameter distributions underlying the dynamics of this model \
+for healthy and OCD subjects. 
+
+
 Parameter optimization
 ----------------------
 

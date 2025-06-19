@@ -1,8 +1,16 @@
 Dynamical system analysis
 =========================
 
-This section presents the code implemented for the analysis of the Reduced Wong Wang model `(Wong & Wang, 2006)`_ 
-using `PyDSTool`_ `(Clewley et al., 2012)`_.
+We first performed the numerical analysis of the Reduced Wong Wang model `(Wong & Wang, 2006)`_ 
+using `PyDSTool`_ `(Clewley et al., 2012)`_. We use this to model a single frontostriatal circuit.
+
+.. figure:: img/single_frontostriatal_circuit.svg
+    :width: 400
+    :name: single_circuit
+    :align: center
+
+    Illustration of the single frontostriatal circuit.
+
 
 Script overview
 ---------------

@@ -27,4 +27,9 @@ To have the docker container automatically start a Jupyter server and run the de
 you can simply run ``docker run -it -p 8899:8899 sebnaze/ocd-modeling:0.3`` and then 
 type ``localhost:8899/`` in your browser address bar.
 
+.. figure:: img/demo_screenshot.png
+    :width: 800
+    :name: demo
+    :align: center
 
+    Screenshot of the Jupyter demo GUI to set parameters and run a single instance of the model. 
