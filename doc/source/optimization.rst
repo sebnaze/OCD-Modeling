@@ -5,7 +5,7 @@ After performing the inital dynamical systems analysis of a single frontostriata
 we coupled two frontostriatal circuits : the ventromedial circuit  composed of the orbitofrontal cortex (OFC) and the nucleus accumbens (NAcc), \ 
 with the dorsolateral circuit composed of the lateral prefrontal cortex (LPFC) and the dorsal putamen (dPut).
 
-.. figure:: img/coupled_frontostriatal_circuits.svg
+.. figure:: img/coupled_frontostriatal_circuits.png
     :width: 400
     :name: coupled_circuits
     :align: center
