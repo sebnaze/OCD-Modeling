@@ -77,8 +77,6 @@ def load_kdes(args):
 
 def load_dist_to_FC_controls(args):
     """ Load distances in FC space of data (control & patients) to controls from clinical trial (PRE and POST) """ 
-    #fname = os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls_20230907.pkl')
-    #fname = os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls_20240305.pkl')
     fname = os.path.join(proj_dir, 'postprocessing', 'distances_to_FC_controls_20240418.pkl')
     with open(fname, 'rb') as f:
         distances = pickle.load(f)
@@ -514,11 +512,7 @@ def get_param_stats_title(df, params, behav):
         utest = scipy.stats.mannwhitneyu(x,y)
         U, p = utest.statistic, utest.pvalue
         ttl += "U={}, p={:.4f}                ".format(int(U), p)
-        #print(par)
-        #print('normal test: ', scipy.stats.normaltest(x), scipy.stats.normaltest(y))
-        #print('t-test: ', scipy.stats.ttest_ind(x,y))
-        #print('U-test: ', scipy.stats.mannwhitneyu(x,y))
-        #print('Kruskal-Wallis: ', scipy.stats.kruskal(x,y))
+        
     return ttl
 
 
@@ -987,16 +981,11 @@ def plot_efficacy_transform(args):
         pdf = kde.score_samples(X)
         return {'kde':kde, 'pdf':pdf, 'X':X}
     
-    #kde_con = get_KDE(distances['con'])
-    #kde_pat = get_KDE(distances['pat'])
-    #bias_con = np.mean(distances['con'])
-    #bias_pat = np.mean(distances['pat'])
     bias_con = np.mean(distances['con'])
     bias_pat = np.mean(distances['pat'])
     bias_con_pat = np.mean(distances['con_pat'])
     bias = np.mean([bias_con, bias_pat])
     offset = np.mean(distances['con_pat'])
-    #scale = np.mean(distances['con_pat'])
     scale = np.mean(distances['con_pat'])
 
     kde_con = get_KDE(1-((distances['con']-bias_con)/scale)*100)
@@ -1004,15 +993,13 @@ def plot_efficacy_transform(args):
 
     plt.figure(figsize=[10,12])
     ax = plt.subplot(5,1,1)
-    #plt.hist(distances['pat']-np.mean(distances['pat'])+offset, color='orange', alpha=0.5, density=False, bins=np.linspace(0,0.3,30))
-    #plt.hist(distances['con']-np.mean(distances['con']), bins=np.linspace(0,0.3,30), color='lightblue', alpha=0.5, density=False)
     plt.hist(distances['con'], bins=np.linspace(0,0.3,30), color='lightblue', alpha=0.3, density=False)
     plt.hist(distances['pat'], bins=np.linspace(0,0.3,30), color='orange', alpha=0.3, density=False)
     plt.hist(distances['con_pat']-bias_con-bias_pat, bins=np.linspace(0,0.3,30), color='magenta', alpha=0.3, density=False)
     plt.vlines(np.mean(distances['con']), ymin=0, ymax=50, color='lightblue')
     plt.vlines(np.mean(distances['pat']), ymin=0, ymax=50, color='orange')
     plt.vlines(np.mean(distances['con_pat']), ymin=0, ymax=50, color='magenta')
-    #plt.xlim([0,1])
+
     plt.xlabel('$d$', fontsize=12)
     plt.ylabel('counts', fontsize=12)
     ax.spines.top.set_visible(False)
@@ -1021,7 +1008,7 @@ def plot_efficacy_transform(args):
     ax = plt.subplot(5,1,2)
     plt.hist(distances['con']-bias_con, bins=np.linspace(-0.1,0.3,40), color='lightblue', alpha=0.5, density=False)
     plt.hist(distances['con_pat'], bins=np.linspace(-0.1,0.3,40), color='orange', alpha=0.5, density=False)
-    #plt.xlim([0,1])
+    
     plt.xlabel('$d-\mu_{d_{XX}}$', fontsize=12)
     plt.ylabel('counts', fontsize=12)
     ax.spines.top.set_visible(False)
@@ -1030,7 +1017,7 @@ def plot_efficacy_transform(args):
     ax = plt.subplot(5,1,3)
     plt.hist((distances['con']-bias_con)/scale, bins=np.linspace(-2,2,40), color='lightblue', alpha=0.5, density=False)
     plt.hist((distances['con_pat']-bias_con)/scale, bins=np.linspace(-2,2,40), color='orange', alpha=0.5, density=False)
-    #plt.xlim([0,1])
+    
     plt.xlabel('$ \\frac{d-\mu_{d_{XX}}}{\mu_{d_{XY}} - \mu_{d_{XX}}}$', fontsize=12)
     plt.ylabel('counts', fontsize=12)
     ax.spines.top.set_visible(False)
@@ -1039,15 +1026,13 @@ def plot_efficacy_transform(args):
     ax = plt.subplot(5,1,4)
     plt.hist(1-((distances['con']-bias_con)/scale), bins=np.linspace(-2,2,40), color='lightblue', alpha=0.5, density=False)
     plt.hist(1-((distances['con_pat']-bias_con)/scale), bins=np.linspace(-2,2,40), color='orange', alpha=0.5, density=False)
-    #plt.xlim([0,1])
+    
     plt.xlabel('$1- \\frac{d-\mu_{d_{XX}}}{\mu_{d_{XY}} - \mu_{d_{XX}}}$', fontsize=12)
     plt.ylabel('counts', fontsize=12)
     ax.spines.top.set_visible(False)
     ax.spines.right.set_visible(False)
     
     ax = plt.subplot(5,1,5)
-    #plt.plot(100*(kde_pat['X']-bias)/scale, kde_pat['pdf'], color='orange')
-    #plt.plot(100*(kde_con['X']-bias+offset)/scale, kde_con['pdf'], color='lightblue')
     plt.plot(kde_con['X'], kde_con['pdf'], color='lightblue')
     plt.plot(kde_pat['X'], kde_pat['pdf'], color='orange')
     plt.xlabel('$E_{ff} \, (\%)$', fontsize=12)
@@ -1484,7 +1469,8 @@ def plot_distance_restore(df_restore, args, gs=None):
 
     elif args.efficacy_base=='ustat':
         sig_ustats = df_restore[(df_restore.upval*1485<0.051) & (df_restore.upval*1485>0.049)].ustat.unique()
-        plt.vlines(np.abs(sig_ustats).mean()/(400*400), ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.75, linewidth=lw) 
+        #plt.vlines(np.abs(sig_ustats).mean()/(400*400), ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.75, linewidth=lw) 
+        plt.vlines(0.578, ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.75, linewidth=lw) 
 
     else:
         plt.vlines(0, ymin=ymin, ymax=ymax, linestyle='dashed', color='gray', alpha=0.75, linewidth=lw) 
@@ -1554,7 +1540,7 @@ def plot_efficacy_by_number_of_target(df_top, gs=None, args=None):
     plt.xlabel("$n_t$", fontsize=10)
 
     ticks = ax1.get_yticks()
-    #ax1.set_yticklabels(labels=["{:.1f}".format(i/100000) for i in ticks])
+    
     plt.ylabel("AUC", fontsize=10)
 
 
@@ -1567,9 +1553,7 @@ def plot_efficacy_by_number_of_target(df_top, gs=None, args=None):
         else:
             mu_t0 = df_top[df_top.n_test_params==i].efficacy.mean()
         mu_t1 = df_top[df_top.n_test_params==j].efficacy.mean()
-        #plt.plot(j, np.log(mu_t1-mu_t0), 'o', color=palette[j], ms=9)
-        #lines.append({'x':j, 'y':np.log(mu_t1-mu_t0)})
-        #plt.plot(j, np.log10(mu_t1), 'o', color=palette[j], ms=9)
+    
         plt.plot(np.log(j), mu_t1, 'o', color=palette[j], ms=6)
         lines.append({'x':np.log(j), 'y':mu_t1})
     sbn.regplot(data=pd.DataFrame(lines), x='x', y='y', ci=95, color='gray', ax=ax2)
@@ -1577,12 +1561,8 @@ def plot_efficacy_by_number_of_target(df_top, gs=None, args=None):
     ax2.spines.right.set_visible(False)
     ax2.set_xticks(np.log(np.arange(1,7)))
     ax2.set_xticklabels(np.arange(1,7))
-    #ax.set_xlim([0.5,6.5])
-    #ax.set_xscale('log')
+
     plt.xlabel("$n_t$", fontsize=10)
-    #ticks = ax2.get_yticks()
-    #ax2.set_yticklabels(labels=["{:.1f}".format(i/100000) for i in ticks]) 
-    #plt.ylabel("$U \; statistic \; ( x 10^5)$", fontsize=10)
     plt.ylabel("$\widehat{AUC}$", fontsize=10)
 
     if gs==None:
@@ -1648,7 +1628,6 @@ def decision_tree(df_restore, params, args):
     feat_imps = dict() # feature importances
     for n_test_params in np.arange(args.n_test_params)+1:
         X,y = get_X_y(df_restore[(df_restore.n_test_params==n_test_params) & (df_restore.efficacy>0)], params)
-        #X,y = get_X_y(df_restore, params)
         dt = sklearn.tree.DecisionTreeRegressor(max_depth=args.max_depth)
         dt.fit(X, y)
         y_pred = dt.predict(X)
@@ -1723,18 +1702,8 @@ def plot_feature_windrose(df_dt, params, rscale='linear', args=None):
         j = int(np.floor(i/2))
         k = i%2
         r = np.array(df_dt.iloc[i][params])
-        #r = np.array(feat_imps[i+1].importances_mean)
-        
-        #rmin = r - np.array(feat_imps[i+1].importances_std)/2
-        #rmin[rmin<0] = 0
-        #rmax = r + np.array(feat_imps[i+1].importances_std)/2
-        
         r = np.append(r, r[0]) 
-        #rmin = np.append(rmin, rmin[0]) 
-        #rmax = np.append(rmax, rmax[0]) 
 
-        #axes[i].plot(theta, r, label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5)
-        #axes[j,k].bar(theta_, np.abs(r_), label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5, width=0.5)
         for r_, theta_ in zip(r,theta):
             if r_<0:
                 r__ = np.log10(np.abs(r_)) if rscale=='log' else np.abs(r_)
@@ -1742,23 +1711,21 @@ def plot_feature_windrose(df_dt, params, rscale='linear', args=None):
             else:
                 r__ = np.log10(r_) if rscale=='log' else r_
                 axes[j,k].bar(theta_, r__, facecolor=palette[df_dt.iloc[i].n_test_params], lw=1, linestyle='-', width=0.5, edgecolor='black')
-        #axes[i].fill_between(theta, rmin, rmax)
+        
         axes[j,k].set_xticks(theta[:-1])
         axes[j,k].set_xticklabels(params)
         lbls = axes[j,k].get_xticklabels()
         new_lbls = format_labels(lbls)
         axes[j,k].set_xticklabels(new_lbls)
-        #axes[i].set_rticks([0.1], labels=[])
+        
         axes[j,k].set_yticks([-1,0,1,2])
         axes[j,k].set_yticklabels([])
-        #axes[j,k].set_rmax(2)
-        #axes[j,k].set_rmin(-2)
+        
         axes[j,k].spines.polar.set_visible(False)
         axes[j,k].xaxis.grid(linewidth=0.5, linestyle='--')
 
     plt.tight_layout()
     if args.save_figs:
-        #plt.rcParams['svg.fonttype'] = 'none'
         fname = 'restoration_param_importances_'+args.distance_metric+'_'+args.efficacy_base+today()+'.svg'
         plt.savefig(os.path.join(proj_dir, 'img', fname))
     plt.show()
@@ -1976,7 +1943,6 @@ def plot_contribution_windrose(df_params_contribution, params, args=None):
         r_max = np.max([np.abs(r).max(), 101])
         axes[j,k].set_yticks(np.arange(0,r_max, 100))
         axes[j,k].set_yticklabels([])
-        #axes[j,k].set_rmax(2.2)
         axes[j,k].grid(zorder=0)
         
         axes[j,k].spines.polar.set_visible(False)
@@ -2020,15 +1986,9 @@ def plot_single_contribution_windrose(df, params, theta, palette, ax):
     new_lbls = format_labels(lbls)
     ax.set_xticklabels(new_lbls, fontsize=10)
     
-    #r_max = np.max([np.abs(r).max(), 1])
-    #ax.set_yticks(np.arange(0,r_max, 1))
-    #r_max = np.max([np.abs(r).max(), 101])
-    #ax.set_yticks(np.arange(0,r_max, 100))
-    #r_max = np.max([np.abs(r).max(), 1.1])
-    #ax.set_yticks(np.arange(0,r_max, 1))
     ax.set_yticks([])
     ax.set_yticklabels([])
-    #ax.set_rmax(2.2)
+    
     ax.grid(zorder=0)
     
     ax.spines.polar.set_visible(False)
@@ -2116,7 +2076,7 @@ def plot_sensitivity_windrose(df_params_sensitivity, params, args=None):
 
 def plot_fc_dist_pre_post_behav(df_summary, feature='dist', args=None):
     """ plot behavioral relationship to distance to FC controls """
-    #behav = 'YBOCS_Total' #'OCIR_Total'
+    
     behavs=['YBOCS_Total', 'OCIR_Total', 'OBQ_Total', 'MADRS_Total', 'HAMA_Total', 'Dep_Total', 'Anx_total']
     colors={'group1':'orange', 'group2':'green'}
 
@@ -2408,7 +2368,7 @@ def score_improvement(df, params, kdes, behav='YBOCS_Total'):
             pre = df_subj[df_subj.ses=='ses-pre'][param].iloc[0]
             post = df_subj[df_subj.ses=='ses-post'][param].iloc[0]
             score_dict['diff_'+param] = post - pre
-        #[score_dict['behav_'+par] = np.abs(diff_behav*val) for par,val in zip(params,score)]
+        
         lines.append(score_dict)
     df_improvement = pd.DataFrame(lines)
     return df_improvement
@@ -2441,17 +2401,12 @@ def plot_improvement_windrose(df_improvement, params, gs=None, args=None):
     else:
         ax = plt.subplot(gs, projection='polar')
     
-    #for i,group in enumerate(df_improvement.group.unique()):
-    sub_df = df_improvement#[df_improvement.group==group]
+    
+    sub_df = df_improvement
 
     line = dict()
     for param in params:
-        df_tmp = df_improvement#[df_improvement['diff_behav']>0]
-        #line[param], p = scipy.stats.spearmanr(np.array(df_tmp['diff_'+param]), np.array(df_tmp['diff_behav']))
-        #print("{:15}  R={:.2f}  p={:.3f}".format(param, line[param], p))
-        #line[param] = np.mean(df_tmp[param])
-        #line[param]= np.correlate(np.array(df_tmp['diff_'+param]), np.array(df_tmp['diff_behav']))[0]
-        #line[param]= np.dot(np.array(df_tmp['diff_'+param]), np.array(df_tmp['diff_behav']))
+        df_tmp = df_improvement
         line[param]= np.dot(np.array(df_tmp[param]), np.array(df_tmp['diff_behav']))
     sub_df = pd.DataFrame([line])    
 
@@ -2460,8 +2415,6 @@ def plot_improvement_windrose(df_improvement, params, gs=None, args=None):
     r = np.array(sub_df[params].sum(axis=0))/len(sub_df)
     r = np.append(r, r[0]) 
 
-    #axes[0,i].plot(theta, r, label = str(df_dt.iloc[i].n_test_params), color=palette[df_dt.iloc[i].n_test_params], lw=5)
-    #ax.bar(theta, r, label=group, color=palette[group], lw=5, width=0.5, alpha=0.3)
     for theta_, r_ in zip(theta, r):
         if r_ > 0:
             # increase of parameter due to treatment 
@@ -2841,9 +2794,7 @@ def plot_summary_improvement(df_summary, df_improvement, params, feature=None, a
 def linear_regression_sims(df_restore, params):
     """ Linear model between change in parameters and change in distance to healthy controls """ 
     df_rest = df_restore[(df_restore.ustat>96200)]# & (df_restore.dist<df_restore.dist_pre_hc)]
-    #df_rest = df_restore
-    #df_rest = df_rest.reset_index()
-
+    
     X = []
     inds = dict((i,[]) for i in np.arange(0,7))
     y = []
@@ -3083,8 +3034,6 @@ def parse_arguments():
 
 if __name__=='__main__':
     args = parse_arguments()
-    # load histories and KDEs
-    #histories = import_results(args)
     
     behavs=['YBOCS_Total', 'OCIR_Total', 'OBQ_Total', 'MADRS_Total', 'HAMA_Total', 'Dep_Total', 'Anx_total']
     params=['C_12', 'C_13', 'C_24', 'C_31', 'C_34', 'C_42', 'eta_C_13', 'eta_C_24', 'sigma', 'sigma_C_13', 'sigma_C_24']
@@ -3126,8 +3075,6 @@ if __name__=='__main__':
     
     if args.load_distances:
         print("Loading distances...")
-        #fname = os.path.join(proj_dir, 'postprocessing', args.db_names[0]+'_distances100eps'+str(int(args.tolerance*100))+".pkl")
-        #fname = os.path.join(proj_dir, 'postprocessing', 'assoc_distances100eps'+str(int(args.tolerance*100))+"_pre_20230918.pkl")
         fname = os.path.join(proj_dir, 'postprocessing', 'assoc_digital_twins_distances100eps'+str(int(args.tolerance*100))+"_pre_20240329.pkl")
         with open(fname, 'rb') as f:
             assoc = pickle.load(f)
@@ -3197,11 +3144,7 @@ if __name__=='__main__':
                 optim += '_optim'
                 date = '_20240329'
                 
-            #if 'paired' in args.efficacy_base:
-                #restoration_file = 'df_restore_'+args.distance_metric+'_paired_20240309.pkl'
             restoration_file = 'df_restore_'+args.distance_metric+optim+'_'+args.efficacy_base+date+'.pkl'
-            #else:
-            #    restoration_file = 'df_restore_'+args.distance_metric+'_20240313.pkl'
             
             with open(os.path.join(proj_dir, 'postprocessing', restoration_file), 'rb') as f:
                 df_restore = pickle.load(f)
@@ -3219,16 +3162,6 @@ if __name__=='__main__':
             plot_distance_restore(df_restore, args=args)
 
         df_top, top_params = get_df_top(df_restore, args)
-        
-        #df_feature_importance, decision_trees, feat_imps = decision_tree(df_restore, params, args)
-        #df_custom_feat_imps = compute_custom_feature_scores(decision_trees, params, args)
-        #df_simple_feat_imps = compute_simple_feature_scores(df_top, params, args)
-
-        #df_reliability = compute_feature_reliability(df_top, params, kdes, args)
-        #plot_contribution_windrose(df_reliability, params=['z_'+param for param in params], args=args)
-
-        #df_scaled_efficacy = compute_scaled_feature_score(df_restore[df_restore.efficacy>0], params, kdes, scaling='contribution', args=args)
-        #plot_contribution_windrose(df_scaled_efficacy, params, args=args)
 
         # Parameters contribution
         if args.contribution_analysis:
@@ -3237,8 +3170,7 @@ if __name__=='__main__':
                     df_params_contribution = pickle.load(f)
             else:
                 df_params_contribution = compute_scaled_feature_score(df_restore[df_restore.efficacy>0.5], params, kdes, scaling='dot_product_correlation', args=args)
-                #df_params_contribution = compute_scaled_feature_score(df_restore[df_restore.efficacy>0.5], params, kdes, scaling='cross_correlation', args=args)
-                #df_params_contribution = compute_scaled_feature_score(df_restore, params, kdes, scaling='contribution', args=args)
+
                 if args.save_outputs:
                     with open(os.path.join(proj_dir, 'postprocessing', 'df_param_contribution_'+args.distance_metric+'_'+args.efficacy_base+today()+'.pkl'), 'wb') as f:
                         pickle.dump(df_params_contribution, f)        
@@ -3287,8 +3219,6 @@ if __name__=='__main__':
 
         elif args.load_post_distances:
             print("Loading functional distances (post)...")
-            #fname = os.path.join(proj_dir, 'postprocessing', args.db_names[0]+'_distances100eps'+str(int(args.tolerance*100))+"_post.pkl")
-            #fname = os.path.join(proj_dir, 'postprocessing', 'assoc_distances100eps'+str(int(args.tolerance*100))+"_post_20230918.pkl")
             fname = os.path.join(proj_dir, 'postprocessing', 'assoc_digital_twins_distances100eps'+str(int(args.tolerance*100))+"_post_20240329.pkl")
             with open(fname, 'rb') as f:
                 assoc_post = pickle.load(f) 
@@ -3316,8 +3246,6 @@ if __name__=='__main__':
             
     
         if args.plot_pre_post_associations:
-            #plot_fc_dist_pre_post_behav(df_summary)
-            #plot_fc_dist_pre_post_params(df_summary)
             plot_pre_post_dist_ybocs(df_summary)
     
 
