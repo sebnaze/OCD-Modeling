@@ -203,15 +203,15 @@ def simulate_rww(params):
 
 
 def simulate_population_rww(params):
-    """ Run a pool of simulations and score their outputs.
+    """ Run a population of simulations and score their outputs.
 
-    As a design choice, the number of simulations per pool and the number of processes used in parallel are hard coded here 
+    As a design choice, the number of simulations per population and the number of processes used in parallel are hard coded here 
     in a `Argparse.Namespace` object which is propagated to the launcher.  
     
     Parameters
     ----------
         params: dict
-            Set of parameters are used to instanciate model.
+            Set of parameters used to instanciate model.
 
     Returns
     -------

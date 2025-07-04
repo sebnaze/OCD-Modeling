@@ -19,7 +19,7 @@ from OCD_modeling.models import ReducedWongWang as RWW
 from OCD_modeling.utils.utils import *
 
 def run_sim(model_pars, sim_pars, control_pars={}, bold_pars={}):
-    """ Run a single simulation.
+    """ Run a single simulation, and post-process its output (e.g. compute the BOLD signals).
     
     Parameters
     ----------
@@ -31,6 +31,8 @@ def run_sim(model_pars, sim_pars, control_pars={}, bold_pars={}):
             Control parameters. In case parameters needs to be manually updated throughout the simulation,
             provide the parameters' timeseries here.
         bold_pars: dict
+            BOLD parameters. Dictionary with keys t_range (the time range on which to compute the BOLD signal),
+            and transient (the time to discard due to transient at the beginning on the convolution). 
 
     Returns
     -------

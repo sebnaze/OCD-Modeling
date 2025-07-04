@@ -19,10 +19,10 @@ import sklearn
 
 import OCD_modeling
 # import most relevant environment and project variable
-from OCD_modeling.utils import cohen_d, get_working_dir, today
+from OCD_modeling.utils import cohen_d, get_working_dir, today, proj_dir, working_dir, read_config
 
-working_dir = get_working_dir()
-proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')
+#working_dir = get_working_dir()
+#proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')
 
 
 def import_results(args):
@@ -415,8 +415,34 @@ def plot_fc_sim_vs_data(df_data, df_base, stats, axes=None, args=None):
     
     
 
-def plot_kdes(kdes, cols, df_stats, histories, args=None):
-    """  Plot Kernel Density Estimates of posteriors """
+def plot_kdes(kdes, cols, df_stats, df_real=[], df_pred=[], 
+              plot_args={'nrows':4, 'ncols':5, 'row_offset':2, 'col_offset':3, 'figsize':[10,7], 'show_stars':True, 'hist_alpha':0.3, 'kde_alpha':1}, 
+              args=None):
+    """  Plot Kernel Density Estimates of posteriors (controls vs OCD)
+    
+    Parameters
+    ----------
+        kdes: dict
+            Kernel Density Estimates of parameters
+        cols: list
+            Model parameters
+        df_stats: pandas.DataFrame
+            Stastics for each parameter (healthy controls vs OCD patients)
+        df_real: pandas.DataFrame
+            (Optional) Synthetic data (observed)
+        df_pred: pandas.DataFrame
+            (Optional) Synthetic data (predicted)
+        plot_args: dict
+            Default options for plotting.
+                nrows, ncols: number of rows and columns of the GridSpec object (grid of axes).
+                row_offset, col_offset: shifts in rows and colums to let space for another plot.
+                figsize: figure size.
+                show_stars: show stars for statistical significant between controls and OCD.
+                hist_alpha, kde_alpha: opacity of the histograms and kernel density estimates.
+        args: argparse.Namespace
+            (Optional) Extra arguments
+
+    """
 
     plt.rcParams.update({'mathtext.default': 'regular', 'font.size':10})
     plt.rcParams.update({'text.usetex': False})

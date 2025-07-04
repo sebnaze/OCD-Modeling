@@ -7,7 +7,7 @@
 
 import argparse
 from datetime import datetime
-import importlib
+import itertools
 import inspect
 import joblib
 import numpy as np
@@ -15,92 +15,92 @@ import os
 import pandas as pd
 import pyabc
 import time
+import tomli
 
 import OCD_modeling
 from OCD_modeling.models import ReducedWongWang as RWW
 from OCD_modeling.hpc import parallel_launcher
+from OCD_modeling.utils.utils import working_dir, proj_dir, today, read_config
+
+default_params = dict()
 
 
+def set_default_params(config):
+    """ Set default parameters from the config file """
+    default_params['model'] = config['default_params']['model']
+    default_params['sim'] = config['default_params']['sim']
+    default_params['bold'] = config['default_params']['bold']
+    default_params['control'] = dict()
+    default_params['cohort'] = config['optim_params']['cohort']
 
-# model default parameters
-default_model_params = dict()
-default_model_params['I_0']       = 0.3
-default_model_params['J_N']       = 0.2609
-default_model_params['w']         = 0.9
-default_model_params['G']         = 2.5
-default_model_params['tau_S']     = 100.
-default_model_params['gamma']     = 0.000641
-default_model_params['sigma']     = 0.1
-default_model_params['N']         = 4
-default_model_params['dt']        = 0.01
-default_model_params['C']         = np.zeros((default_model_params['N'], default_model_params['N']))
-default_model_params['sigma_C']   = np.zeros((default_model_params['N'], default_model_params['N']))
-default_model_params['eta_C']     = np.zeros((default_model_params['N'], default_model_params['N']))
+def get_config_priors(config):
+    """ Creates priors objects from TOML config file. 
+    
+    Parameters
+    ----------
+        config: dict
+            TOML config file of the project.
+    
+    Returns
+    -------
+        priors: dict
+            Prior distribution for each parameters.
+        bounds: dict
+            Min and Max values of the parameters.
 
-# simulation default parameters
-default_sim_params = dict()
-default_sim_params['t_tot']         = 8000
-default_sim_params['rec_vars']      = ['C_13', 'C_24']
-default_sim_params['sf']            = 100
+    """
 
-# BOLD default parameters
-default_bold_params = dict()
-default_bold_params['t_range']      = [5000,8000]
-default_bold_params['transient']    = 60
+    conf_priors = config['optim_params']['priors']
+    
+    # outputs
+    priors, bounds = dict(), dict()
+    
+    for k,v in conf_priors.items():
+        if 'C_' in k:
+            var = k.rsplit(sep='_', maxsplit=2)[0]
+            vals = np.array(v)
+            x,y,_ = vals.shape
+            for i,j in itertools.product(np.arange(x), np.arange(y)):
+                if (vals[i,j,1] - vals[i,j,0])==0: continue  # case of same value, e.g. [0,0], discard 
+                par = var+'_'+str(i+1)+str(j+1)
+                priors[par] = pyabc.RV("uniform", vals[i,j,0], vals[i,j,1] - vals[i,j,0])
+                bounds[par] = vals[i,j]
+        else:
+            if (v[1]-v[0])==0: continue
+            bounds[k] = v
+            priors[k] = pyabc.RV("uniform", v[0], v[1] - v[0])
 
-# PRIORS
-# lower_bound, upper_bound
-sigma_min, sigma_max    = 0.001, 0.1     # noise amplitude
-G_min, G_max            = 1, 3           # global coupling
-C_12_min, C_12_max      = -0.5, 0.5      # PFC -> OFC
-C_21_min, C_21_max      = -0.5, 0.5      # OFC -> PFC
-C_13_min, C_13_max      = -0.5, 0.5      # NAcc -> OFC
-C_31_min, C_31_max      = 0, 0.5         # OFC -> NAcc
-C_24_min, C_24_max      = -0.5, 0.5      # Put -> PFC
-C_42_min, C_42_max      = 0, 0.5         # PFC -> Put
-C_34_min, C_34_max      = -0.5, 0.5      # Put -> NAcc
-C_43_min, C_43_max      = -0.5, 0.5      # Nacc -> Put
+    return pyabc.Distribution(priors), bounds
 
-# coupling noises on Ornstein-Uhlenbeck process 
-sigma_C_13_min, sigma_C_13_max  = 0, 0.5
-sigma_C_24_min, sigma_C_24_max  = 0, 0.5
-eta_C_13_min, eta_C_13_max  = 0, 0.1
-eta_C_24_min, eta_C_24_max  = 0, 0.1
-
-
-prior = pyabc.Distribution(
-    sigma = pyabc.RV("uniform", sigma_min, sigma_max - sigma_min),
-    G = pyabc.RV("uniform", G_min, G_max - G_min),
-    C_12 = pyabc.RV("uniform", C_12_min, C_12_max - C_12_min),
-    C_21 = pyabc.RV("uniform", C_21_min, C_21_max - C_21_min),
-    C_13 = pyabc.RV("uniform", C_13_min, C_13_max - C_13_min),
-    C_31 = pyabc.RV("uniform", C_31_min, C_31_max - C_31_min),
-    C_24 = pyabc.RV("uniform", C_24_min, C_24_max - C_24_min),
-    C_42 = pyabc.RV("uniform", C_42_min, C_42_max - C_42_min),
-    C_34 = pyabc.RV("uniform", C_34_min, C_34_max - C_34_min),
-    C_43 = pyabc.RV("uniform", C_43_min, C_43_max - C_43_min),
-    sigma_C_13 = pyabc.RV("uniform", sigma_C_13_min, sigma_C_13_max - sigma_C_13_min),
-    sigma_C_24 = pyabc.RV("uniform", sigma_C_24_min, sigma_C_24_max - sigma_C_24_min),
-    eta_C_13 = pyabc.RV("uniform", eta_C_13_min, eta_C_13_max - eta_C_13_min),
-    eta_C_24 = pyabc.RV("uniform", eta_C_24_min, eta_C_24_max - eta_C_24_min)
-)
-
-def get_default_args(func):
-    """ https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value """
-    """ (actually not in use -- deprecated) """ 
-    signature = inspect.signature(func)
-    return {
-        k: v.default
-        for k, v in signature.parameters.items()
-        if v.default is not inspect.Parameter.empty
-    }
 
 def unpack_params(in_params):
-    """ unpack parameters to be given to model and simulation """
-    model_params = default_model_params
-    sim_params = default_sim_params
-    bold_params = default_bold_params
-    control_params = dict()  # if keept empty, unused 
+    """ Unpack parameters to be given to model and simulation.
+    
+    All type of input parameter can be given, it will be unpacked and atrributed to the correct parameter dictionnary.
+    If the parameter is not recognized, a warning will be displayed and the input parameters will be ignored.
+
+    Parameters
+    ----------
+        in_params: dict
+            Input parameters. 
+
+    Returns
+    -------
+        model_params: dict
+            Model parameters.
+        sim_params: dict
+            Simulations parameters.
+        control_params: dict
+            Control parameters.
+        bold_params: dict
+            BOLD parameters.
+    """
+    #model_params, sim_params, control_params, bold_params = get_default_params()
+    model_params = default_params['model'].copy()
+    sim_params = default_params['sim'].copy()
+    control_params = default_params['control'].copy()
+    bold_params = default_params['bold'].copy()
+    cohort = default_params['cohort']
 
     # unpack model's params
     for k,v in in_params.items():
@@ -109,6 +109,7 @@ def unpack_params(in_params):
         elif ('C_' in k):
             var, inds = k.rsplit('_', maxsplit=1)
             j,i = int(inds[0])-1, int(inds[1])-1
+            model_params[var] = np.array(model_params[var])
             model_params[var][j,i] = v
 
         # unpack sim params
@@ -121,7 +122,7 @@ def unpack_params(in_params):
         else:
             print('parameter {} is unknown, it is being discarded.'.format(k))
             continue
-    return model_params, sim_params, control_params, bold_params
+    return model_params, sim_params, control_params, bold_params, cohort
 
 def simulate_rww(params):
     """ instanciate model and simulate trace """
@@ -138,14 +139,14 @@ def simulate_rww(params):
 def simulate_population_rww(params):
     """ instanciate models and simulate traces """
     args = argparse.Namespace()
-    args.n_sims = 50
-    args.n_jobs = 12
-    args.model_pars, args.sim_pars, args.control_pars, args.bold_pars = unpack_params(params)
+    args.n_sims = 8
+    args.n_jobs = 8
+    args.model_pars, args.sim_pars, args.control_pars, args.bold_pars, cohort = unpack_params(params)
     
     #sim_objs = parallel_launcher.launch_simulations(args)
     sim_objs = parallel_launcher.launch_pool_simulations(args)
     
-    RMSE = RWW.score_population_models(sim_objs, cohort='controls')
+    RMSE = RWW.score_population_models(sim_objs, cohort=cohort)
     return {'RMSE': RMSE}
 
 
@@ -177,17 +178,32 @@ def sim_output_to_df(sim_output, coh='con'):
     return df_sim
 
 
+def parse_args():
+    """ Parse command line arguments """ 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', type=argparse.FileType('rb'), help='Project config file to use (TOML file).')
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == '__main__':
-    today = datetime.now().strftime("%Y%m%d")
-    trace_name = 'test_rww4D_OU_'+today
-    working_dir = OCD_modeling.utils.utils.get_working_dir() 
-    proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')
-    #sampler = pyabc.sampler.MulticoreEvalParallelSampler(n_procs=1)
-    sampler = pyabc.sampler.RedisEvalParallelSampler(host="10.10.51.21", port=6379, password='bayesopt1234321')
+    args = parse_args()
+    config = read_config(args.config)
+    set_default_params(config)
+    sampler = pyabc.sampler.RedisEvalParallelSampler(host=config['optim_params']['ip_address'], 
+                                                     port=6379, 
+                                                     password=config['optim_params']['password'])
+    #sampler = pyabc.sampler.RedisEvalParallelSampler(host="10.10.58.254", port=6379, password='bayesopt1234321')
+    #sampler = pyabc.sampler.RedisEvalParallelSampler(host="10.1.121.227", port=6379, password='bayesopt1234321')
     sampler.daemon = False
-    abc = pyabc.ABCSMC(simulate_population_rww, prior, RWW.distance, sampler=sampler, population_size=1000, max_nr_recorded_particles=20000)
+    prior, _ = get_config_priors(config)
+    abc = pyabc.ABCSMC(simulate_population_rww, prior, RWW.distance, sampler=sampler, 
+                       population_size=config['optim_params']['population_size'])
+
+    os.makedirs(os.path.join(proj_dir, 'traces'), exist_ok=True)
     abc_id = abc.new(
-        "sqlite:///" + os.path.join(proj_dir, 'traces', trace_name+".db"),
+        "sqlite:///" + os.path.join(proj_dir, 'traces', config['optim_params']['db_name']+".db"),
         {"RMSE": 0}  # observation # note: here is dummy, the distance function does not use it.
     )
-    history = abc.run(max_nr_populations=10, minimum_epsilon=0.01)
+    history = abc.run(max_nr_populations=config['optim_params']['max_nr_populations'], 
+                      minimum_epsilon=config['optim_params']['min_epsilon'])

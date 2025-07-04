@@ -2660,7 +2660,9 @@ if __name__=='__main__':
                 with open(os.path.join(proj_dir, 'postprocessing', 'df_param_contribution.pkl'), 'rb') as f:
                     df_params_contribution = pickle.load(f)
             else:
-                df_params_contribution = compute_scaled_feature_score(df_restore[df_restore.efficacy>0], params, kdes, scaling='contribution', args=args)
+                #df_params_contribution = compute_scaled_feature_score(df_restore[df_restore.efficacy>0.5], params, kdes, scaling='dot_product_correlation', args=args)
+                df_params_contribution = compute_scaled_feature_score(df_restore[(df_restore.upval*1485<=0.05) & (df_restore.efficacy>0.5)], params, kdes, scaling='dot_product_correlation', args=args)
+
                 if args.save_outputs:
                     with open(os.path.join(proj_dir, 'postprocessing', 'df_param_contribution_'+args.distance_metric+'_'+args.efficacy_base+today()+'.pkl'), 'wb') as f:
                         pickle.dump(df_params_contribution, f)        

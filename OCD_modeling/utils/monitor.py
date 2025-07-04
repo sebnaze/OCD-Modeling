@@ -33,7 +33,7 @@ def monitor(args):
         
         infos = []
         for proc in psutil.process_iter(['pid', 'username', 'name', 'cpu_percent', 'cpu_times', 'memory_info']):
-            if ('abc' in proc.info['name']) and ('seb' in proc.info['username']):
+            if ('python' in proc.info['name']) and ('seb' in proc.info['username']):
                 infos.append(proc.info)
 
         ncpus = sum([info['cpu_percent'] for info in infos])/100

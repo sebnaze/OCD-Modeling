@@ -6,6 +6,7 @@ import numpy as np
 import os 
 import platform
 import scipy
+import tomli
 
 def cohen_d(x,y):
     """ Calculates effect size as cohen's d """
@@ -61,6 +62,14 @@ def get_working_dir():
         print('Computer unknown! Setting working dir as /working')
         working_dir = '/working/'
     return working_dir
+
+
+def read_config(conf_file):
+    """ Open and read TOML configuration file """
+    #with open(conf_filename, 'rb') as f:
+    config = tomli.load(conf_file)
+    return config
+
 
 working_dir = get_working_dir()
 proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')
