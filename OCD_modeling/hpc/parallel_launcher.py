@@ -46,7 +46,8 @@ def run_sim(model_pars, sim_pars, control_pars={}, bold_pars={}):
 
     # analyze traces
     RWW.compute_bold(rww_sim, **bold_pars)
-    RWW.compute_transitions(rww_sim)
+    #RWW.compute_transitions(rww_sim)
+    #RWW.compute_strFr_stats(rww_sim)
 
     return rww_sim
 

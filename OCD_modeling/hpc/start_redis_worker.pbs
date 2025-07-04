@@ -9,7 +9,7 @@
 ##########################################################################
 
 #PBS -N OCD_modeling
-#PBS -l select=1:ncpus=40:mem=100gb,place=pack,walltime=23:30:00
+#PBS -l select=1:ncpus=8:mem=20gb,walltime=07:00:00
 #PBS -m abe
 #PBS -M sebastien.naze@qimrberghofer.edu.au
 #PBS -o /working/lab_lucac/sebastiN/projects/OCD_modeling/.pbs_logs/
@@ -26,4 +26,4 @@ proj_dir=/mnt/lustre/working/lab_lucac/sebastiN/projects/OCD_modeling/
 
 redis_ip=`awk '{print $1}' ${proj_dir}traces/.redis_ip`
 
-abc-redis-worker --host=${redis_ip} --processes=5 --catch=False --daemon=False --catch=False --runtime=23h
+abc-redis-worker --host=${redis_ip} --processes=1 --catch=False --daemon=False --runtime=6h --password=bayesopt1234321

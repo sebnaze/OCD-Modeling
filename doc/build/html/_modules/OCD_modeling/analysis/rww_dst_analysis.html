@@ -86,7 +86,7 @@
 <span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ProcessPoolExecutor</span><span class="p">,</span> <span class="n">ThreadPoolExecutor</span><span class="p">,</span> <span class="n">wait</span>
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">dill</span>
-<span class="kn">import</span> <span class="nn">importlib</span>
+
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">joblib</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
@@ -97,8 +97,7 @@
 <span class="kn">import</span> <span class="nn">mpmath</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">from</span> <span class="nn">pathos.multiprocessing</span> <span class="kn">import</span> <span class="n">ProcessingPool</span>
-<span class="kn">import</span> <span class="nn">pdb</span>
+<span class="c1">#from pathos.multiprocessing import ProcessingPool</span>
 <span class="kn">import</span> <span class="nn">pickle</span>
 <span class="kn">import</span> <span class="nn">PyDSTool</span> <span class="k">as</span> <span class="nn">dst</span>
 <span class="kn">from</span> <span class="nn">PyDSTool.Toolbox</span> <span class="kn">import</span> <span class="n">phaseplane</span> <span class="k">as</span> <span class="n">pp</span>
@@ -111,13 +110,7 @@
 <span class="kn">from</span> <span class="nn">OCD_modeling.models</span> <span class="kn">import</span> <span class="n">ReducedWongWang</span> <span class="k">as</span> <span class="n">RWW</span>
 
 
-
 <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">()</span>
-
-<span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">,</span> <span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span><span class="o">.</span><span class="n">loads</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">dumps</span><span class="p">,</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span>
-<span class="n">multiprocessing</span><span class="o">.</span><span class="n">reduction</span><span class="o">.</span><span class="n">ForkingPickler</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span>
-<span class="n">multiprocessing</span><span class="o">.</span><span class="n">reduction</span><span class="o">.</span><span class="n">dump</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">dump</span>
-<span class="n">multiprocessing</span><span class="o">.</span><span class="n">queues</span><span class="o">.</span><span class="n">_ForkingPickler</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span>
 
 <div class="viewcode-block" id="create_model">
 <a class="viewcode-back" href="../../../dynamical_analysis.html#OCD_modeling.create_model">[docs]</a>
@@ -798,6 +791,15 @@
 
 
 <span class="k">if</span> <span class="vm">__name__</span><span class="o">==</span><span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="c1"># This is to be able to run multiple stability analysis in parallel.</span>
+    <span class="c1"># In short, PyDSTool objects need to be serialized to be passed across processes through a Queue.</span>
+    <span class="c1"># but pyCont objects (used for continuation) are not pickable. We need to set multiprocessing library to </span>
+    <span class="c1"># use dill to serialize the objects. </span>
+    <span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">,</span> <span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span><span class="o">.</span><span class="n">loads</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">dumps</span><span class="p">,</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span>
+    <span class="n">multiprocessing</span><span class="o">.</span><span class="n">reduction</span><span class="o">.</span><span class="n">ForkingPickler</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span>
+    <span class="n">multiprocessing</span><span class="o">.</span><span class="n">reduction</span><span class="o">.</span><span class="n">dump</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">dump</span>
+    <span class="n">multiprocessing</span><span class="o">.</span><span class="n">queues</span><span class="o">.</span><span class="n">_ForkingPickler</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span>
+
     <span class="n">args</span> <span class="o">=</span> <span class="n">get_parser</span><span class="p">()</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
     <span class="n">default_params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span><span class="mi">270</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">108</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mf">0.154</span><span class="p">,</span> <span class="s1">&#39;C_12&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span><span class="mf">2.5</span><span class="p">,</span> <span class="s1">&#39;J_N&#39;</span><span class="p">:</span><span class="mf">0.2609</span><span class="p">,</span> <span class="s1">&#39;I_0&#39;</span><span class="p">:</span><span class="mf">0.3</span><span class="p">,</span> <span class="s1">&#39;I_1&#39;</span><span class="p">:</span><span class="mf">0.0</span><span class="p">,</span> <span class="s1">&#39;tau_S&#39;</span><span class="p">:</span><span class="mi">100</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">:</span><span class="mf">0.9</span><span class="p">,</span> <span class="s1">&#39;gam&#39;</span><span class="p">:</span><span class="mf">0.000641</span><span class="p">}</span>
     <span class="c1">#order_params = {&#39;C_12&#39;: np.linspace(-1,1,args.n_op), &#39;I_0&#39;: np.linspace(0.2,0.5,args.n_op)} #, &#39;C_21&#39;: np.linspace(-1,1,args.n_op)}</span>

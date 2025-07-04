@@ -94,7 +94,7 @@
 <span class="kn">import</span> <span class="nn">pyabc</span>
 <span class="kn">import</span> <span class="nn">time</span>
 
-<span class="kn">import</span> <span class="nn">OCD_modeling</span>
+<span class="c1">#import OCD_modeling</span>
 <span class="kn">from</span> <span class="nn">OCD_modeling.models</span> <span class="kn">import</span> <span class="n">ReducedWongWang</span> <span class="k">as</span> <span class="n">RWW</span>
 <span class="kn">from</span> <span class="nn">OCD_modeling.hpc</span> <span class="kn">import</span> <span class="n">parallel_launcher</span>
 <span class="kn">from</span> <span class="nn">OCD_modeling.utils.utils</span> <span class="kn">import</span> <span class="o">*</span>
@@ -194,9 +194,24 @@
         <span class="n">sigma_C_13</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">sigma_C_13_min</span><span class="p">,</span> <span class="n">sigma_C_13_max</span> <span class="o">-</span> <span class="n">sigma_C_13_min</span><span class="p">),</span>
         <span class="n">sigma_C_24</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">sigma_C_24_min</span><span class="p">,</span> <span class="n">sigma_C_24_max</span> <span class="o">-</span> <span class="n">sigma_C_24_min</span><span class="p">),</span>
         <span class="n">eta_C_13</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">eta_C_13_min</span><span class="p">,</span> <span class="n">eta_C_13_max</span> <span class="o">-</span> <span class="n">eta_C_13_min</span><span class="p">),</span>
-        <span class="n">eta_C_24</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">eta_C_24_min</span><span class="p">,</span> <span class="n">eta_C_24_max</span> <span class="o">-</span> <span class="n">eta_C_24_min</span><span class="p">)</span>
-    <span class="p">)</span>
-    <span class="k">return</span> <span class="n">prior</span></div>
+        <span class="n">eta_C_24</span> <span class="o">=</span> <span class="n">pyabc</span><span class="o">.</span><span class="n">RV</span><span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">eta_C_24_min</span><span class="p">,</span> <span class="n">eta_C_24_max</span> <span class="o">-</span> <span class="n">eta_C_24_min</span><span class="p">)</span> <span class="p">)</span>
+
+    <span class="n">bounds</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;sigma&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">sigma_min</span><span class="p">,</span> <span class="n">sigma_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;G&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">G_min</span><span class="p">,</span> <span class="n">G_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;C_12&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">C_12_min</span><span class="p">,</span> <span class="n">C_12_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;C_21&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">C_21_min</span><span class="p">,</span> <span class="n">C_21_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;C_13&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">C_13_min</span><span class="p">,</span> <span class="n">C_13_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;C_31&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">C_31_min</span><span class="p">,</span> <span class="n">C_31_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;C_24&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">C_24_min</span><span class="p">,</span> <span class="n">C_24_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;C_42&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">C_42_min</span><span class="p">,</span> <span class="n">C_42_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;C_34&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">C_34_min</span><span class="p">,</span> <span class="n">C_34_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;C_43&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">C_43_min</span><span class="p">,</span> <span class="n">C_43_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;eta_C_13&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">eta_C_13_min</span><span class="p">,</span> <span class="n">eta_C_13_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;sigma_C_13&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">sigma_C_13_min</span><span class="p">,</span> <span class="n">sigma_C_13_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;eta_C_24&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">eta_C_24_min</span><span class="p">,</span> <span class="n">eta_C_24_max</span><span class="p">]</span>
+    <span class="n">bounds</span><span class="p">[</span><span class="s1">&#39;sigma_C_24&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">sigma_C_24_min</span><span class="p">,</span> <span class="n">sigma_C_24_max</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">prior</span><span class="p">,</span> <span class="n">bounds</span></div>
 
 
 
@@ -216,7 +231,7 @@
 <span class="k">def</span> <span class="nf">unpack_params</span><span class="p">(</span><span class="n">in_params</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; Unpack parameters to be given to model and simulation.</span>
 <span class="sd">    </span>
-<span class="sd">    All type of input parameter can be given, it will be unpacked and atrributed to the correct parameter dictrionnary.</span>
+<span class="sd">    All type of input parameter can be given, it will be unpacked and atrributed to the correct parameter dictionnary.</span>
 <span class="sd">    If the parameter is not recognized, a warning will be displayed and the input parameters will be ignored.</span>
 
 <span class="sd">    Parameters</span>
@@ -398,7 +413,7 @@
 <span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
     <span class="n">args</span> <span class="o">=</span> <span class="n">parse_args</span><span class="p">()</span>
     <span class="n">cfg</span> <span class="o">=</span> <span class="n">get_config</span><span class="p">()</span>
-    <span class="n">prior</span> <span class="o">=</span> <span class="n">get_prior</span><span class="p">()</span>
+    <span class="n">prior</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_prior</span><span class="p">()</span>
     <span class="n">history</span> <span class="o">=</span> <span class="n">run_abc</span><span class="p">(</span><span class="n">prior</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>
 </pre></div>
 

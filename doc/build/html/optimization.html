@@ -306,9 +306,9 @@ the optimization is still progressing or plateauing.</p>
 </dd></dl>
 
 <figure class="align-center" id="weights">
-<a class="reference internal image-reference" href="_images/weights_epsilons_20231020.png"><img alt="_images/weights_epsilons_20231020.png" src="_images/weights_epsilons_20231020.png" style="width: 800px;" /></a>
+<a class="reference internal image-reference" href="_images/epsilons_weights_log_20240524-01.png"><img alt="_images/epsilons_weights_log_20240524-01.png" src="_images/epsilons_weights_log_20240524-01.png" style="width: 800px;" /></a>
 <figcaption>
-<p><span class="caption-text">[A] Error rates (<span class="math notranslate nohighlight">\(\epsilon\)</span>) and [B] Weights of the optimization (blue: contols; orange:OCD).</span><a class="headerlink" href="#weights" title="Link to this image"></a></p>
+<p><span class="caption-text">[A] Error rates (<span class="math notranslate nohighlight">\(\epsilon\)</span>) and [B] Weights <span class="math notranslate nohighlight">\(\omega\)</span> of the optimization (blue: contols; orange:OCD).</span><a class="headerlink" href="#weights" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </section>
@@ -317,14 +317,14 @@ the optimization is still progressing or plateauing.</p>
 <p>We then generate new synthetic data using posterior distributions of parameters infered by the ABC-SMC algorithm.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.mcmc.launch_sims_parallel">
-<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">launch_sims_parallel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/simulate_inference.html#launch_sims_parallel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.launch_sims_parallel" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.mcmc.</span></span><span class="sig-name descname"><span class="pre">launch_sims_parallel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kdes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_param</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/mcmc/simulate_inference.html#launch_sims_parallel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.mcmc.launch_sims_parallel" title="Link to this definition"></a></dt>
 <dd><p>Run batched simulations from posterior inference in parallel:</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>kdes</strong> (<em>dict</em>) – Kernel Density Estimates from optimization (structured as kdes[cohort][param])</p></li>
+<li><p><strong>kdes</strong> (<em>dict</em>) – Kernel Density Estimates from optimization (structured as kdes[group][param])</p></li>
 <li><p><strong>cols</strong> (<em>list</em>) – Parameters (columns) which draw samples from KDEs (otherwise default values are used)</p></li>
-<li><p><strong>test_params</strong> (<em>list</em>) – Parameters for which the posterior is permuted for the virtual interventions.</p></li>
+<li><p><strong>test_param</strong> (<em>list</em>) – Parameters for which the posterior is permuted for the virtual interventions.</p></li>
 <li><p><strong>args</strong> (<em>argparse.Namespace</em>) – Extra arguments with options.</p></li>
 </ul>
 </dd>
@@ -359,13 +359,13 @@ since now stats are directly computed within plotting function).</p></li>
 <figure class="align-center" id="fc-sim-vs-data">
 <a class="reference internal image-reference" href="_images/FC_observed_vs_simulated.png"><img alt="_images/FC_observed_vs_simulated.png" src="_images/FC_observed_vs_simulated.png" style="width: 800px;" /></a>
 <figcaption>
-<p><span class="caption-text">Functional connectivity patterns across the frontostriatal system in OCD subjects vs healthy controls,
+<p><span class="caption-text">Functional connectivity patterns across the frontostriatal system in OCD subjects (orange) vs healthy controls (blue),
 from empirical (observed) and simulated data.</span><a class="headerlink" href="#fc-sim-vs-data" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">python</span> <span class="n">history_analysis</span><span class="o">.</span><span class="n">py</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">n_jobs</span> <span class="n">N_JOBS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">n_sims</span> <span class="n">N_SIMS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">gens</span> <span class="n">GENS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">histories</span> <span class="n">HISTORIES</span> <span class="p">[</span><span class="n">HISTORIES</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">--</span><span class="n">history_names</span> <span class="n">HISTORY_NAMES</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">compute_kdes</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">save_kdes</span><span class="p">]</span>
-                                  <span class="p">[</span><span class="o">--</span><span class="n">save_kdes_suffix</span> <span class="n">SAVE_KDES_SUFFIX</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">save_figs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">save_outputs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_figs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_epsilons</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_weights</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_epsilons_weights</span><span class="p">]</span>
-                                  <span class="p">[</span><span class="o">--</span><span class="n">plot_param_distrib</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_kde_matrix</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_stats</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_kdes</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_fc_sim_vs_data</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">simulate_posterior_modes</span><span class="p">]</span>
+                                  <span class="p">[</span><span class="o">--</span><span class="n">save_kdes_suffix</span> <span class="n">SAVE_KDES_SUFFIX</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">save_figs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">save_outputs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_figs</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_epsilons</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_weights</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_epsilons_weights</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_param_distrib</span><span class="p">]</span>
+                                  <span class="p">[</span><span class="o">--</span><span class="n">plot_kde_matrix</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_stats</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_kdes</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">plot_fc_sim_vs_data</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">simulate_posterior_modes</span><span class="p">]</span>
 </pre></div>
 </div>
 <section id="named-arguments">
@@ -398,7 +398,7 @@ from empirical (observed) and simulated data.</span><a class="headerlink" href="
 </dd>
 <dt><kbd>--save_kdes_suffix</kbd></dt>
 <dd><p>identifier of the KDE in the saving folder</p>
-<p>Default: “_20240223”</p>
+<p>Default: “_20240529”</p>
 </dd>
 <dt><kbd>--save_figs</kbd></dt>
 <dd><p>save figures</p>

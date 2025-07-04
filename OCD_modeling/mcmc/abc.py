@@ -104,7 +104,9 @@ def unpack_params(in_params):
 
     # unpack model's params
     for k,v in in_params.items():
-        if k in default_model_params.keys():
+        if k in model_params.keys():
+            if type(v) is np.ndarray:
+                v = v.squeeze() # otherwise matrix multiplication can be a problem at inference
             model_params[k] = v
         elif ('C_' in k):
             var, inds = k.rsplit('_', maxsplit=1)
@@ -113,16 +115,17 @@ def unpack_params(in_params):
             model_params[var][j,i] = v
 
         # unpack sim params
-        elif k in default_sim_params.keys():
+        elif k in sim_params.keys():
             sim_params[k] = v
         
         # unpack bold params
-        elif k in default_bold_params.keys():
+        elif k in bold_params.keys():
             bold_params[k] = v
         else:
             print('parameter {} is unknown, it is being discarded.'.format(k))
             continue
     return model_params, sim_params, control_params, bold_params, cohort
+
 
 def simulate_rww(params):
     """ instanciate model and simulate trace """

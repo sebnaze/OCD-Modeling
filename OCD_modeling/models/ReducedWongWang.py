@@ -128,6 +128,8 @@ class ReducedWongWangND:
 
         if C is None:
             self.C = np.random.randn(N,N) * (1-np.eye(N,N))  # connectivity matrix (n/a); default= 0 self, 1 to others
+        elif type(C)==list:
+            self.C = np.array(C)
         else:
             self.C = C
         
@@ -390,6 +392,7 @@ def compute_bold(model, t_range=None, transient=30):
     ts = model.S_rec[inds,:]
     bold_ts, x, f, q, v = simulateBOLD(ts.T, 1./model.sf, voxelCounts=None)
     model.bold_ts = bold_ts[:,int(model.sf*transient):] # discard first 10 sec due to transient
+    model.bold_t = model.t[inds[int(model.sf*transient):]]
     model.bold_fc = np.corrcoef(model.bold_ts)
 
 
@@ -422,33 +425,66 @@ def compute_transitions(model, threshold=0.3, min_diff=3, t_range=None):
         transitions['S'+str(i+1)] = np.array(trans[trans_inds], dtype=int)
     
     model.transitions = transitions
-    
 
+
+def compute_strFr_stats(model, t_range=None, thr=0, rec_vars=['C_12']):
+    """ Compute transition times, dwell times, and number of transitions in striato-frontal circuit(s) """
+    inds = get_inds(model, t_range)
+    output = dict()
+    for var in rec_vars:
+        ts = getattr(model, 'rec_'+var)
+        ts_thr = ts > thr
+        transitions = np.diff(ts_thr) # 1 = indirect to direct; -1: direct to indirect
+        transitions_inds, = np.where(transitions!=0)
+        transitions_times = model.t[transitions_inds]
+        dwell_time = np.diff(transitions_times)
+        dwell_times = dict()
+        if ts_thr[0]>0: # starts direct
+            dwell_times['direct'] = dwell_time[0::2]
+            dwell_times['indirect'] = dwell_time[1::2]
+        else: # starts indirect
+            dwell_times['indirect'] = dwell_time[0::2]
+            dwell_times['direct'] = dwell_time[1::2]
+        output[var] = {'n_transitions':len(transitions_inds), 'transitions_times':transitions_times, 'dwell_times':dwell_times}
+    model.strFr_stats = output
+        
 
 def create_sim_df(sim_objs, sim_type = 'sim-con', offset=0):
     """ Make a pandas DataFrame from list of simulation outputs objects """
     if sim_objs[0].N == 4:
         var_names = ['OFC', 'PFC', 'NAcc', 'Put']
         pathway_map = {'OFC-PFC': 'OFC_PFC', 'OFC-NAcc': 'Acc_OFC', 'OFC-Put':'dPut_OFC', 'PFC-NAcc':'Acc_PFC', 'PFC-Put':'dPut_PFC', 'NAcc-Put':'Acc_dPut'}
-        lines = []
-        for i,sim in enumerate(sim_objs):
-            fc = sim.bold_fc
-            for j in np.arange(sim.N):
-                for k in np.arange(j+1,sim.N):
-                    val = fc[j,k]
-                    c = '-'.join([var_names[j], var_names[k]])
-                    pathway = pathway_map[c]
-                    line = dict()
-                    line['subj'] =  sim_type+'{:06d}'.format(offset+i+1)
-                    line['cohort'] = sim_type
-                    line['pathway'] = pathway
-                    line['corr'] = val
-                    lines.append(line)
-
-        df_sim_fc = pd.DataFrame(lines)
-        return df_sim_fc
+    
+    elif sim_objs[0].N == 6:
+        var_names = ['OFC', 'PFC', 'NAcc', 'Put', 'DP', 'VA']
+        pathway_map = {'OFC-PFC': 'OFC_PFC', 'OFC-NAcc': 'Acc_OFC', 'OFC-Put':'dPut_OFC', 'OFC-DP':'dpThal_OFC', 'OFC-VA':'vaThal_OFC',
+                       'PFC-NAcc':'Acc_PFC', 'PFC-Put':'dPut_PFC', 'PFC-DP':'dpThal_PFC', 'PFC-VA':'vaThal_PFC',
+                       'NAcc-Put':'Acc_dPut', 'NAcc-DP':'Acc_dpThal', 'NAcc-VA':'Acc_vaThal',
+                       'Put-DP':'dPut_dpThal', 'Put-VA':'dPut_vaThal',
+                       'DP-VA': 'vaThal_dpThal'}
+    
     else:
-        print('Cannot create sim_df if N!=4')
+        print('Cannot create sim_df if N!=4 or N!=6')
+        return
+    
+    lines = []
+    for i,sim in enumerate(sim_objs):
+        fc = sim.bold_fc
+        for j in np.arange(sim.N):
+            for k in np.arange(j+1,sim.N):
+                val = fc[j,k]
+                c = '-'.join([var_names[j], var_names[k]])
+                pathway = pathway_map[c]
+                line = dict()
+                line['subj'] =  sim_type+'{:06d}'.format(offset+i+1)
+                line['cohort'] = sim_type
+                line['pathway'] = pathway
+                line['corr'] = val
+                lines.append(line)
+
+    df_sim_fc = pd.DataFrame(lines)
+    return df_sim_fc
+    
 
 
 def distance(x,y):
@@ -493,8 +529,12 @@ def score_population_models(sim_objs, cohort='controls'):
     """ Score a population of simulated model (using a parameter set) against experimental observations.
     Here, the whole distribution of models outputs is scored against the distributions of observations. """
     # load empirical FC
-    with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2023.pkl'), 'rb') as f:
-        df_roi_corr = pickle.load(f)
+    if sim_objs[0].N==4:
+        with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2023.pkl'), 'rb') as f:
+            df_roi_corr = pickle.load(f)
+    if sim_objs[0].N==6:
+        with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2024_Thal.pkl'), 'rb') as f:
+            df_roi_corr = pickle.load(f)
 
     # create simulated FC dataframe
     sim_type = 'sim-'+cohort
@@ -524,8 +564,8 @@ def plot_timeseries(model, t_range=None, labels=['OFC', 'PFC', 'NAcc', 'Put']):
     inds = get_inds(model, t_range)
     plt.plot(model.t[inds],model.S_rec[inds,:])
     #plt.legend([str(i) for i in range(model.N)])
-    plt.legend(labels)
-    plt.title("sigma={:.4f} G={:.1f} C={}".format(model.sigma, model.G, model.C))
+    plt.legend(labels, loc='upper left', bbox_to_anchor=[1,1])
+    #plt.title("sigma={:.4f} G={:.1f} C={}".format(model.sigma, model.G, model.C))
     plt.show()
 
 def plot_control_params(model, t_range=None, labels=[]):
@@ -569,20 +609,30 @@ def plot_auxiliary_variables(model, t_range=None, rec_vars=[]):
         plt.show()
 
 
-def plot_bold(model, labels=[]):
+def plot_bold(model, labels=['OFC', 'PFC', 'NAcc', 'Putamen'], colors=['blue', 'green', 'red', 'magenta']):
     """ plot BOLD timeseries and FC """
     fig = plt.figure(figsize=[16,4])
     gs = plt.GridSpec(1,2, width_ratios=[4,1])
 
     ax1 = fig.add_subplot(gs[0,0])
-    ax1.plot(model.bold_ts.T)
-    ax1.legend(labels)
+    for i in range(model.N):
+        ts = model.bold_ts.T[:,i]
+        ts = (ts-np.mean(ts)) / np.std(ts) - 3*i
+        ax1.plot(model.bold_t, ts, color=colors[i], alpha=0.3)
+    ax1.set_yticks(-np.linspace(0,4*model.N, model.N)[::-1]) #([-12, -8, -4, 0])
+    ax1.set_yticklabels(labels[::-1])
+    ax1.legend(labels, loc='upper right')
+    ax1.spines.top.set_visible(False)
+    ax1.spines.right.set_visible(False)
+    ax1.set_xlabel('time (s)')
+    ax1.set_ylabel('Normalized BOLD signal')
 
     ax2 = fig.add_subplot(gs[0,1])
     img = ax2.imshow(model.bold_fc, vmin=-1, vmax=1, cmap='RdBu_r')
-    plt.colorbar(img)
-    plt.xticks(np.arange(len(labels)), labels)
+    #plt.colorbar(img)
+    plt.xticks(np.arange(len(labels)), labels, rotation=60)
     plt.yticks(np.arange(len(labels)), labels)
+    ax2.set_title('Functional Connectivity')
     plt.show()
 
 

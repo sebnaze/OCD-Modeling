@@ -34,7 +34,7 @@ from OCD_modeling.models import ReducedWongWang as RWW
 
 rng = np.random.default_rng()
 
-def create_model(params, args):
+def create_model(params, args=None):
     """ Create the Dynamical System in PyDSTool 
     
         .. math:: \dot{S_i} = - \cfrac{S_i}{\\tau_S} + (1 - S_i) \gamma H(x_i) + \sigma v_i
@@ -184,7 +184,7 @@ def compute_equilibrium_point_curve(model, fps, pdomain):
 
 
 
-def stability_analysis(order_params, default_params, out_queue, args, pdomain={'C_12':[-1, 2]}):
+def stability_analysis(order_params, default_params, out_queue, args, pdomain={'C_12':[-0.5, 1.5]}):
     """ Create model and analyse dynamics using PyDSTool.
     
     Parameters
@@ -237,8 +237,8 @@ def stability_analysis(order_params, default_params, out_queue, args, pdomain={'
 
 def launch_stability_analysis(order_params, default_params, out_queue, args):
     """ Ghost process that launches the stability analysis for a set of defined order parameter,
-        creating a child process with a set timeout per child process, such that the stbaility analysis
-        does not hang waiting for the continuation to terminate if it does not converge. 
+    creating a child process with a set timeout per child process, such that the stbaility analysis
+    does not hang waiting for the continuation to terminate if it does not converge. 
         
     Parameters
     ----------
@@ -483,7 +483,23 @@ def plot_bifurcation_grid(outputs, order_params, args=None):
     plt.show(block=False)
 
 def plot_bifurcation_row(outputs, order_params, rww=None, t_range=None, args=None):
-    """ Plot a row of bifurcation diagrams (ie. a 1 by n grid) """
+    """ Plot a row of bifurcation diagrams (ie. a 1 by n grid). 
+    
+    Parameters
+    ----------
+        outputs: list 
+            Outputs from stability analysis.
+        order_params: dict
+            Order parameters of the analysis in `{'param_name': np.array}` format where `np.array` is the list 
+            of order parameters `param_name`.
+        rww: OCD_modeling.models.ReducedWongWangOU
+            Model instance that ran. 
+        t_range: list
+            [start, stop] timestamp values of the RWW model traces to plot in the diagrams.
+        args: Argparse.Namespace
+            Extra options.        
+
+    """
     plt.rcParams.update({'font.size':10, 'axes.titlesize':'medium'})
     fig = plt.figure(figsize=[15,3])
     p1s = list(order_params.values())[0]
@@ -541,8 +557,8 @@ def plot_bifurcation_row(outputs, order_params, rww=None, t_range=None, args=Non
         fig.close()
 
 
-def plot_timeseries_phasespace_bif(outputs, rww, args):
-    """ Show S1, S2, C_12 timeseries, S1-S2 phase space with trajectories and C_12 S1/S2 phase space 
+def plot_timeseries_phasespace_bif(outputs, rww, df_eta_sigma, args):
+    """ Show :math:`S1`, :math:`S2`, :math:`C_{12}` timeseries, :math:`S1-S2` phase space with trajectories and :math:`C_{12} - S1|S2` phase space. 
     with bifurcation diagram.
     
     Parameters
@@ -551,6 +567,8 @@ def plot_timeseries_phasespace_bif(outputs, rww, args):
             Outputs from stability analysis.
         rww: OCD_modeling.models.ReducedWongWangOU
             Model instance that ran. 
+        df_eta_sigma: pandas.DataFrame
+            Data from the simulations varying eta and sigma parameters.
         args: Argparse.Namespace
             Extra options.        
     """
@@ -562,9 +580,10 @@ def plot_timeseries_phasespace_bif(outputs, rww, args):
     stop = t_range[1]*rww.sf
 
 
-    fig = plt.figure(figsize=[9,6])
-    gs = plt.GridSpec(nrows=2, ncols=3)
-    sub_gs = gs[1,0:3].subgridspec(3,1)
+    fig = plt.figure(figsize=[10,5])
+    gs = plt.GridSpec(nrows=2, ncols=4, height_ratios=[1,0.8])
+    sub_gs = gs[0,1:4].subgridspec(3,1)  # time series
+    sub_gs_ = gs[1,:].subgridspec(1,4, width_ratios=[1,1,1.2,1.2])   # transitions & FC
 
     # Time series
     #------------
@@ -587,7 +606,7 @@ def plot_timeseries_phasespace_bif(outputs, rww, args):
     plt.ylabel('$S_2$', rotation=0, labelpad=15, fontsize=12)
 
     ax = fig.add_subplot(sub_gs[2,0])
-    ax.hlines(y=0, xmin=t_range[0], xmax=t_range[1], lw=0.5, linestyle='--', color='gray')
+    ax.hlines(y=0, xmin=t_range[0], xmax=t_range[1], lw=0.75, linestyle='--', color='gray')
     ax.plot(rww.t[start:stop], rww.rec_C_12[start:stop], lw=0.25, color='orange')
     ax.spines.top.set_visible(False)
     ax.spines.right.set_visible(False)
@@ -597,19 +616,27 @@ def plot_timeseries_phasespace_bif(outputs, rww, args):
 
     xticks = np.arange(t_range[0], t_range[1], 600) # 10min ticks
     plt.xticks(xticks, labels=np.array((xticks-t_range[0])/60, dtype=int))
-    ax.set_xlabel('time (min)', fontsize=12)
+    ax.set_xlabel('time (min)', fontsize=11)
+
+
+    # Transitions and FC against eta & sigma
+    # --------------------------------------
+    ax1 = fig.add_subplot(sub_gs_[0,2])
+    ax2 = fig.add_subplot(sub_gs_[0,3])
+    plot_transitions_FC(df_eta_sigma, ax1, ax2, args)
+
 
 
     # S1-S2 State space
     #------------------
-    output = dill.loads(outputs[3])['output']
-    ax = fig.add_subplot(gs[0,1])
+    output = dill.loads(outputs[5])['output']
+    ax = fig.add_subplot(sub_gs_[0,0])
     ax.plot(output['ncs'][1][:,0], output['ncs'][1][:,1], color='forestgreen', lw=3)
     ax.plot(output['ncs'][0][:,0], output['ncs'][0][:,1], color='dodgerblue', lw=3)
     ax.plot(rww.S_rec[start:stop,0], rww.S_rec[start:stop,1], lw=1, color='gray', alpha=1)
     for fp in output['fps']:
         x,y = fp.toarray()
-        ax.scatter(x, y, color='black', s=80)
+        ax.scatter(x, y, color='black', s=40)
         
     ax.spines.top.set_visible(False)
     ax.spines.right.set_visible(False)
@@ -621,14 +648,22 @@ def plot_timeseries_phasespace_bif(outputs, rww, args):
     ax.set_yticklabels(ticks)
     ax.set_xlim([-0.05,1])
     ax.set_ylim([-0.05,1])
-    plt.tight_layout()
+    
+    ax.text(x=0, y=0.8, s='$\\frac{dS_2}{dt}$', color='forestgreen', fontsize=16)
+    ax.text(x=0.25, y=0.8, s='$=0$', color='forestgreen', fontsize=12)
+    ax.text(x=0.7, y=0.05, s='$\\frac{dS_1}{dt}$', color='dodgerblue', fontsize=16)
+    ax.text(x=0.95, y=0.05, s='$=0$', color='dodgerblue', fontsize=12)
+
+    #plt.tight_layout()
 
 
     # S - C_12 state space
-    ax = fig.add_subplot(gs[0,2])
+    ax = fig.add_subplot(sub_gs_[0,1])
     cont = dill.loads(output['dilled_cont'])
-    cont.display(axes=ax, coords=['C_12', 'S1'], stability=True, color='blue', linewidth=1.6)
-    cont.display(axes=ax, coords=['C_12', 'S2'], stability=True, color='red', linewidth=1.6)
+    #cont.display(axes=ax, coords=['C_12', 'S1'], stability=True, color='blue', linewidth=1.6, points=False)
+    #cont.display(axes=ax, coords=['C_12', 'S2'], stability=True, color='red', linewidth=1.6, points=False)
+    cont.curves['EQ0'].display(coords=['C_12', 'S1'], stability=True, color='blue', linewidth=1.6, points=True)
+    cont.curves['EQ0'].display(coords=['C_12', 'S2'], stability=True, color='red', linewidth=1.6, points=True)
 
     plt.plot(rww.rec_C_12[start:stop], rww.S_rec[start:stop,0], lw=0.25, color='blue', alpha=0.2, label='$S_1$')
     plt.plot(rww.rec_C_12[start:stop], rww.S_rec[start:stop,1], lw=0.25, color='red', alpha=0.2, label='$S_2$')
@@ -645,13 +680,89 @@ def plot_timeseries_phasespace_bif(outputs, rww, args):
     plt.ylabel('$S_1$', rotation=0, fontsize=12)
     plt.title('')
 
-    plt.tight_layout()
+    #plt.tight_layout(pad=0)
+    plt.subplots_adjust(wspace=0.5, hspace=0.4)
+    
+    # adjust FC and transitions
+    #plt.sca(ax1)
+    #plt.subplots_adjust(left=0.2, right=0.8)
 
     if args.save_figs:
         fname = os.path.join(proj_dir, 'img', 'single_pathway_model'+today()+'.svg')
         plt.savefig(fname)
 
 
+
+def plot_transitions_FC(df_eta_sigma, ax1=None, ax2=None, args=None):
+    etas = np.sort(np.unique(df_eta_sigma['eta']))
+    sigmas = np.sort(np.unique(df_eta_sigma['sigma']))
+
+    fcs = np.zeros((len(etas), len(sigmas)))
+    trs = np.zeros((len(etas), len(sigmas)))
+    for i,eta in enumerate(etas):
+        for j,sigma in enumerate(sigmas):
+            fcs[i,j] = df_eta_sigma[(df_eta_sigma.eta==eta) & (df_eta_sigma.sigma==sigma)].fc.mean()
+            trs[i,j] = df_eta_sigma[(df_eta_sigma.eta==eta) & (df_eta_sigma.sigma==sigma)].transitions_per_minute.mean()
+                
+    if ((ax1==None) | (ax2==None)):
+        fig = plt.figure(figsize=[8,3])
+        ax1 = plt.subplot(1,2,1)
+        ax2 = plt.subplot(1,2,2)
+    
+    
+    X,Y = np.meshgrid(etas,sigmas)
+    cntr = ax1.contourf(X,Y,fcs, levels=20, cmap='Greens')#, vmin=-0.5, vmax=1) #X=etas, Y=sigmas, 
+    plt.sca(ax1)
+    plt.xlabel('$\eta_{12}$', fontsize=12)
+    plt.xticks([0, 0.025, 0.05, 0.075, 0.1], labels=['0', '', '0.05', '', '0.1'])
+    plt.yticks(np.arange(0,0.5,0.1))
+    plt.ylabel('$\sigma_{12}$', fontsize=12)
+    #plt.title('FC')
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    cbar = plt.colorbar(cntr, fraction=0.1, label='R', pad=0.025, drawedges=False)
+    cbar.set_ticks([0, 0.2, 0.4, 0.6])
+    
+    
+    cntr = ax2.contourf(X,Y,trs, levels=20, cmap='Oranges') #X=etas, Y=sigmas, 
+    plt.sca(ax2)
+    plt.xticks([0, 0.025, 0.05, 0.075, 0.1], labels=['0', '', '0.05', '', '0.1'])
+    plt.xlabel('$\eta_{12}$', fontsize=12)
+    plt.yticks(np.arange(0,0.5,0.1), labels=[])
+    #plt.ylabel('$\sigma_{12}$', fontsize=12)
+    #plt.title('Transitions rate')
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+    cbar = plt.colorbar(cntr, fraction=0.1, label='$min^{-1}$', pad=0.025, drawedges=False)
+    cbar.set_ticks(np.arange(0,50,20))
+
+    #plt.tight_layout(pad=0)
+
+    #if args.save_figs:
+    #    plt.savefig(os.path.join(proj_dir, 'img', 'eta_sigma'+today()+'.svg'))
+
+
+def load_df_eta_sigma():
+    """ Load pre-computed transitions rates and functional connecticity of the model 
+    along the :math:`\\eta` and :math:`\\sigma`parameter space.
+
+    Returns
+    -------
+        df_eta_sigma: pandas.DataFrame
+            Preprocessed simulated data.
+    """
+
+    pth = os.path.join(proj_dir, 'postprocessing', 'eta_sigma_20241029/')
+    files = os.listdir(pth)
+    lines = []
+    for file in files:
+        with open(pth+file, 'rb') as f:
+            outs = pickle.load(f)
+            lines.append(outs)
+
+    df_eta_sigma = pd.DataFrame(list(np.array(lines).flatten()))
+    df_eta_sigma['transitions_per_minute'] = df_eta_sigma['n_transitions']/120 # 120 because 2h simulations, i.e. 120  minutes
+    return df_eta_sigma
 
 def get_parser():
     """ parsing global script argument """
@@ -689,19 +800,20 @@ if __name__=='__main__':
     args = get_parser().parse_args()
     default_params = {'a':270, 'b': 108, 'd': 0.154, 'C_12': 0.25, 'G':2.5, 'J_N':0.2609, 'I_0':0.3, 'I_1':0.0, 'tau_S':100, 'w':0.9, 'gam':0.000641}
     #order_params = {'C_12': np.linspace(-1,1,args.n_op), 'I_0': np.linspace(0.2,0.5,args.n_op)} #, 'C_21': np.linspace(-1,1,args.n_op)}
-    order_params = {'C_12': np.linspace(-0.5,0.5,args.n_op), 'C_21': np.linspace(-0.5,0.5,args.n_op)}
-    #order_params = {'C_21': np.linspace(0.2,0.8,args.n_op)}
+    #order_params = {'C_12': np.linspace(-0.5,0.5,args.n_op), 'C_21': np.linspace(-0.5,0.5,args.n_op)}
+    order_params = {'C_21': np.linspace(0.2,0.8,args.n_op)}
     
     if args.load_stability_analysis:
         #fname = os.path.join(proj_dir, 'postprocessing', 'outputs_dst__20230925_op_C_12_fix025_C21_var023.pkl')
-        fname = os.path.join(proj_dir, 'postprocessing', 'outputs_dst__20230925_op_C_12_fix025_C21_var0_1_10.pkl')
+        #fname = os.path.join(proj_dir, 'postprocessing', 'outputs_dst__20230925_op_C_12_fix025_C21_var0_1_10.pkl')
+        fname = os.path.join(proj_dir, 'postprocessing', 'outputs_dst_20241207.pkl')
         with open(fname, 'rb') as f:
             outputs = pickle.load(f) 
     
     elif args.run_stability_analysis:
         outputs, futures = run_stability_analysis(order_params, default_params, args)
         if args.save_outputs:
-            fname = 'outputs_dst_'+today()+'_phasespace_grid.pkl'
+            fname = 'outputs_dst'+today()+'.pkl'
             with open(os.path.join(proj_dir, 'postprocessing', fname), 'wb') as f:
                 pickle.dump(outputs, f)
         if args.plot_bifurcation_diagrams:
@@ -721,8 +833,10 @@ if __name__=='__main__':
             plot_phasespace_grid(outputs, order_params, args)
 
     if args.load_sample_rww:
-        with open(os.path.join(proj_dir, 'postprocessing', 'sample_rww.pkl'), 'rb') as f:
+        #with open(os.path.join(proj_dir, 'postprocessing', 'sample_rww.pkl'), 'rb') as f:
+        with open(os.path.join(proj_dir, 'postprocessing', 'rww_sample001.pkl'), 'rb') as f:
             rww = pickle.load(f)
             
     if args.plot_timeseries_phasespace_bif:
-        plot_timeseries_phasespace_bif(outputs, rww, args)
+        df_eta_sigma = load_df_eta_sigma()
+        plot_timeseries_phasespace_bif(outputs, rww, df_eta_sigma, args)

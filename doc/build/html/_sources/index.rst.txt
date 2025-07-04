@@ -34,7 +34,7 @@ Virtual interventions targeting sets of model paramteters are performed to simul
 We generate predictions about best intervention targets, and test those predictions using longitudinal dataset of OCD subjects
 showing improvement of symptoms over time.  
 
-.. figure:: img/schematic_20240213-01.svg
+.. figure:: img/schematic_20240514-01.png
   :width: 800
   :name: schematic
   :align: center

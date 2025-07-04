@@ -1,7 +1,16 @@
 Dynamical system analysis
 =========================
 
-This section presents the code implemented for the analysis of the Reduced Wong Wang model `(Wong & Wang, 2006)`_ using `PyDSTool`_ `(Clewley et al., 2012)`_.
+We first performed the numerical analysis of the Reduced Wong Wang model `(Wong & Wang, 2006)`_ 
+using `PyDSTool`_ `(Clewley et al., 2012)`_. We use this to model a single frontostriatal circuit.
+
+.. figure:: img/single_frontostriatal_circuit.png
+    :width: 400
+    :name: single_circuit
+    :align: center
+
+    Illustration of the single frontostriatal circuit.
+
 
 Script overview
 ---------------
@@ -115,13 +124,28 @@ It can then be called multiple times to plot grids of phase spaces as in Supplem
   Grid of phase space with fixed point, nullclines and trajectories for different values of couplings.
 
 
-.. autofunction:: OCD_modeling.analysis.plot_timeseries_phasespace_bif
+.. autofunction:: OCD_modeling.analysis.plot_bifurcation_row
 
-.. figure:: img/single_pathway_model_20230926.svg
-  :width: 400
+.. figure:: img/bifurcation_diagram_05__20230622.svg
+  :width: 1000
   :align: center
 
-  Timeseries of the model variables S1, S2 and stochastic coupling C_12, with corresponding projections in different state spaces.
+  Bifurcation diagrams of the model variables :math:`S1`, :math:`S2` with free parameter :math:`C_{12}` and 
+  order parameter :math:`C_{21}`. 
+  Lines denote equilibrium point curves (plain: stable, dash: unstable); LP: saddle-node points (i.e. `LimitPoint`), 
+  B: Boundary point (bound values of the analysis).
+
+
+.. autofunction:: OCD_modeling.analysis.plot_timeseries_phasespace_bif
+
+.. figure:: img/single_pathway_model_20241207.svg
+  :width: 1000
+  :align: center
+
+  Timeseries of the model variables :math:`S1`, :math:`S2` and stochastic coupling :math:`C_{12}`, with corresponding projections 
+  in :math:`S1-S2` state space, bifurcation diagram with free parameter :math:`C_{12}`, transition rates and frontostriatal 
+  functional connectivity (FC) according to :math:`\eta_{12}` and :math:`\sigma_{12}` parameters. 
+  *Note that transition rates and FC were precomputed separately and loaded for visualization only.* 
 
 
 .. _`PyDSTool`: https://github.com/robclewley/pydstool 

@@ -22,8 +22,35 @@ from OCD_modeling.hpc import parallel_launcher
 from OCD_modeling.utils.utils import *
 
 
-def get_default_params():
+"""
+/!\ IMPORTANT /!\
+
+To optimize against OCD or healthy controls, you must change the cohort parameter in simulate_population_rww function:
+RMSE = RWW.score_population_models(sim_objs, cohort='controls')
+#RMSE = RWW.score_population_models(sim_objs, cohort='patients')
+
+When changing the number of nodes/regions of the simulation, these edits must be done:
+    def get_default_params(N=4)  <-- first function below, default to N=4, must be changed to N wanted
+
+    In main, the priors must be set by hand (choose between get_prior, get_prior_Thal, get_prior_Thal_fc_weak, etc.) via comment/uncomment
+    or create you own prior function if your N is not currently supported (i.e. N=4 or N=6)
+
+    prior, _ = get_prior()
+    #prior, _ = get_prior_Thal()  # <-- hc_strong
+    #prior, _ = get_prior_Thal_hc_weak()
+    #prior, _ = get_prior_Thal_fc_weak()
+
+"""
+
+
+
+def get_default_params(N=4):
     """ Create a structure with default models, simulation and BOLD parameters
+
+    Parameters
+    ----------
+        N: int
+            Number of regions to model
 
     Returns
     -------
@@ -31,9 +58,10 @@ def get_default_params():
             Model parameters.
         default_sim_params: dict
             Simulation parameters.
+        default_control_params: dict
+            Control parameters.
         default_bold_params: dict
             BOLD parameters.
-    
     """
 
     # model default parameters
@@ -45,7 +73,7 @@ def get_default_params():
     default_model_params['tau_S']     = 100.
     default_model_params['gamma']     = 0.000641
     default_model_params['sigma']     = 0.1
-    default_model_params['N']         = 4
+    default_model_params['N']         = N
     default_model_params['dt']        = 0.01
     default_model_params['C']         = np.zeros((default_model_params['N'], default_model_params['N']))
     default_model_params['sigma_C']   = np.zeros((default_model_params['N'], default_model_params['N']))
@@ -54,7 +82,7 @@ def get_default_params():
     # simulation default parameters
     default_sim_params = dict()
     default_sim_params['t_tot']         = 8000
-    default_sim_params['rec_vars']      = ['C_13', 'C_24']
+    default_sim_params['rec_vars']      = []#['C_13', 'C_24']
     default_sim_params['sf']            = 100
 
     # Control default parameters
@@ -75,6 +103,8 @@ def get_prior():
     -------
         prior: pyABC.Distribution
             Distribution object of priors.
+        bounds: dict
+            Lower and upper bounds of parameters , i.e. bounds['param_name']=[min,max].
     """
 
     # PRIORS
@@ -130,6 +160,370 @@ def get_prior():
     bounds['sigma_C_24'] = [sigma_C_24_min, sigma_C_24_max]
     return prior, bounds
 
+
+def get_prior_Thal():
+    """ Create uniform prior distributions of parameters to start Sequential Monte-Carlo.
+    
+    Returns
+    -------
+        prior: pyABC.Distribution
+            Distribution object of priors.
+        bounds: dict
+            Lower and upper bounds of parameters , i.e. bounds['param_name']=[min,max].
+    """
+
+    # PRIORS
+    # lower_bound, upper_bound
+    sigma_min, sigma_max    = 0.05, 0.1      # noise amplitude
+    G_min, G_max            = 2, 3           # global coupling
+    C_12_min, C_12_max      = 0, 0.5      # PFC -> OFC
+    C_15_min, C_15_max      = 0, 0.5      # dpThal -> OFC
+    #C_16_min, C_16_max      = -0.5, 0.5      # vaThal -> OFC
+    
+    C_21_min, C_21_max      = 0, 0.5      # OFC -> PFC
+    #C_25_min, C_25_max      = -0.5, 0.5      # dpThal -> PFC
+    C_26_min, C_26_max      = 0, 0.5      # vaThal -> PFC
+
+    C_31_min, C_31_max      = 0, 0.5      # OFC -> NAcc
+    #C_32_min, C_32_max      = -0.5, 0.5      # PFC -> NAcc
+    C_34_min, C_34_max      = -0.5, 0.5      # Put -> NAcc
+    
+    #C_41_min, C_41_max      = -0.5, 0.5      # OFC -> Put
+    C_42_min, C_42_max      = 0, 0.5      # PFC -> Put
+    C_43_min, C_43_max      = -0.5, 0.5      # Nacc -> Put
+
+    C_53_min, C_53_max      = -0.1, 0.5      # NAcc -> dpThal
+    #C_54_min, C_54_max      = -0.5, 0.5      # Put -> dpThal
+
+    #C_63_min, C_63_max      = -0.5, 0.5      # Nacc -> vaThal
+    C_64_min, C_64_max      = -0.1, 0.5      # Put -> vaThal
+    
+
+    # coupling noises on Ornstein-Uhlenbeck process 
+    sigma_C_53_min, sigma_C_53_max  = 0.1, 0.4
+    #sigma_C_54_min, sigma_C_54_max  = 0.1, 0.4
+    #sigma_C_63_min, sigma_C_63_max  = 0.1, 0.4
+    sigma_C_64_min, sigma_C_64_max  = 0.1, 0.4
+
+    eta_C_53_min, eta_C_53_max  = 0, 0.1
+    #eta_C_54_min, eta_C_54_max  = 0, 0.1
+    #eta_C_63_min, eta_C_63_max  = 0, 0.1
+    eta_C_64_min, eta_C_64_max  = 0, 0.1
+
+    prior = pyabc.Distribution(
+        sigma = pyabc.RV("uniform", sigma_min, sigma_max - sigma_min),
+        G = pyabc.RV("uniform", G_min, G_max - G_min),
+        
+        C_12 = pyabc.RV("uniform", C_12_min, C_12_max - C_12_min),
+        C_15 = pyabc.RV("uniform", C_15_min, C_15_max - C_15_min),
+        #C_16 = pyabc.RV("uniform", C_16_min, C_16_max - C_16_min),
+
+        C_21 = pyabc.RV("uniform", C_21_min, C_21_max - C_21_min),
+        #C_25 = pyabc.RV("uniform", C_25_min, C_25_max - C_25_min),
+        C_26 = pyabc.RV("uniform", C_26_min, C_26_max - C_26_min),
+
+        C_31 = pyabc.RV("uniform", C_31_min, C_31_max - C_31_min),
+        #C_32 = pyabc.RV("uniform", C_32_min, C_32_max - C_32_min),
+        C_34 = pyabc.RV("uniform", C_34_min, C_34_max - C_34_min),
+        
+        #C_41 = pyabc.RV("uniform", C_41_min, C_41_max - C_41_min),
+        C_42 = pyabc.RV("uniform", C_42_min, C_42_max - C_42_min),
+        C_43 = pyabc.RV("uniform", C_43_min, C_43_max - C_43_min),
+        
+        C_53 = pyabc.RV("uniform", C_53_min, C_53_max - C_53_min),
+        #C_54 = pyabc.RV("uniform", C_54_min, C_54_max - C_54_min),
+        
+        #C_63 = pyabc.RV("uniform", C_63_min, C_63_max - C_63_min),
+        C_64 = pyabc.RV("uniform", C_64_min, C_64_max - C_64_min),
+        
+        sigma_C_53 = pyabc.RV("uniform", sigma_C_53_min, sigma_C_53_max - sigma_C_53_min),
+        #sigma_C_54 = pyabc.RV("uniform", sigma_C_54_min, sigma_C_54_max - sigma_C_54_min),
+        #sigma_C_63 = pyabc.RV("uniform", sigma_C_63_min, sigma_C_63_max - sigma_C_63_min),
+        sigma_C_64 = pyabc.RV("uniform", sigma_C_64_min, sigma_C_64_max - sigma_C_64_min),
+
+        eta_C_53 = pyabc.RV("uniform", eta_C_53_min, eta_C_53_max - eta_C_53_min),
+        #eta_C_54 = pyabc.RV("uniform", eta_C_54_min, eta_C_54_max - eta_C_54_min),
+        #eta_C_63 = pyabc.RV("uniform", eta_C_63_min, eta_C_63_max - eta_C_63_min),
+        eta_C_64 = pyabc.RV("uniform", eta_C_64_min, eta_C_64_max - eta_C_64_min) )
+
+    bounds = dict()
+    bounds['sigma'] = [sigma_min, sigma_max]
+    bounds['G'] = [G_min, G_max]
+    
+    bounds['C_12'] = [C_12_min, C_12_max]
+    bounds['C_15'] = [C_15_min, C_15_max]
+    #bounds['C_16'] = [C_16_min, C_16_max]
+
+    bounds['C_21'] = [C_21_min, C_21_max]
+    #bounds['C_25'] = [C_25_min, C_25_max]
+    bounds['C_26'] = [C_26_min, C_26_max]
+
+    bounds['C_31'] = [C_31_min, C_31_max]
+    #bounds['C_32'] = [C_32_min, C_32_max]
+    bounds['C_34'] = [C_34_min, C_34_max]
+    
+    #bounds['C_41'] = [C_41_min, C_41_max]
+    bounds['C_42'] = [C_42_min, C_42_max]
+    bounds['C_43'] = [C_43_min, C_43_max]
+    
+    bounds['C_53'] = [C_53_min, C_53_max]
+    #bounds['C_54'] = [C_54_min, C_54_max]
+    
+    #bounds['C_63'] = [C_63_min, C_63_max]
+    bounds['C_64'] = [C_64_min, C_64_max]
+    
+    bounds['eta_C_53'] = [eta_C_53_min, eta_C_53_max]
+    #bounds['eta_C_54'] = [eta_C_54_min, eta_C_54_max]
+    bounds['sigma_C_53'] = [sigma_C_53_min, sigma_C_53_max]
+    #bounds['sigma_C_54'] = [sigma_C_54_min, sigma_C_54_max]
+    #bounds['eta_C_63'] = [eta_C_63_min, eta_C_63_max]
+    bounds['eta_C_64'] = [eta_C_64_min, eta_C_64_max]
+    #bounds['sigma_C_63'] = [sigma_C_63_min, sigma_C_63_max]
+    bounds['sigma_C_64'] = [sigma_C_64_min, sigma_C_64_max]
+    return prior, bounds
+
+def get_prior_Thal_hc_weak():
+    """ Create uniform prior distributions of parameters to start Sequential Monte-Carlo.
+    
+    Returns
+    -------
+        prior: pyABC.Distribution
+            Distribution object of priors.
+        bounds: dict
+            Lower and upper bounds of parameters , i.e. bounds['param_name']=[min,max].
+    """
+
+    # PRIORS
+    # lower_bound, upper_bound
+    sigma_min, sigma_max    = 0.05, 0.1      # noise amplitude
+    G_min, G_max            = 2, 3           # global coupling
+    C_12_min, C_12_max      = -0.5, 0.5      # PFC -> OFC
+    C_15_min, C_15_max      = -0.5, 0.5      # dpThal -> OFC
+    C_16_min, C_16_max      = -0.5, 0.5      # vaThal -> OFC
+    
+    C_21_min, C_21_max      = -0.5, 0.5      # OFC -> PFC
+    C_25_min, C_25_max      = -0.5, 0.5      # dpThal -> PFC
+    C_26_min, C_26_max      = -0.5, 0.5      # vaThal -> PFC
+
+    C_31_min, C_31_max      = 0, 0.5      # OFC -> NAcc
+    #C_32_min, C_32_max      = -0.5, 0.5      # PFC -> NAcc
+    C_34_min, C_34_max      = -0.5, 0.5      # Put -> NAcc
+    
+    #C_41_min, C_41_max      = -0.5, 0.5      # OFC -> Put
+    C_42_min, C_42_max      = -0.5, 0.5      # PFC -> Put
+    C_43_min, C_43_max      = -0.5, 0.5      # Nacc -> Put
+
+    C_53_min, C_53_max      = -0.5, 0.5      # NAcc -> dpThal
+    #C_54_min, C_54_max      = -0.5, 0.5      # Put -> dpThal
+
+    #C_63_min, C_63_max      = -0.5, 0.5      # Nacc -> vaThal
+    C_64_min, C_64_max      = -0.5, 0.5      # Put -> vaThal
+    
+
+    # coupling noises on Ornstein-Uhlenbeck process 
+    sigma_C_53_min, sigma_C_53_max  = 0.1, 0.4
+    #sigma_C_54_min, sigma_C_54_max  = 0.1, 0.4
+    #sigma_C_63_min, sigma_C_63_max  = 0.1, 0.4
+    sigma_C_64_min, sigma_C_64_max  = 0.1, 0.4
+
+    eta_C_53_min, eta_C_53_max  = 0, 0.1
+    #eta_C_54_min, eta_C_54_max  = 0, 0.1
+    #eta_C_63_min, eta_C_63_max  = 0, 0.1
+    eta_C_64_min, eta_C_64_max  = 0, 0.1
+
+    prior = pyabc.Distribution(
+        sigma = pyabc.RV("uniform", sigma_min, sigma_max - sigma_min),
+        G = pyabc.RV("uniform", G_min, G_max - G_min),
+        
+        C_12 = pyabc.RV("uniform", C_12_min, C_12_max - C_12_min),
+        C_15 = pyabc.RV("uniform", C_15_min, C_15_max - C_15_min),
+        C_16 = pyabc.RV("uniform", C_16_min, C_16_max - C_16_min),
+
+        C_21 = pyabc.RV("uniform", C_21_min, C_21_max - C_21_min),
+        C_25 = pyabc.RV("uniform", C_25_min, C_25_max - C_25_min),
+        C_26 = pyabc.RV("uniform", C_26_min, C_26_max - C_26_min),
+
+        C_31 = pyabc.RV("uniform", C_31_min, C_31_max - C_31_min),
+        #C_32 = pyabc.RV("uniform", C_32_min, C_32_max - C_32_min),
+        C_34 = pyabc.RV("uniform", C_34_min, C_34_max - C_34_min),
+        
+        #C_41 = pyabc.RV("uniform", C_41_min, C_41_max - C_41_min),
+        C_42 = pyabc.RV("uniform", C_42_min, C_42_max - C_42_min),
+        C_43 = pyabc.RV("uniform", C_43_min, C_43_max - C_43_min),
+        
+        C_53 = pyabc.RV("uniform", C_53_min, C_53_max - C_53_min),
+        #C_54 = pyabc.RV("uniform", C_54_min, C_54_max - C_54_min),
+        
+        #C_63 = pyabc.RV("uniform", C_63_min, C_63_max - C_63_min),
+        C_64 = pyabc.RV("uniform", C_64_min, C_64_max - C_64_min),
+        
+        sigma_C_53 = pyabc.RV("uniform", sigma_C_53_min, sigma_C_53_max - sigma_C_53_min),
+        #sigma_C_54 = pyabc.RV("uniform", sigma_C_54_min, sigma_C_54_max - sigma_C_54_min),
+        #sigma_C_63 = pyabc.RV("uniform", sigma_C_63_min, sigma_C_63_max - sigma_C_63_min),
+        sigma_C_64 = pyabc.RV("uniform", sigma_C_64_min, sigma_C_64_max - sigma_C_64_min),
+
+        eta_C_53 = pyabc.RV("uniform", eta_C_53_min, eta_C_53_max - eta_C_53_min),
+        #eta_C_54 = pyabc.RV("uniform", eta_C_54_min, eta_C_54_max - eta_C_54_min),
+        #eta_C_63 = pyabc.RV("uniform", eta_C_63_min, eta_C_63_max - eta_C_63_min),
+        eta_C_64 = pyabc.RV("uniform", eta_C_64_min, eta_C_64_max - eta_C_64_min) )
+
+    bounds = dict()
+    bounds['sigma'] = [sigma_min, sigma_max]
+    bounds['G'] = [G_min, G_max]
+    
+    bounds['C_12'] = [C_12_min, C_12_max]
+    bounds['C_15'] = [C_15_min, C_15_max]
+    bounds['C_16'] = [C_16_min, C_16_max]
+
+    bounds['C_21'] = [C_21_min, C_21_max]
+    bounds['C_25'] = [C_25_min, C_25_max]
+    bounds['C_26'] = [C_26_min, C_26_max]
+
+    bounds['C_31'] = [C_31_min, C_31_max]
+    #bounds['C_32'] = [C_32_min, C_32_max]
+    bounds['C_34'] = [C_34_min, C_34_max]
+    
+    #bounds['C_41'] = [C_41_min, C_41_max]
+    bounds['C_42'] = [C_42_min, C_42_max]
+    bounds['C_43'] = [C_43_min, C_43_max]
+    
+    bounds['C_53'] = [C_53_min, C_53_max]
+    #bounds['C_54'] = [C_54_min, C_54_max]
+    
+    #bounds['C_63'] = [C_63_min, C_63_max]
+    bounds['C_64'] = [C_64_min, C_64_max]
+    
+    bounds['eta_C_53'] = [eta_C_53_min, eta_C_53_max]
+    #bounds['eta_C_54'] = [eta_C_54_min, eta_C_54_max]
+    bounds['sigma_C_53'] = [sigma_C_53_min, sigma_C_53_max]
+    #bounds['sigma_C_54'] = [sigma_C_54_min, sigma_C_54_max]
+    #bounds['eta_C_63'] = [eta_C_63_min, eta_C_63_max]
+    bounds['eta_C_64'] = [eta_C_64_min, eta_C_64_max]
+    #bounds['sigma_C_63'] = [sigma_C_63_min, sigma_C_63_max]
+    bounds['sigma_C_64'] = [sigma_C_64_min, sigma_C_64_max]
+    return prior, bounds
+
+
+def get_prior_Thal_fc_weak():
+    """ Create uniform prior distributions of parameters to start Sequential Monte-Carlo.
+    
+    Returns
+    -------
+        prior: pyABC.Distribution
+            Distribution object of priors.
+        bounds: dict
+            Lower and upper bounds of parameters , i.e. bounds['param_name']=[min,max].
+    """
+
+    # PRIORS
+    # lower_bound, upper_bound
+    sigma_min, sigma_max    = 0.05, 0.1      # noise amplitude
+    G_min, G_max            = 2, 3           # global coupling
+    C_12_min, C_12_max      = -0.5, 0.5      # PFC -> OFC
+    C_15_min, C_15_max      = -0.5, 0.5      # dpThal -> OFC
+    C_16_min, C_16_max      = -0.5, 0.5      # vaThal -> OFC
+    
+    C_21_min, C_21_max      = -0.5, 0.5      # OFC -> PFC
+    C_25_min, C_25_max      = -0.5, 0.5      # dpThal -> PFC
+    C_26_min, C_26_max      = -0.5, 0.5      # vaThal -> PFC
+
+    C_31_min, C_31_max      = -0.5, 0.5      # OFC -> NAcc
+    C_32_min, C_32_max      = -0.5, 0.5      # PFC -> NAcc
+    C_34_min, C_34_max      = -0.5, 0.5      # Put -> NAcc
+    
+    C_41_min, C_41_max      = -0.5, 0.5      # OFC -> Put
+    C_42_min, C_42_max      = -0.5, 0.5      # PFC -> Put
+    C_43_min, C_43_max      = -0.5, 0.5      # Nacc -> Put
+
+    C_53_min, C_53_max      = -0.5, 0.5      # NAcc -> dpThal
+    C_54_min, C_54_max      = -0.5, 0.5      # Put -> dpThal
+
+    C_63_min, C_63_max      = -0.5, 0.5      # Nacc -> vaThal
+    C_64_min, C_64_max      = -0.5, 0.5      # Put -> vaThal
+    
+
+    # coupling noises on Ornstein-Uhlenbeck process 
+    sigma_C_53_min, sigma_C_53_max  = 0.1, 0.4
+    sigma_C_54_min, sigma_C_54_max  = 0.1, 0.4
+    sigma_C_63_min, sigma_C_63_max  = 0.1, 0.4
+    sigma_C_64_min, sigma_C_64_max  = 0.1, 0.4
+
+    eta_C_53_min, eta_C_53_max  = 0, 0.1
+    eta_C_54_min, eta_C_54_max  = 0, 0.1
+    eta_C_63_min, eta_C_63_max  = 0, 0.1
+    eta_C_64_min, eta_C_64_max  = 0, 0.1
+
+    prior = pyabc.Distribution(
+        sigma = pyabc.RV("uniform", sigma_min, sigma_max - sigma_min),
+        G = pyabc.RV("uniform", G_min, G_max - G_min),
+        
+        C_12 = pyabc.RV("uniform", C_12_min, C_12_max - C_12_min),
+        C_15 = pyabc.RV("uniform", C_15_min, C_15_max - C_15_min),
+        C_16 = pyabc.RV("uniform", C_16_min, C_16_max - C_16_min),
+
+        C_21 = pyabc.RV("uniform", C_21_min, C_21_max - C_21_min),
+        C_25 = pyabc.RV("uniform", C_25_min, C_25_max - C_25_min),
+        C_26 = pyabc.RV("uniform", C_26_min, C_26_max - C_26_min),
+
+        C_31 = pyabc.RV("uniform", C_31_min, C_31_max - C_31_min),
+        C_32 = pyabc.RV("uniform", C_32_min, C_32_max - C_32_min),
+        C_34 = pyabc.RV("uniform", C_34_min, C_34_max - C_34_min),
+        
+        C_41 = pyabc.RV("uniform", C_41_min, C_41_max - C_41_min),
+        C_42 = pyabc.RV("uniform", C_42_min, C_42_max - C_42_min),
+        C_43 = pyabc.RV("uniform", C_43_min, C_43_max - C_43_min),
+        
+        C_53 = pyabc.RV("uniform", C_53_min, C_53_max - C_53_min),
+        C_54 = pyabc.RV("uniform", C_54_min, C_54_max - C_54_min),
+        
+        C_63 = pyabc.RV("uniform", C_63_min, C_63_max - C_63_min),
+        C_64 = pyabc.RV("uniform", C_64_min, C_64_max - C_64_min),
+        
+        sigma_C_53 = pyabc.RV("uniform", sigma_C_53_min, sigma_C_53_max - sigma_C_53_min),
+        sigma_C_54 = pyabc.RV("uniform", sigma_C_54_min, sigma_C_54_max - sigma_C_54_min),
+        sigma_C_63 = pyabc.RV("uniform", sigma_C_63_min, sigma_C_63_max - sigma_C_63_min),
+        sigma_C_64 = pyabc.RV("uniform", sigma_C_64_min, sigma_C_64_max - sigma_C_64_min),
+
+        eta_C_53 = pyabc.RV("uniform", eta_C_53_min, eta_C_53_max - eta_C_53_min),
+        eta_C_54 = pyabc.RV("uniform", eta_C_54_min, eta_C_54_max - eta_C_54_min),
+        eta_C_63 = pyabc.RV("uniform", eta_C_63_min, eta_C_63_max - eta_C_63_min),
+        eta_C_64 = pyabc.RV("uniform", eta_C_64_min, eta_C_64_max - eta_C_64_min) )
+
+    bounds = dict()
+    bounds['sigma'] = [sigma_min, sigma_max]
+    bounds['G'] = [G_min, G_max]
+    
+    bounds['C_12'] = [C_12_min, C_12_max]
+    bounds['C_15'] = [C_15_min, C_15_max]
+    bounds['C_16'] = [C_16_min, C_16_max]
+
+    bounds['C_21'] = [C_21_min, C_21_max]
+    bounds['C_25'] = [C_25_min, C_25_max]
+    bounds['C_26'] = [C_26_min, C_26_max]
+
+    bounds['C_31'] = [C_31_min, C_31_max]
+    bounds['C_32'] = [C_32_min, C_32_max]
+    bounds['C_34'] = [C_34_min, C_34_max]
+    
+    bounds['C_41'] = [C_41_min, C_41_max]
+    bounds['C_42'] = [C_42_min, C_42_max]
+    bounds['C_43'] = [C_43_min, C_43_max]
+    
+    bounds['C_53'] = [C_53_min, C_53_max]
+    bounds['C_54'] = [C_54_min, C_54_max]
+    
+    bounds['C_63'] = [C_63_min, C_63_max]
+    bounds['C_64'] = [C_64_min, C_64_max]
+    
+    bounds['eta_C_53'] = [eta_C_53_min, eta_C_53_max]
+    bounds['eta_C_54'] = [eta_C_54_min, eta_C_54_max]
+    bounds['sigma_C_53'] = [sigma_C_53_min, sigma_C_53_max]
+    bounds['sigma_C_54'] = [sigma_C_54_min, sigma_C_54_max]
+    bounds['eta_C_63'] = [eta_C_63_min, eta_C_63_max]
+    bounds['eta_C_64'] = [eta_C_64_min, eta_C_64_max]
+    bounds['sigma_C_63'] = [sigma_C_63_min, sigma_C_63_max]
+    bounds['sigma_C_64'] = [sigma_C_64_min, sigma_C_64_max]
+    return prior, bounds
 
 def get_default_args(func):
     """ https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value """
@@ -227,6 +621,7 @@ def simulate_population_rww(params):
     #sim_objs = parallel_launcher.launch_simulations(args)
     sim_objs = parallel_launcher.launch_pool_simulations(args)
     
+    #RMSE = RWW.score_population_models(sim_objs, cohort='controls')
     RMSE = RWW.score_population_models(sim_objs, cohort='patients')
     return {'RMSE': RMSE}
 
@@ -259,21 +654,24 @@ def sim_output_to_df(sim_output, coh='con'):
     return df_sim
 
 
-def get_config():
+def get_config(args):
     """ extract redis config """
     cfg = dict()
     with open(os.path.join(proj_dir, 'envs', 'redis.conf'), 'r') as f:
         line = f.readline()
         cfg['pssr'] = line.split(' ')[1].strip()
-    with open(os.path.join(proj_dir, 'traces', '.redis_ip'), 'r') as f:
-        cfg['redis_ip'] = f.readline().strip()
+    if args.redis_ip==None:
+        with open(os.path.join(proj_dir, 'traces', '.redis_ip'), 'r') as f:
+            cfg['redis_ip'] = f.readline().strip()
+    else:
+        cfg['redis_ip'] = args.redis_ip
     return cfg
 
 
 def parse_args():
     """ Parse command line arguments """ 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--redis_ip', type=str, default="10.10.58.254", action='store', help='set ip address of the server. default: hpcapp01')
+    parser.add_argument('--redis_ip', type=str, default=None, action='store', help='set ip address of the server. default: hpcapp01')
     parser.add_argument('--redis_pwd', type=str, default='bayesopt1234321', action='store', help='password to access server')
     parser.add_argument('--resume_opt', type=str, default=None, action='store', help='name of the optimzation to resume (default:None, start a new optimization)')
     args = parser.parse_args()
@@ -295,11 +693,11 @@ def run_abc(prior, cfg):
             Output of the optimization, i.e. population parameters of accepted particles and summary statistics. 
     """
 
-    trace_name = 'rww4D_OU_HPC_'+today()
+    trace_name = 'rww4D_OU_HPC'+today()
     #sampler = pyabc.sampler.MulticoreEvalParallelSampler(n_procs=1)  # used for calibrating on local machine before portage to HPC
     sampler = pyabc.sampler.RedisEvalParallelSampler(host=cfg['redis_ip'], port=6379, password=cfg['pssr'])
     sampler.daemon = False
-    abc = pyabc.ABCSMC(simulate_population_rww, prior, RWW.distance, sampler=sampler, population_size=1000, max_nr_recorded_particles=20000)
+    abc = pyabc.ABCSMC(simulate_population_rww, prior, RWW.distance, sampler=sampler, population_size=100, max_nr_recorded_particles=5000)
     if args.resume_opt==None:
         abc_id = abc.new(
             "sqlite:///" + os.path.join(proj_dir, 'traces', trace_name+".db"),
@@ -307,12 +705,15 @@ def run_abc(prior, cfg):
         )
     else:
         abc.load("sqlite:///" + os.path.join(proj_dir, 'traces', args.resume_opt+".db"), abc_id=1)
-    history = abc.run(max_nr_populations=11, minimum_epsilon=0.01)
+    history = abc.run(max_nr_populations=10, minimum_epsilon=0.01)
     return history
 
 
 if __name__ == '__main__':
     args = parse_args()
-    cfg = get_config()
+    cfg = get_config(args)
     prior, _ = get_prior()
+    #prior, _ = get_prior_Thal()  # <-- hc_strong
+    #prior, _ = get_prior_Thal_hc_weak()
+    #prior, _ = get_prior_Thal_fc_weak()
     history = run_abc(prior, cfg)

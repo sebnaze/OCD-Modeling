@@ -62,6 +62,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.utils.emd"><code class="docutils literal notranslate"><span class="pre">emd()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.utils.get_working_dir"><code class="docutils literal notranslate"><span class="pre">get_working_dir()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.utils.monitor"><code class="docutils literal notranslate"><span class="pre">monitor()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.utils.paired_euclidian"><code class="docutils literal notranslate"><span class="pre">paired_euclidian()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.utils.plot_monitoring"><code class="docutils literal notranslate"><span class="pre">plot_monitoring()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#OCD_modeling.utils.rmse"><code class="docutils literal notranslate"><span class="pre">rmse()</span></code></a></li>
 </ul>
@@ -122,6 +123,12 @@
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="OCD_modeling.utils.paired_euclidian">
+<span class="sig-prename descclassname"><span class="pre">OCD_modeling.utils.</span></span><span class="sig-name descname"><span class="pre">paired_euclidian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/utils/utils.html#paired_euclidian"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.utils.paired_euclidian" title="Link to this definition"></a></dt>
+<dd><p>Euclidian distance between paired simulations</p>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="OCD_modeling.utils.plot_monitoring">
 <span class="sig-prename descclassname"><span class="pre">OCD_modeling.utils.</span></span><span class="sig-name descname"><span class="pre">plot_monitoring</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/utils/monitor.html#plot_monitoring"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.utils.plot_monitoring" title="Link to this definition"></a></dt>
 <dd><p>display traces of monitored activity</p>
@@ -131,7 +138,7 @@
 <dt class="sig sig-object py" id="OCD_modeling.utils.rmse">
 <span class="sig-prename descclassname"><span class="pre">OCD_modeling.utils.</span></span><span class="sig-name descname"><span class="pre">rmse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/OCD_modeling/utils/utils.html#rmse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#OCD_modeling.utils.rmse" title="Link to this definition"></a></dt>
 <dd><p>compute the root mean squared error of correlation accross pathways P between u and v as
-<span class="math notranslate nohighlight">\(d = \sqrt{ \sum_{p \in P} (\mu_u^p - \mu_v^p)^2 + (\sigma_u_p - \sigma_v^p)^2}\)</span></p>
+<span class="math notranslate nohighlight">\(d = \sqrt{ \sum_{p \in P} (\mu_u^p - \mu_v^p)^2}\)</span></p>
 <section id="parameters">
 <h2>Parameters:<a class="headerlink" href="#parameters" title="Link to this heading"></a></h2>
 <dl class="simple">

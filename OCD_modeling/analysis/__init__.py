@@ -10,6 +10,7 @@ from .rww_dst_analysis import (
     plot_phasespace,
     plot_phasespace_grid,
     plot_bifurcation_grid,
+    plot_bifurcation_row,
     plot_timeseries_phasespace_bif
 )
 
