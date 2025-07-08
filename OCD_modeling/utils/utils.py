@@ -8,6 +8,7 @@ import platform
 import scipy
 import tomli
 
+
 def cohen_d(x,y):
     """ Calculates effect size as cohen's d """
     nx = len(x)
@@ -20,6 +21,7 @@ def paired_euclidian(u,v):
     """ Euclidian distance between paired simulations """ 
     u,v = np.array(u), np.array(v)
     return np.sqrt(np.sum((u - v)**2, axis=1))
+
 
 def emd(u,v):
     """ computes the Wasserstein distance (i.e. earth mover's distance) across pathways P between u and v """
@@ -79,5 +81,8 @@ def read_config(conf_file):
     os.makedirs(os.path.join(proj_dir, 'postprocessing'), exist_ok=True)
     return config
 
+
 working_dir = get_working_dir()
+
+# default proj_dir if no config file is given
 proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')

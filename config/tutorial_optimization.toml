@@ -1,12 +1,19 @@
-# Configuration file for the Naze et al. (2025) paper
+# Configuration file for the tutorial using a minimalist optimization inspired from Naze et al. (2025)
 
 [utils]
-proj_dir = "/home/sebastin/working/lab_lucac/projects/OCD_modeling"
+    proj_dir = "/home/sebastin/working/lab_lucac/sebastiN/projects/OCD_modeling/tuto_test"
+
+[data]
+    region_names    =   ['OFC', 'PFC', 'NAcc', 'dPut']      # IMPORTANT: make sure the pathway names in fc_file (i.e. the region pairs)
+                                                            # match the index convention [12, 13, 14, 23, 24, 34].
+                                                            # e.g. regions [OFC, PFC, NAcc, dPut] will have FC pathways 
+                                                            # [OFC_PFC, OFC_NAcc, OFC_dPut, PFC_NAcc, PFC_dPut, NAcc_dPut]
+    fc_file         =   'empirical_corr.csv'
 
 [default_params]
-    region_names    =   ['OFC', 'PFC', 'NAcc', 'dPut']
     [default_params.model]
-        N       =   4
+        N       =   4                                       # Number of regions in the simulated network. 
+                                                            # /!\ The node order has to be the same as the region_names above!  
         C       =   [ [0, 0, 0, 0],
                       [0, 0, 0, 0],
                       [0, 0, 0, 0],
@@ -35,9 +42,9 @@ proj_dir = "/home/sebastin/working/lab_lucac/projects/OCD_modeling"
     ip_address      =       "127.0.0.1"                 # address of REDIS server
     password        =       "bayesopt1234321"           # password of REDIS server
     cohort          =       "patients"                  # data to optim against ("controls" or "patients"; depends on you "cohort" columns in empirical DataFrame
-    db_name         =       "RWW4D_OCD_Test"                 # filename that will be exported in "traces" directory
-    population_size =       100                        # number of (accepted) particles in generation
-    max_nr_populations  =   5                          # number of generations
+    db_name         =       "RWW4D_OCD_Tutorial"        # filename that will be exported in "traces" directory
+    population_size =       100                         # number of (accepted) particles in generation
+    max_nr_populations  =   5                           # number of generations
     min_epsilon     =       0.01                        # target error
     [optim_params.priors]
         
