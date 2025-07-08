@@ -22,6 +22,10 @@ from OCD_modeling.models import ReducedWongWang as RWW
 from OCD_modeling.hpc import parallel_launcher
 from OCD_modeling.utils.utils import working_dir, proj_dir, today, read_config
 
+# to keep clean outputs
+import warnings
+warnings.filterwarnings('ignore')
+
 default_params = dict()
 
 

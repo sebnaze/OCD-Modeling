@@ -101,6 +101,7 @@ Workflow
    optimization
    restoration
    validation
+   tutorials
 
 API
 ===

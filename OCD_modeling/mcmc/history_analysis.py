@@ -19,14 +19,21 @@ import sklearn
 
 import OCD_modeling
 # import most relevant environment and project variable
-from OCD_modeling.utils import cohen_d, get_working_dir, today, proj_dir, working_dir, read_config
+from OCD_modeling.utils import cohen_d, get_working_dir, today, proj_dir# , working_dir #, read_config
 
 #working_dir = get_working_dir()
 #proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')
 
 
-def import_results(args):
+def import_results(args, config=None):
     """ Read optimization results from DB """ 
+    if (args.histories==None and config!=None):
+        print("Reading history from configuration file, if you want to add history in command line, \
+              use --histories db_filename1 db_filename2, etc.")
+        
+        args.histories = [config['optim_params']['db_name']]
+        args.gens = [config['optim_params']['max_nr_populations']]
+
     histories = dict()
     for i,db_name in enumerate(args.histories):
         db_path = os.path.join(proj_dir, 'traces', db_name+'.db')
@@ -621,14 +628,16 @@ def plot_epsilons_weights(histories, args):
 def get_history_parser():
     " Script arguments when ran as main " 
     parser = argparse.ArgumentParser()
-    
+    parser.add_argument('--config', type=argparse.FileType('rb'), help='Project config file to use (TOML file).')
+
     parser.add_argument('--n_jobs', type=int, default=10, action='store', help="number of parallel processes launched")
     parser.add_argument('--n_sims', type=int, default=50, action='store', help="number of simulations ran with the same parameters (e.g. to get distribution that can be campared to clinical observations)")
     parser.add_argument('--gens', nargs='+', default=[], action='store', help="generation of the optimization (list, must be same length as histories)")
     parser.add_argument('--histories', nargs='+', default=None, action='store', help="optimizations to analyse and compare")
     parser.add_argument('--history_names', type=list, default=['controls', 'patients'], action='store', help="names given to each otpimization loaded")
-    parser.add_argument('--compute_kdes', default=False, action='store_true', help='compute KDEs of parameter estimations')
-    
+    parser.add_argument('--compute_stats', default=False, action='store_true', help='compute statistics of parameter differnces between groups')
+    parser.add_argument('--compute_kdes', default=False, action='store_true', help='compute KDEs of parameter estimations, needs compute_stats to run.')
+
     parser.add_argument('--save_kdes', default=False, action='store_true', help='save KDEs')
     parser.add_argument('--save_kdes_suffix', type=str, default=today(), help="identifier of the KDE in the saving folder")
     parser.add_argument('--save_figs', default=False, action='store_true', help='save figures')
@@ -653,8 +662,9 @@ def get_history_parser():
 
 if __name__=='__main__':
     args = get_history_parser().parse_args()
+    config = OCD_modeling.utils.read_config(args.config)
     
-    histories = import_results(args)
+    histories = import_results(args, config)
     
     if args.plot_epsilons:
         #plot_epsilons(histories, args)
@@ -670,7 +680,8 @@ if __name__=='__main__':
 
 
     # posterior distributions stats
-    df_stats = compute_stats(histories, args)
+    if args.compute_stats:
+        df_stats = compute_stats(histories, args)
 
     if args.compute_kdes:
         kdes,cols = compute_kdes(histories, args=args)

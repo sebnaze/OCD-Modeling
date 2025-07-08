@@ -30,6 +30,10 @@ from OCD_modeling.hpc.parallel_launcher import run_sim
 #from OCD_modeling.models import create_sim_df
 #from OCD_modeling.hpc import run_sim
 
+# to keep clean outputs
+import warnings
+warnings.filterwarnings('ignore')
+
 def batched(iterable, n):
     "Batch data into lists of length n. The last batch may be shorter."
     # batched('ABCDEFG', 3) --> ABC DEF G

@@ -1,0 +1,65 @@
+# Configuration file for the Naze et al. (2025) paper
+
+[utils]
+proj_dir = "/home/sebastin/working/lab_lucac/projects/OCD_modeling"
+
+[default_params]
+    region_names    =   ['OFC', 'PFC', 'NAcc', 'dPut']
+    [default_params.model]
+        N       =   4
+        C       =   [ [0, 0, 0, 0],
+                      [0, 0, 0, 0],
+                      [0, 0, 0, 0],
+                      [0, 0, 0, 0]  ]
+        eta_C   =   [ [0, 0, 0, 0],
+                      [0, 0, 0, 0],
+                      [0, 0, 0, 0],
+                      [0, 0, 0, 0]  ]
+        sigma_C =   [ [0, 0, 0, 0],
+                      [0, 0, 0, 0],
+                      [0, 0, 0, 0],
+                      [0, 0, 0, 0]  ]
+        G       =   2.5
+        sigma   =   0.05
+
+    [default_params.sim]
+        t_tot     =   3200
+        sf        =   100
+        rec_vars  =   []
+
+    [default_params.bold]
+        t_range   =   [1000, 3000]
+        transient =   60
+
+[optim_params]
+    ip_address      =       "127.0.0.1"                 # address of REDIS server
+    password        =       "bayesopt1234321"           # password of REDIS server
+    cohort          =       "patients"                  # data to optim against ("controls" or "patients"; depends on you "cohort" columns in empirical DataFrame
+    db_name         =       "RWW4D_OCD_Test"                 # filename that will be exported in "traces" directory
+    population_size =       100                        # number of (accepted) particles in generation
+    max_nr_populations  =   5                          # number of generations
+    min_epsilon     =       0.01                        # target error
+    [optim_params.priors]
+        
+        # Priors by default are uniformly distributed in range [min,max].
+        # If min=max the parameter is not included in the optimization, 
+        # and the default value is taken from the above default_params.
+
+        G                 =     [2, 3]
+
+        sigma             =     [0.05, 1]
+
+        C_min_max         =    [  [[0,0], [0,0.5], [-0.1,0.5], [0,0]], 
+                                  [[0,0.5], [0,0], [0,0], [-0.1,0.5]],
+                                  [[0,0.5], [0,0], [0,0], [-0.5,0.5]],
+                                  [[0,0], [0,0.5], [-0.1,0.5], [0,0]]   ]
+
+        eta_C_min_max     =    [  [[0,0], [0,0], [0,0.1], [0,0]], 
+                                  [[0,0], [0,0], [0,0], [0,0.1]],
+                                  [[0,0], [0,0], [0,0], [0,0]],
+                                  [[0,0], [0,0], [0,0], [0,0]]   ]  
+
+        sigma_C_min_max   =    [  [[0,0], [0,0], [0.1,0.4], [0,0]], 
+                                  [[0,0], [0,0], [0,0], [0.1,0.4]],
+                                  [[0,0], [0,0], [0,0], [0,0]],
+                                  [[0,0], [0,0], [0,0], [0,0]]   ]  
