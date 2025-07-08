@@ -19,7 +19,7 @@ import sklearn
 
 import OCD_modeling
 # import most relevant environment and project variable
-from OCD_modeling.utils import cohen_d, get_working_dir, today, proj_dir# , working_dir #, read_config
+from OCD_modeling.utils import cohen_d, get_working_dir, today, proj_dir
 
 #working_dir = get_working_dir()
 #proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')
@@ -31,8 +31,9 @@ def import_results(args, config=None):
         print("Reading history from configuration file, if you want to add history in command line, \
               use --histories db_filename1 db_filename2, etc.")
         
-        args.histories = [config['optim_params']['db_name']]
+        args.histories = [config['optim_params']['db_name']+'optim']
         args.gens = [config['optim_params']['max_nr_populations']]
+        args.history_names = [config['optim_params']['cohort']]
 
     histories = dict()
     for i,db_name in enumerate(args.histories):
@@ -683,8 +684,10 @@ if __name__=='__main__':
     if args.compute_stats:
         df_stats = compute_stats(histories, args)
 
+    # Kernel Density Estimates
     if args.compute_kdes:
         kdes,cols = compute_kdes(histories, args=args)
+
     if args.plot_kdes:
         plot_args = {4:{'nrows':4, 'ncols':5, 'row_offset':2, 'col_offset':3, 'figsize':[10,7], 'show_stars':True, 'hist_alpha':0.3, 'kde_alpha':1},
                      6:{'nrows':6, 'ncols':5, 'row_offset':0, 'col_offset':0, 'figsize':[10,12], 'show_stars':True, 'hist_alpha':0.3, 'kde_alpha':1}}

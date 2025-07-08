@@ -19,16 +19,11 @@ from time import time, sleep
 
 #import OCD_modeling
 # import most relevant environment and project variable
-from OCD_modeling.utils.utils import proj_dir, today
+from OCD_modeling.utils.utils import proj_dir, today, read_config
 from OCD_modeling.mcmc.history_analysis import import_results, compute_kdes
 from OCD_modeling.mcmc.abc_hpc import unpack_params, get_prior, get_prior_Thal, get_prior_Thal_fc_weak, get_prior_Thal_hc_weak
 from OCD_modeling.models.ReducedWongWang import create_sim_df
 from OCD_modeling.hpc.parallel_launcher import run_sim
-
-#from OCD_modeling.utils import proj_dir, today
-#from OCD_modeling.mcmc import import_results, compute_kdes, unpack_params, get_prior
-#from OCD_modeling.models import create_sim_df
-#from OCD_modeling.hpc import run_sim
 
 # to keep clean outputs
 import warnings
@@ -238,24 +233,31 @@ def get_test_param(args):
 def parse_arguments():
     " Script arguments when ran as main " 
     parser = argparse.ArgumentParser()
+    
+    parser.add_argument('--config', type=argparse.FileType('rb'), default=None, help='Project config file to use (TOML file).')
+
+    parser.add_argument('--histories', nargs='+', default=['rww4D_OU_HPC_20230510', 'rww4D_OU_HPC_20230605'], action='store', help="optimizations to analyse and compare")
+    parser.add_argument('--history_names', type=list, default=['controls', 'patients'], action='store', help="names given to each otpimization loaded")
+    parser.add_argument('--db_name', type=str, default=None, help="identifier of the sqlite3 database")
+    parser.add_argument('--gens', nargs='+', default=[], action='store', help="generation of the optimization (list, must be same length as histories)")
+
     parser.add_argument('--save_figs', default=False, action='store_true', help='save figures')
     parser.add_argument('--save_outputs', default=False, action='store_true', help='save outputs')
+    parser.add_argument('--save_kdes', default=False, action='store_true', help='save KDEs')
+
     parser.add_argument('--n_jobs', type=int, default=10, action='store', help="number of parallel processes launched")
     parser.add_argument('--n_sims', type=int, default=50, action='store', help="number of simulations in intervention (e.g. to get distribution that can be campared to clinical observations)")
     parser.add_argument('--n_batch', type=int, default=10, action='store', help="number of sumluation per batch between saving to DB (to reduce i/o overhead)")
-    parser.add_argument('--gens', nargs='+', default=[], action='store', help="generation of the optimization (list, must be same length as histories)")
+    
     parser.add_argument('--plot_figs', default=False, action='store_true', help='plot figures')
-    parser.add_argument('--histories', nargs='+', default=['rww4D_OU_HPC_20230510', 'rww4D_OU_HPC_20230605'], action='store', help="optimizations to analyse and compare")
-    parser.add_argument('--history_names', type=list, default=['controls', 'patients'], action='store', help="names given to each otpimization loaded")
-    parser.add_argument('--save_kdes', default=False, action='store_true', help='save KDEs')
-    parser.add_argument('--db_name', type=str, default=None, help="identifier of the sqlite3 database")
+    
     parser.add_argument('--base_cohort', type=str, default='controls', help="Cohort from which to infer posterior as default")
     parser.add_argument('--test_cohort', type=str, default='patients', help="Cohort from which to infer posterior of individual params")
     parser.add_argument('--test_param', nargs='+', default=[], help="posterior parameter to swap between base and test cohort, if empty list then all params are tested")
     parser.add_argument('--test_param_index', type=int, default=None, action='store', help='if using a external file for test parameters, use line index ')
-    parser.add_argument('--timeout', type=int, default=3600, help="timeout for DB writting in parallel")
     parser.add_argument('--use_optim_params', default=False, action='store_true', help="if flag is on, use parameters from accepted particles of optimization, other draw new params from posterior")
     parser.add_argument('--N', type=int, default=4, action='store', help="Number of regions in simulations (default=4, could also be 6.")
+    parser.add_argument('--timeout', type=int, default=3600, help="timeout for DB writting in parallel")
     args = parser.parse_args()
     args.gens = np.array(args.gens, dtype=int)
     return args
@@ -263,15 +265,21 @@ def parse_arguments():
 
 if __name__=='__main__':
     args = parse_arguments()
-    # load histories and KDEs
-    histories = import_results(args)
+    
+    if args.config!=None:
+        config = read_config(args.config)
+
+    # load histories and compute KDEs
+    histories = import_results(config=config, args=args)
+
     kdes,cols = compute_kdes(histories, args=args)
 
+    # get virtual intervention target(s)
     test_param = get_test_param(args)
 
-    # delay start randomly by up to 3 min to avoid large batches of simulations writting
+    # delay start randomly by up to 1 min to avoid large batches of simulations writting
     # concurrently to DB 
-    sleep(np.random.randint(0,180))
+    sleep(np.random.randint(0,60))
     
     launch_sims_parallel(kdes, cols, test_param, args=args)
 

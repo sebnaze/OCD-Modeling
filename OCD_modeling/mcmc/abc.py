@@ -36,6 +36,9 @@ def set_default_params(config):
     default_params['bold'] = config['default_params']['bold']
     default_params['control'] = dict()
     default_params['cohort'] = config['optim_params']['cohort']
+    default_params['fc_file'] = config['data']['fc_file']
+    default_params['region_names'] = config['data']['region_names']
+
 
 def get_config_priors(config):
     """ Creates priors objects from TOML config file. 
@@ -104,7 +107,10 @@ def unpack_params(in_params):
     sim_params = default_params['sim'].copy()
     control_params = default_params['control'].copy()
     bold_params = default_params['bold'].copy()
-    cohort = default_params['cohort']
+    cohort = default_params['cohort'].copy()
+    fc_file = default_params['fc_file'].copy()
+    region_names = default_params['region_names'].copy()
+
 
     # unpack model's params
     for k,v in in_params.items():
@@ -128,18 +134,18 @@ def unpack_params(in_params):
         else:
             print('parameter {} is unknown, it is being discarded.'.format(k))
             continue
-    return model_params, sim_params, control_params, bold_params, cohort
+    return model_params, sim_params, control_params, bold_params, cohort, fc_file, region_names
 
 
 def simulate_rww(params):
     """ instanciate model and simulate trace """
-    model_params, sim_params, control_params, bold_params = unpack_params(params)
+    model_params, sim_params, control_params, bold_params, cohort, fc_file, region_names = unpack_params(params)
     #print(model_params)
     rww = RWW.ReducedWongWangND(**model_params)
     rww.run(**sim_params)
     #print(sim_params)
     RWW.compute_bold(rww)
-    r, corr_diff, corr = RWW.score_model(rww, coh='pat')
+    r, corr_diff, corr = RWW.score_model(rww, coh=cohort)
     return {'r': r, 'corr_diff':corr_diff, 'corr':corr}
 
 
@@ -148,12 +154,12 @@ def simulate_population_rww(params):
     args = argparse.Namespace()
     args.n_sims = 8
     args.n_jobs = 8
-    args.model_pars, args.sim_pars, args.control_pars, args.bold_pars, cohort = unpack_params(params)
+    args.model_pars, args.sim_pars, args.control_pars, args.bold_pars, cohort, fc_file, region_names = unpack_params(params)
     
     #sim_objs = parallel_launcher.launch_simulations(args)
     sim_objs = parallel_launcher.launch_pool_simulations(args)
     
-    RMSE = RWW.score_population_models(sim_objs, cohort=cohort)
+    RMSE = RWW.score_population_models(sim_objs, fc_file=fc_file, cohort=cohort, region_names=region_names)
     return {'RMSE': RMSE}
 
 
@@ -169,20 +175,6 @@ def evaluate_prediction(history, n_samples=1000):
 
     output = joblib.Parallel(n_jobs=28)(joblib.delayed(simulate_rww)(param) for param in res)
     return output
-
-
-def sim_output_to_df(sim_output, coh='con'):
-    """ reformats simluation output to dataframe """ 
-    df = [] 
-    for i,out in enumerate(sim_output):
-        df.append({'subj':'sim-{}{:04d}'.format(coh,i), 'pathway':'OFC_PFC', 'cohort':'sim-'+coh, 'corr':out['corr'][0,1]})
-        df.append({'subj':'sim-{}{:04d}'.format(coh,i), 'pathway':'Acc_OFC', 'cohort':'sim-'+coh, 'corr':out['corr'][0,2]})
-        df.append({'subj':'sim-{}{:04d}'.format(coh,i), 'pathway':'dPut_OFC', 'cohort':'sim-'+coh, 'corr':out['corr'][0,3]})
-        df.append({'subj':'sim-{}{:04d}'.format(coh,i), 'pathway':'Acc_PFC', 'cohort':'sim-'+coh, 'corr':out['corr'][1,2]})
-        df.append({'subj':'sim-{}{:04d}'.format(coh,i), 'pathway':'dPut_PFC', 'cohort':'sim-'+coh, 'corr':out['corr'][1,3]})
-        df.append({'subj':'sim-{}{:04d}'.format(coh,i), 'pathway':'Acc_dPut', 'cohort':'sim-'+coh, 'corr':out['corr'][2,3]})
-    df_sim = pd.DataFrame(df)
-    return df_sim
 
 
 def parse_args():
@@ -209,7 +201,7 @@ if __name__ == '__main__':
 
     os.makedirs(os.path.join(proj_dir, 'traces'), exist_ok=True)
     abc_id = abc.new(
-        "sqlite:///" + os.path.join(proj_dir, 'traces', config['optim_params']['db_name']+".db"),
+        "sqlite:///" + os.path.join(proj_dir, 'traces', config['optim_params']['db_name']+"optim.db"),
         {"RMSE": 0}  # observation # note: here is dummy, the distance function does not use it.
     )
     history = abc.run(max_nr_populations=config['optim_params']['max_nr_populations'], 
