@@ -8,7 +8,6 @@ import platform
 import scipy
 import tomli
 
-
 def cohen_d(x,y):
     """ Calculates effect size as cohen's d """
     nx = len(x)
@@ -75,14 +74,19 @@ def read_config(conf_file):
     """ Open and read TOML configuration file """
     #with open(conf_filename, 'rb') as f:
     config = tomli.load(conf_file)
-    global proj_dir
-    proj_dir = config['utils']['proj_dir']
+    global cfg
+    cfg.proj_dir = config['utils']['proj_dir']
     os.makedirs(os.path.join(proj_dir, 'traces'), exist_ok=True)
     os.makedirs(os.path.join(proj_dir, 'postprocessing'), exist_ok=True)
     return config
 
 
-working_dir = get_working_dir()
-
 # default proj_dir if no config file is given
-proj_dir = os.path.join(working_dir, 'lab_lucac/sebastiN/projects/OCD_modeling')
+working_dir = get_working_dir()
+proj_dir = os.path.join(get_working_dir(), 'lab_lucac/sebastiN/projects/OCD_modeling')
+
+# when config file is given, this gets overwritten
+cfg = argparse.Namespace()
+cfg.proj_dir = proj_dir
+
+

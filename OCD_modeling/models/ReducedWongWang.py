@@ -11,17 +11,17 @@ import sklearn
 from sklearn import preprocessing
 import time
 
-from OCD_modeling.utils.utils import get_working_dir
+import OCD_modeling.utils
 #from OCD_modeling.models.HemodynamicResponseModeling.BalloonWindkessel import balloonWindkessel
 #from OCD_modeling.utils.neurolib.neurolib.models.bold.timeIntegration import simulateBOLD
 #from OCD_modeling.utils import simulateBOLD
 from neurolib.models.bold import simulateBOLD
 
 # get computer name to set paths
-working_dir = get_working_dir()
+#working_dir = get_working_dir()
 
 # general paths
-proj_dir = working_dir+'lab_lucac/sebastiN/projects/OCD_modeling'
+#proj_dir = working_dir+'lab_lucac/sebastiN/projects/OCD_modeling'
 
 class ReducedWongWang:
     """ Reduced Wong Wang model (1-dimensional) """
@@ -449,9 +449,10 @@ def compute_strFr_stats(model, t_range=None, thr=0, rec_vars=['C_12']):
     model.strFr_stats = output
         
 
-def create_sim_df(sim_objs, sim_type = 'sim-con', offset=0):
+def create_sim_df(sim_objs, sim_type='sim-con', offset=0, var_names=['OFC', 'PFC', 'NAcc', 'Put']):
     """ Make a pandas DataFrame from list of simulation outputs objects """
-    if sim_objs[0].N == 4:
+    
+    """if sim_objs[0].N == 4:
         var_names = ['OFC', 'PFC', 'NAcc', 'Put']
         pathway_map = {'OFC-PFC': 'OFC_PFC', 'OFC-NAcc': 'Acc_OFC', 'OFC-Put':'dPut_OFC', 'PFC-NAcc':'Acc_PFC', 'PFC-Put':'dPut_PFC', 'NAcc-Put':'Acc_dPut'}
     
@@ -466,15 +467,16 @@ def create_sim_df(sim_objs, sim_type = 'sim-con', offset=0):
     else:
         print('Cannot create sim_df if N!=4 or N!=6')
         return
-    
+    """
+
     lines = []
     for i,sim in enumerate(sim_objs):
         fc = sim.bold_fc
         for j in np.arange(sim.N):
             for k in np.arange(j+1,sim.N):
                 val = fc[j,k]
-                c = '-'.join([var_names[j], var_names[k]])
-                pathway = pathway_map[c]
+                pathway = '_'.join([var_names[j], var_names[k]])
+                #pathway = pathway_map[c]
                 line = dict()
                 line['subj'] =  sim_type+'{:06d}'.format(offset+i+1)
                 line['cohort'] = sim_type
@@ -510,7 +512,7 @@ def score_model(rww, coh='con'):
     
     """
     # load empirical FC
-    with open(os.path.join(proj_dir, 'postprocessing', 'R.pkl'), 'rb') as f:
+    with open(os.path.join(OCD_modeling.utils.cfg.proj_dir, 'postprocessing', 'R.pkl'), 'rb') as f:
         R = pickle.load(f)
 
     # compute score
@@ -525,20 +527,18 @@ def score_model(rww, coh='con'):
     r,pval = scipy.stats.pearsonr(corrData, corrModel)
     return r, corr_MAE, corr_RMSE
 
-def score_population_models(sim_objs, cohort='controls'):
+def score_population_models(sim_objs, fc_file, cohort='controls', region_names=['OFC', 'PFC', 'NAcc', 'Put']):
     """ Score a population of simulated model (using a parameter set) against experimental observations.
     Here, the whole distribution of models outputs is scored against the distributions of observations. """
+    
     # load empirical FC
-    if sim_objs[0].N==4:
-        with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2023.pkl'), 'rb') as f:
-            df_roi_corr = pickle.load(f)
-    if sim_objs[0].N==6:
-        with open(os.path.join(proj_dir, 'postprocessing', 'df_roi_corr_avg_2024_Thal.pkl'), 'rb') as f:
-            df_roi_corr = pickle.load(f)
+    df_roi_corr = pd.read_csv(os.path.join(OCD_modeling.utils.cfg.proj_dir, 'postprocessing', fc_file))
 
     # create simulated FC dataframe
     sim_type = 'sim-'+cohort
-    df_sim_fc = create_sim_df(sim_objs, sim_type=sim_type)
+    df_sim_fc = create_sim_df(sim_objs, sim_type=sim_type, var_names=region_names)
+
+    # combine simulated and empirical data
     df = df_roi_corr[df_roi_corr.cohort==cohort].merge(df_sim_fc, how='outer')
     
     # compute root mean square error
@@ -546,6 +546,10 @@ def score_population_models(sim_objs, cohort='controls'):
     for pathway in df.pathway.unique():
         obs = df[(df.pathway==pathway) & (df.cohort==cohort)]['corr']
         sim = df[(df.pathway==pathway) & (df.cohort==sim_type)]['corr']
+        if (len(obs)==0 or len(sim)==0):
+            print("The empirical FC pathway names in fc_file and the simulated node order do not match!!! \
+                  The optimization will likely be incomplete or erroneous. Check your config file.")
+            continue
         RMSE.append((np.mean(obs)-np.mean(sim))**2)
         RMSE.append((np.std(obs)-np.std(sim))**2)
     RMSE = np.sqrt(np.sum(RMSE)/len(RMSE))

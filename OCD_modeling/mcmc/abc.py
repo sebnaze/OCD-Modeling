@@ -107,9 +107,9 @@ def unpack_params(in_params):
     sim_params = default_params['sim'].copy()
     control_params = default_params['control'].copy()
     bold_params = default_params['bold'].copy()
-    cohort = default_params['cohort'].copy()
-    fc_file = default_params['fc_file'].copy()
-    region_names = default_params['region_names'].copy()
+    cohort = default_params['cohort']
+    fc_file = default_params['fc_file']
+    region_names = default_params['region_names']
 
 
     # unpack model's params
