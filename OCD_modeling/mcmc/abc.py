@@ -17,10 +17,10 @@ import pyabc
 import time
 import tomli
 
-import OCD_modeling
+import OCD_modeling.utils
 from OCD_modeling.models import ReducedWongWang as RWW
 from OCD_modeling.hpc import parallel_launcher
-from OCD_modeling.utils.utils import working_dir, proj_dir, today, read_config
+from OCD_modeling.utils import proj_dir, today, read_config
 
 # to keep clean outputs
 import warnings
@@ -199,9 +199,9 @@ if __name__ == '__main__':
     abc = pyabc.ABCSMC(simulate_population_rww, prior, RWW.distance, sampler=sampler, 
                        population_size=config['optim_params']['population_size'])
 
-    os.makedirs(os.path.join(proj_dir, 'traces'), exist_ok=True)
+    os.makedirs(os.path.join(OCD_modeling.utils.cfg.proj_dir, 'traces'), exist_ok=True)
     abc_id = abc.new(
-        "sqlite:///" + os.path.join(proj_dir, 'traces', config['optim_params']['db_name']+"optim.db"),
+        "sqlite:///" + os.path.join(OCD_modeling.utils.cfg.proj_dir, 'traces', config['optim_params']['db_name']+"_optim.db"),
         {"RMSE": 0}  # observation # note: here is dummy, the distance function does not use it.
     )
     history = abc.run(max_nr_populations=config['optim_params']['max_nr_populations'], 

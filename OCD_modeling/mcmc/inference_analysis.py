@@ -27,9 +27,9 @@ import sqlite3 as sl
 from statsmodels.stats.weightstats import ztest
 
 # import most relevant environment and project variable
-from OCD_modeling.utils.utils import proj_dir, today, rmse, emd, cohen_d, paired_euclidian
+from OCD_modeling.utils import proj_dir, today, rmse, emd, cohen_d, paired_euclidian
 from OCD_modeling.mcmc.history_analysis import import_results, compute_kdes
-from OCD_modeling.analysis.fc_data_analysis import drop_single_session
+#from OCD_modeling.analysis.fc_data_analysis import drop_single_session
 
 # mapping of parameter names from numbered to lettered indices (e.g. C_13 to C_OA)
 param_mapping = {4: {'C_12':'C_OL', 'C_13':'C_OA', 'C_21':'C_LO', 'C_24':'C_LP', 'C_31':'C_AO', 'C_34':'C_AP', 'C_42':'C_PL', 'C_43':'C_PA',

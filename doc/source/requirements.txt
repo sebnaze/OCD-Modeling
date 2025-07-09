@@ -27,4 +27,4 @@ sphinxcontrib-video == 0.2.*
 sphinx-rtd-theme == 2.*
 statsmodels == 0.14.*
 sympy == 1.12
-
+tomli == 2.2.1
